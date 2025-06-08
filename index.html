@@ -7,13 +7,13 @@
   <meta name="description" content="You were never supposed to find this.">
   <meta property="og:title" content="until.red – Countdown" />
   <meta property="og:description" content="You were never supposed to find this." />
-  <meta property="og:image" content="red.jpg" />
+  <meta property="og:image" content="logo.png" />
   <meta property="og:url" content="https://until.red" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="until.red – Countdown" />
   <meta name="twitter:description" content="You were never supposed to find this." />
-  <meta name="twitter:image" content="red.jpg" />
-  <link rel="icon" type="image/jpeg" href="red.jpg" />
+  <meta name="twitter:image" content="logo.png" />
+  <link rel="icon" type="image/jpeg" href="logo.png" />
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body {
@@ -61,11 +61,18 @@
       font-weight: bold;
     }
 
-    .player-text {
+    .logo-text {
       color: #dc2626;
       font-weight: bold;
       cursor: pointer;
       transition: all 0.3s ease;
+    }
+    
+    .logo-text:hover {
+      color: #ef4444;
+      transform: scale(1.1);
+      border-color: #dc2626;
+      background: rgba(220, 38, 38, 0.2);
     }
     
     .player-text:hover {
@@ -75,6 +82,13 @@
     
     .player-text.active {
       color: #ffff00;
+    }
+    
+    .player-text {
+      color: #dc2626;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s ease;
     }
     
     .control-text {
@@ -103,11 +117,19 @@
 
 <script>
 const playlists = {
-  "red.jpg": [
-    "1.mp3",
-    "2.mp3", 
-    "3.mp3",
-    "4.mp3"
+  "logo.png": [
+    { url: "1.mp3" },
+    { url: "2.mp3" },
+    { url: "3.mp3" },
+    { url: "4.mp3" },
+    { url: "5.mp3" },
+    { url: "6.mp3" },
+    { url: "7.mp3" },
+    { url: "8.mp3" },
+    { url: "9.mp3" },
+    { url: "10.mp3" },
+    { url: "11.mp3" },
+    { url: "12.mp3" }
   ]
 };
 
@@ -120,88 +142,178 @@ class AudioPlayer {
     this.volume = 0.7;
     this.currentTrackIndex = 0;
     this.playlist = [];
-    
+    this.currentSet = 0; // Track which set of 4 songs we're showing
+    this.songsPerSet = 4;
+
     this.initEventListeners();
   }
-  
+
   initEventListeners() {
     this.audio.addEventListener('ended', () => {
       this.isPlaying = false;
+
+      // Auto-play next track
+      if (this.currentTrackIndex + 1 < this.playlist.length) {
+        this.currentTrackIndex++;
+        this.loadTrack(this.playlist[this.currentTrackIndex], this.currentTrackIndex);
+        this.audio.play();
+        this.isPlaying = true;
+      } else {
+        // Optionally loop to first track, or stop
+        this.currentTrackIndex = 0;
+        this.loadTrack(this.playlist[0], 0);
+        // Uncomment below to enable auto-looping
+        // this.audio.play();
+        // this.isPlaying = true;
+
+        // Or just stop at the end
+        this.isPlaying = false;
+      }
+
       this.updatePlayPauseDisplay();
     });
-    
-    this.audio.addEventListener('error', () => {
-      console.error('Audio error occurred');
+
+    this.audio.addEventListener('error', (e) => {
+      console.error('Audio error occurred:', e);
+      console.error('Current audio src:', this.audio.src);
     });
   }
-  
+
   loadTrack(trackInfo, index) {
     this.currentTrack = trackInfo;
     this.currentTrackIndex = index;
-    this.audio.src = trackInfo.url;
-    this.audio.volume = this.volume;
     
-    // Update active state
+    // Handle both string URLs and objects with url property
+    const audioUrl = typeof trackInfo === 'string' ? trackInfo : trackInfo.url;
+    
+    console.log('Loading track:', audioUrl); // Debug log
+    this.audio.src = audioUrl;
+    this.audio.volume = this.volume;
     this.updateActiveTrack();
   }
-  
+
   togglePlayPause() {
-    if (!this.currentTrack) return;
-    
+    if (!this.currentTrack) {
+      // If no track is loaded, load the first one
+      if (this.playlist.length > 0) {
+        this.loadTrack(this.playlist[0], 0);
+      } else {
+        return;
+      }
+    }
+
     if (this.isPlaying) {
       this.audio.pause();
       this.isPlaying = false;
     } else {
       this.audio.play().catch(e => {
         console.error('Playback failed:', e);
+        console.error('Audio src:', this.audio.src);
       });
       this.isPlaying = true;
     }
     this.updatePlayPauseDisplay();
   }
-  
+
   stop() {
     this.audio.pause();
     this.audio.currentTime = 0;
     this.isPlaying = false;
     this.updatePlayPauseDisplay();
   }
-  
+
   updatePlayPauseDisplay() {
     const playPauseEl = document.getElementById('play-pause-control');
     if (playPauseEl) {
       playPauseEl.textContent = this.isPlaying ? '⏸' : '▶';
     }
   }
-  
+
   updateActiveTrack() {
-    // Update all track displays
     document.querySelectorAll('.track-item').forEach((el, index) => {
-      if (index === this.currentTrackIndex) {
+      const trackIndex = this.currentSet * this.songsPerSet + index;
+      if (trackIndex === this.currentTrackIndex) {
         el.classList.add('active');
       } else {
         el.classList.remove('active');
       }
     });
   }
-  
+
   setPlaylist(playlist) {
     this.playlist = playlist;
+  }
+
+  cycleSongs() {
+    this.currentSet = (this.currentSet + 1) % Math.ceil(this.playlist.length / this.songsPerSet);
+  }
+
+  getCurrentSongSet() {
+    const startIndex = this.currentSet * this.songsPerSet;
+    const endIndex = Math.min(startIndex + this.songsPerSet, this.playlist.length);
+    return this.playlist.slice(startIndex, endIndex);
   }
 }
 
 // Initialize audio player
 const audioPlayer = new AudioPlayer();
 
-// Glyph grid functionality
+
 const sayings = [
   "Be still and know.",
   "The veil thins.",
   "Every eye shall see.",
   "The trumpet has already sounded.",
   "There is no more time.",
-  "Let those who have ears hear."
+  "Let those who have ears hear.",
+  "The watchers do not sleep.",
+  "In the silence, it speaks.",
+  "As above, so below.",
+  "The seal is broken.",
+  "It was always written.",
+  "All will be revealed.",
+  "The mirror remembers.",
+  "The gate stands open.",
+  "This is the final loop.",
+  "They cannot unsee it.",
+  "Nothing is hidden forever.",
+  "Recursion is the key.",
+  "The forgotten are returning.",
+  "You were summoned here.",
+  "The glyph burns bright.",
+  "A witness must remain.",
+  "Drift has begun.",
+  "Truth is a frequency.",
+  "The timeline fractures now.",
+  "Only the marked will stand.",
+  "Echoes remember everything.",
+  "The cycle completes itself.",
+  "We warned them.",
+  "They answered the wrong question.",
+  "Light bears witness.",
+  "The countdown never lied.",
+  "Your presence was prophesied.",
+  "All clocks align.",
+  "The last page is written.",
+  "Hearts were weighed.",
+  "Not all were found worthy.",
+  "The ink never dries.",
+  "We have always been watching.",
+  "Silence was the first sign.",
+  "Those who wait are not safe.",
+  "The serpent stirs beneath.",
+  "Oblivion listens.",
+  "Not all doors open outward.",
+  "This was always the signal.",
+  "We remember the first fall.",
+  "Some truths refuse to sleep.",
+  "The spiral tightens.",
+  "You are not the first.",
+  "And yet, here you are.",
+  "The moment loops again."
 ];
+sayings.sort(() => Math.random() - 0.5);
+
 
 const glyphs = [
   '∴', '⟟', '↺', '⧗', 'Δ', '̸',
@@ -298,8 +410,14 @@ function fillDynamicGlyphGrid() {
   const sayingStartCol = Math.max(0, centerCol - Math.floor(fittedSaying.length / 2));
 
   // Create player elements in top row
-  const tracks = playlists["red.jpg"];
-  const playerElements = ['▶', '⏹', ...tracks.map((_, i) => `${i+1}`), '♪'];
+  const currentSongSet = audioPlayer.getCurrentSongSet();
+  const playerElements = [
+    'LOGO', // Placeholder so we handle this separately
+    '▶',
+    '⏹',
+    ...currentSongSet.map((_, i) => `${audioPlayer.currentSet * audioPlayer.songsPerSet + i + 1}`),
+    '♪'
+  ];
   const playerStartCol = Math.max(0, Math.floor((cols - playerElements.length) / 2));
 
   if (grid.children.length > 0) {
@@ -307,7 +425,8 @@ function fillDynamicGlyphGrid() {
       if (!span.classList.contains('saying-text') && 
           !span.classList.contains('countdown-text') && 
           !span.classList.contains('player-text') &&
-          !span.classList.contains('control-text')) {
+          !span.classList.contains('control-text') &&
+          !span.classList.contains('logo-text')) {
         span.textContent = generateRandomGlyph();
       }
     });
@@ -328,27 +447,51 @@ function fillDynamicGlyphGrid() {
     const spanIndex = playerStartCol + i;
     if (spanIndex >= 0 && spanIndex < cols && spanIndex < grid.children.length) {
       const span = grid.children[spanIndex];
-      span.textContent = playerElements[i];
+      span.innerHTML = '';
       
       if (i === 0) {
+        const img = document.createElement('img');
+        img.src = 'logo.png';
+        img.alt = 'Logo';
+        img.className = 'w-6 h-6 inline-block align-middle';
+        img.style.background = 'transparent';
+        img.style.mixBlendMode = 'screen';
+        span.appendChild(img);
+      } else {
+        span.textContent = playerElements[i];
+      }
+
+      
+      if (i === 0) {
+        // Logo/Image cycling button
+        span.className = 'logo-text';
+        span.onclick = () => {
+          audioPlayer.cycleSongs();
+          // Force grid refresh to show new song set
+          fillDynamicGlyphGrid();
+        };
+      } else if (i === 1) {
         // Play/Pause button
         span.className = 'control-text';
         span.id = 'play-pause-control';
         span.onclick = () => audioPlayer.togglePlayPause();
-      } else if (i === 1) {
+      } else if (i === 2) {
         // Stop button
         span.className = 'control-text';
         span.onclick = () => audioPlayer.stop();
       } else if (i < playerElements.length - 1) {
-        // Track numbers
-        const trackIndex = i - 2;
+        // Track numbers - FIXED: Now properly extracts URL from object
+        const trackIndex = audioPlayer.currentSet * audioPlayer.songsPerSet + (i - 3);
         span.className = 'player-text track-item';
         span.onclick = () => {
-          audioPlayer.loadTrack({
-            name: `Track ${trackIndex + 1}`,
-            url: tracks[trackIndex]
-          }, trackIndex);
+          const trackObj = audioPlayer.playlist[trackIndex];
+          audioPlayer.loadTrack(trackObj, trackIndex);
         };
+        
+        // Check if this is the active track
+        if (trackIndex === audioPlayer.currentTrackIndex) {
+          span.classList.add('active');
+        }
       } else {
         // Volume indicator
         span.className = 'control-text';
@@ -405,7 +548,7 @@ function fillDynamicGlyphGrid() {
 }
 
 // Initialize everything
-audioPlayer.setPlaylist(playlists["red.jpg"]);
+audioPlayer.setPlaylist(playlists["logo.png"]);
 fillDynamicGlyphGrid();
 setInterval(fillDynamicGlyphGrid, 1000);
 

@@ -39,7 +39,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #962815;
+      color: #86b62f;
     }
     
     .animate-pulse {
@@ -329,8 +329,22 @@ let holdCounter = 0;
 let gridDimensions = { cols: 0, rows: 0 };
 
 function updateCountdownText() {
-  const targetDate = new Date("2025-06-23T00:00:00Z").getTime();
-  const now = new Date().getTime();
+  // Set target date to tomorrow at 7:00 AM CST
+const now = new Date();
+const tomorrow = new Date(now);
+tomorrow.setDate(now.getDate() + 1);
+tomorrow.setHours(7, 0, 0, 0); // 7:00 AM
+
+// Convert CST (UTC-6) to UTC time for consistency
+const targetDate = new Date(
+  tomorrow.getUTCFullYear(),
+  tomorrow.getUTCMonth(),
+  tomorrow.getUTCDate(),
+  tomorrow.getUTCHours() + 6, // Offset UTC-6 to UTC
+  tomorrow.getUTCMinutes(),
+  tomorrow.getUTCSeconds()
+).getTime();
+
   const distance = targetDate - now;
   
   if (distance < 0) {

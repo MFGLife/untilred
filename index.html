@@ -2,65 +2,109 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Mini Movie Maker</title>
+<title>Authoring Yard</title>
+
 <style>
-  body {
-    margin: 0;
-    background: #0b0b0b;
-    color: #eee;
-    font-family: system-ui, sans-serif;
-    overflow: hidden;
-  }
+html, body {
+  margin: 0;
+  background: #0b0b0b;
+  color: #eee;
+  font-family: system-ui, sans-serif;
+  overflow: hidden;
+}
 
-  canvas {
-    display: block;
-    background: black;
-    touch-action: none;
-  }
+/* ---------- Canvas ---------- */
+canvas {
+  display: block;
+  background: black;
+  touch-action: none;
+}
 
-  #aui {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    background: rgba(20,20,20,0.95);
-    padding: 8px;
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    align-items: center;
-  }
+/* ---------- A.Y. UI ---------- */
+#toggleUI {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 20;
+}
 
-  #toggleUI {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    z-index: 10;
-  }
+#aui {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: rgba(20,20,20,0.95);
+  padding: 8px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  z-index: 10;
+}
 
-  button {
-    padding: 6px 10px;
-    font-size: 13px;
-  }
+button {
+  padding: 6px 10px;
+  font-size: 13px;
+}
 
-  .thumbs {
-    display: flex;
-    gap: 4px;
-  }
+/* ---------- Background Thumbnails ---------- */
+#bgList {
+  display: flex;
+  gap: 4px;
+}
 
-  .thumbs img {
-    width: 48px;
-    height: 27px;
-    object-fit: cover;
-    border: 1px solid #444;
-    cursor: pointer;
-  }
+#bgList img {
+  width: 48px;
+  height: 27px;
+  object-fit: cover;
+  border: 1px solid #444;
+  cursor: pointer;
+}
 
-  .thumbs img.active {
-    border-color: cyan;
-  }
+#bgList img.active {
+  border-color: cyan;
+}
+
+/* ---------- Timeline ---------- */
+#timeline {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: #141414;
+  border-top: 1px solid #333;
+  z-index: 5;
+}
+
+#scenes {
+  position: absolute;
+  top: 20px;
+  left: 0;
+  right: 0;
+  height: 20px;
+  display: flex;
+}
+
+.scene {
+  background: #2a2a2a;
+  border-right: 1px solid #444;
+}
+
+.scene.active {
+  background: #3a3a3a;
+}
+
+#playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: cyan;
+}
 </style>
 </head>
+
 <body>
 
 <button id="toggleUI">☰ Tools</button>
@@ -68,46 +112,60 @@
 <div id="aui">
   <button id="addBg">Add Background</button>
   <button id="addObj">Add Object</button>
-  <button id="record">● Record</button>
-  <button id="export">⬇ MP4</button>
-  <div class="thumbs" id="bgList"></div>
+  <button id="playBtn">▶ Play</button>
+  <button id="recordBtn">● Record</button>
+  <button id="exportBtn">⬇ MP4</button>
+  <div id="bgList"></div>
+</div>
+
+<div id="timeline">
+  <div id="scenes"></div>
+  <div id="playhead"></div>
 </div>
 
 <canvas id="canvas" width="1280" height="720"></canvas>
 
-<input type="file" id="bgInput" accept="image/png" hidden multiple>
+<input type="file" id="bgInput" accept="image/png" multiple hidden>
 <input type="file" id="objInput" accept="image/png" hidden>
 
 <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js"></script>
 
 <script>
+/* =========================================================
+   Core State
+========================================================= */
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-const aui = document.getElementById("aui");
-toggleUI.onclick = () => {
-  aui.style.display = aui.style.display === "none" ? "flex" : "none";
-};
-
-/* ---------- State ---------- */
 let backgrounds = [];
-let activeBg = 0;
+let scenes = [];
+let activeBgIndex = 0;
 
 let objImage = null;
 let selected = false;
 
-let state = {
-  x: 640,
-  y: 360,
-  scale: 1,
-  rotation: 0
+let state = { x: 640, y: 360, scale: 1, rotation: 0 };
+let keyframes = [];
+
+let timeline = {
+  duration: 20,
+  currentTime: 0,
+  playing: false
 };
 
-let keyframes = [];
 let recording = false;
-let startTime;
+let recorder, chunks = [], recordStart;
 
-/* ---------- Uploads ---------- */
+/* =========================================================
+   UI Toggle
+========================================================= */
+toggleUI.onclick = () => {
+  aui.style.display = aui.style.display === "none" ? "flex" : "none";
+};
+
+/* =========================================================
+   Uploads
+========================================================= */
 addBg.onclick = () => bgInput.click();
 addObj.onclick = () => objInput.click();
 
@@ -116,7 +174,9 @@ bgInput.onchange = e => {
     const img = new Image();
     img.onload = () => {
       backgrounds.push(img);
+      rebuildScenes();
       renderBgList();
+      renderSceneBlocks();
     };
     img.src = URL.createObjectURL(file);
   });
@@ -128,41 +188,60 @@ objInput.onchange = e => {
   img.src = URL.createObjectURL(e.target.files[0]);
 };
 
+/* =========================================================
+   Scenes
+========================================================= */
+function rebuildScenes() {
+  const dur = timeline.duration / backgrounds.length;
+  scenes = backgrounds.map((_, i) => ({
+    bgIndex: i,
+    start: i * dur,
+    duration: dur
+  }));
+}
+
 function renderBgList() {
   bgList.innerHTML = "";
   backgrounds.forEach((img, i) => {
     const t = document.createElement("img");
     t.src = img.src;
-    if (i === activeBg) t.classList.add("active");
-    t.onclick = () => activeBg = i;
+    if (i === activeBgIndex) t.classList.add("active");
+    t.onclick = () => timeline.currentTime = scenes[i].start;
     bgList.appendChild(t);
   });
 }
 
-/* ---------- Selection Logic ---------- */
-canvas.addEventListener("pointerdown", e => {
-  if (!objImage) return;
+function renderSceneBlocks() {
+  scenesEl.innerHTML = "";
+  scenes.forEach(scene => {
+    const div = document.createElement("div");
+    div.className = "scene";
+    div.style.flex = scene.duration;
+    scenesEl.appendChild(div);
+  });
+}
 
-  const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
-
-  const dx = x - state.x;
-  const dy = y - state.y;
-
-  const hit =
-    Math.abs(dx) < (objImage.width * state.scale) / 2 &&
-    Math.abs(dy) < (objImage.height * state.scale) / 2;
-
-  selected = hit;
-});
-
-/* ---------- Pointer Movement ---------- */
+/* =========================================================
+   Selection & Pointer Control
+========================================================= */
 let pointers = new Map();
 
 canvas.addEventListener("pointerdown", e => {
   canvas.setPointerCapture(e.pointerId);
   pointers.set(e.pointerId, e);
+
+  if (!objImage) return;
+
+  const r = canvas.getBoundingClientRect();
+  const mx = e.clientX - r.left;
+  const my = e.clientY - r.top;
+
+  const dx = mx - state.x;
+  const dy = my - state.y;
+
+  selected =
+    Math.abs(dx) < (objImage.width * state.scale) / 2 &&
+    Math.abs(dy) < (objImage.height * state.scale) / 2;
 });
 
 canvas.addEventListener("pointermove", e => {
@@ -187,16 +266,100 @@ canvas.addEventListener("pointerup", e => {
   pointers.delete(e.pointerId);
 });
 
-/* ---------- Render ---------- */
-function draw() {
+/* =========================================================
+   Timeline Interaction
+========================================================= */
+timelineEl.addEventListener("pointerdown", e => {
+  timeline.playing = false;
+  scrub(e.clientX);
+});
+
+timelineEl.addEventListener("pointermove", e => {
+  if (e.buttons) scrub(e.clientX);
+});
+
+function scrub(x) {
+  const r = timelineEl.getBoundingClientRect();
+  const pct = (x - r.left) / r.width;
+  timeline.currentTime = Math.max(0, Math.min(timeline.duration, pct * timeline.duration));
+}
+
+/* =========================================================
+   Playback
+========================================================= */
+playBtn.onclick = () => timeline.playing = !timeline.playing;
+
+/* =========================================================
+   Recording
+========================================================= */
+recordBtn.onclick = () => {
+  if (!recording) {
+    const stream = canvas.captureStream(60);
+    recorder = new MediaRecorder(stream);
+    chunks = [];
+    keyframes = [];
+    recordStart = performance.now();
+    recorder.ondataavailable = e => chunks.push(e.data);
+    recorder.start();
+    recording = true;
+    recordBtn.textContent = "■ Stop";
+  } else {
+    recorder.stop();
+    recording = false;
+    recordBtn.textContent = "● Record";
+  }
+};
+
+/* =========================================================
+   Keyframe Evaluation
+========================================================= */
+function lerp(a,b,t){ return a+(b-a)*t; }
+
+function evalKeyframes(t) {
+  const before = keyframes.filter(k => k.time <= t).pop();
+  const after = keyframes.find(k => k.time > t);
+  if (!before || !after) return before || state;
+
+  const f = (t - before.time) / (after.time - before.time);
+  return {
+    x: lerp(before.x, after.x, f),
+    y: lerp(before.y, after.y, f),
+    scale: lerp(before.scale, after.scale, f),
+    rotation: lerp(before.rotation, after.rotation, f)
+  };
+}
+
+/* =========================================================
+   Render Loop
+========================================================= */
+let last = performance.now();
+function draw(now) {
+  const dt = (now - last) / 1000;
+  last = now;
+
+  if (timeline.playing) {
+    timeline.currentTime += dt;
+    if (timeline.currentTime > timeline.duration) {
+      timeline.currentTime = timeline.duration;
+      timeline.playing = false;
+    }
+  }
+
+  const scene = scenes.find(
+    s => timeline.currentTime >= s.start &&
+         timeline.currentTime < s.start + s.duration
+  );
+
   ctx.clearRect(0,0,canvas.width,canvas.height);
   ctx.fillStyle = "black";
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  if (backgrounds[activeBg])
-    ctx.drawImage(backgrounds[activeBg],0,0,canvas.width,canvas.height);
+  if (scene && backgrounds[scene.bgIndex])
+    ctx.drawImage(backgrounds[scene.bgIndex],0,0,canvas.width,canvas.height);
 
   if (objImage) {
+    if (!recording) Object.assign(state, evalKeyframes(timeline.currentTime));
+
     ctx.save();
     ctx.translate(state.x, state.y);
     ctx.rotate(state.rotation);
@@ -219,17 +382,48 @@ function draw() {
 
   if (recording && selected) {
     keyframes.push({
-      time: (performance.now() - startTime) / 1000,
+      time: (now - recordStart) / 1000,
       ...state
     });
   }
 
+  playhead.style.left = `${(timeline.currentTime / timeline.duration) * 100}%`;
+
   requestAnimationFrame(draw);
 }
-draw();
+requestAnimationFrame(draw);
 
-/* ---------- Recording + Export (unchanged core) ---------- */
-// (same MediaRecorder + ffmpeg logic as previous version)
+/* =========================================================
+   MP4 Export
+========================================================= */
+const { FFmpeg } = FFmpegWASM;
+const ffmpeg = new FFmpeg();
+
+exportBtn.onclick = async () => {
+  if (!chunks.length) return alert("Record first");
+
+  const blob = new Blob(chunks, { type: "video/webm" });
+  const data = new Uint8Array(await blob.arrayBuffer());
+
+  if (!ffmpeg.loaded) await ffmpeg.load();
+
+  await ffmpeg.writeFile("input.webm", data);
+  await ffmpeg.exec([
+    "-i","input.webm",
+    "-movflags","faststart",
+    "-pix_fmt","yuv420p",
+    "out.mp4"
+  ]);
+
+  const mp4 = await ffmpeg.readFile("out.mp4");
+  const url = URL.createObjectURL(new Blob([mp4.buffer], { type:"video/mp4" }));
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "movie.mp4";
+  a.click();
+};
 </script>
+
 </body>
 </html>

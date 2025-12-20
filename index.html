@@ -2,567 +2,222 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Authoring Yard</title>
+<title>Authoring Yard — Timeline First</title>
 
 <style>
-html, body {
-  margin: 0;
-  background: #0b0b0b;
-  color: #eee;
-  font-family: system-ui, sans-serif;
-  overflow: hidden;
+html,body{
+  margin:0;
+  background:#0b0b0b;
+  color:#eee;
+  font-family:system-ui,sans-serif;
+  overflow:hidden;
 }
+canvas{display:block;background:black;touch-action:none}
 
-/* ---------- Canvas ---------- */
-canvas {
-  display: block;
-  background: black;
-  touch-action: none;
+/* UI */
+#aui{
+  position:fixed;top:0;left:0;right:0;
+  background:rgba(20,20,20,.95);
+  padding:8px;display:flex;gap:8px;z-index:10
 }
+button{font-size:13px;padding:6px 10px}
 
-/* ---------- A.Y. UI ---------- */
-#toggleUI {
-  position: fixed;
-  top: 10px;
-  right: 10px;
-  z-index: 20;
+/* Timeline */
+#timeline{
+  position:fixed;bottom:0;left:0;right:0;
+  height:80px;background:#141414;border-top:1px solid #333
 }
-
-#aui {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  background: rgba(20,20,20,0.95);
-  padding: 8px;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-  z-index: 10;
+#tracks{position:absolute;top:20px;left:0;right:0;height:40px}
+.clip{
+  position:absolute;height:18px;
+  background:#2a2a2a;border:1px solid #555;
+  cursor:grab
 }
+.clip.character{background:#264653}
+.clip.active{outline:2px solid cyan}
 
-button {
-  padding: 6px 10px;
-  font-size: 13px;
-}
-
-/* ---------- Background Thumbnails ---------- */
-#bgList {
-  display: flex;
-  gap: 4px;
-}
-
-#bgList img {
-  width: 48px;
-  height: 27px;
-  object-fit: cover;
-  border: 1px solid #444;
-  cursor: pointer;
-}
-
-#bgList img.active {
-  border-color: cyan;
-}
-
-/* ---------- Timeline ---------- */
-#timeline {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 60px;
-  background: #141414;
-  border-top: 1px solid #333;
-  z-index: 5;
-}
-
-#scenes {
-  position: absolute;
-  top: 20px;
-  left: 0;
-  right: 0;
-  height: 20px;
-  display: flex;
-}
-
-.scene {
-  background: #2a2a2a;
-  border-right: 1px solid #444;
-}
-
-.scene.active {
-  background: #3a3a3a;
-}
-
-#playhead {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: cyan;
+#playhead{
+  position:absolute;top:0;bottom:0;width:2px;
+  background:cyan
 }
 </style>
 </head>
 
 <body>
 
-<button id="toggleUI">☰ Tools</button>
-
 <div id="aui">
   <button id="addBg">Add Background</button>
-  <button id="addObj">Add Object</button>
+  <button id="addFish">Add Fish</button>
   <button id="playBtn">▶ Play</button>
-  <button id="recordBtn">● Record</button>
-  <button id="exportBtn">⬇ MP4</button>
-  <div id="bgList"></div>
 </div>
 
 <div id="timeline">
-  <div id="scenes"></div>
+  <div id="tracks"></div>
   <div id="playhead"></div>
 </div>
 
 <canvas id="canvas" width="1280" height="720"></canvas>
 
-<input type="file" id="bgInput" accept="image/png" multiple hidden>
-<input type="file" id="objInput" accept="image/png" hidden>
-
-<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js"></script>
+<input type="file" id="bgInput" accept="image/png" hidden>
 
 <script>
+/* ======================================================
+   Core Timeline State
+====================================================== */
+const timeline={
+  duration:20,
+  currentTime:0,
+  playing:false
+}
 
-/* =========================================================
-   Fish Object Model (𓆝)
-========================================================= */
+const assets={ backgrounds:[] }
+const clips=[]
 
-class Fish {
-  constructor() {
-    this.x = 640;
-    this.y = 360;
-    this.scale = 1;
-    this.rotation = 0;
-
-    this.vx = 0;
-    this.vy = 0;
-
-    this.direction = 0; // 0–7
-    this.swimPhase = 0;
-
-    this.size = 120;
-    this.svgs = this.buildSVGs();
+/* ======================================================
+   Fish SVG Object
+====================================================== */
+class Fish{
+  constructor(){
+    this.x=640;this.y=360;this.scale=1;this.rotation=0
+    this.dir=0;this.phase=0
+    this.svgs=this.makeSVGs()
   }
-
-  /* ---------- Direction Detection ---------- */
-  updateDirection(dx, dy) {
-    if (Math.abs(dx) + Math.abs(dy) < 0.1) return;
-    const angle = Math.atan2(dy, dx);
-    const deg = (angle * 180 / Math.PI + 360) % 360;
-    this.direction = Math.round(deg / 45) % 8;
+  makeSVGs(){
+    return Array.from({length:8},(_,i)=>`
+    <svg xmlns="http://www.w3.org/2000/svg" width="120" height="80">
+      <g transform="rotate(${i*45} 60 40)">
+        <polygon points="15,40 0,25 0,55" fill="#38bdf8"/>
+        <ellipse cx="60" cy="40" rx="40" ry="22"
+          fill="#7dd3fc" stroke="#0ea5e9" stroke-width="3"/>
+        <circle cx="75" cy="34" r="4"/>
+      </g>
+    </svg>`)
   }
+  draw(ctx){
+    this.phase+=0.1
+    const img=new Image()
+    img.src="data:image/svg+xml;utf8,"+
+      encodeURIComponent(this.svgs[this.dir])
+    ctx.save()
+    ctx.translate(this.x,this.y)
+    ctx.scale(this.scale,this.scale)
+    ctx.drawImage(img,-60,-40)
+    ctx.restore()
+  }
+}
+const fish=new Fish()
 
-  /* ---------- SVG Builder ---------- */
-  buildSVGs() {
-    const svgs = [];
-    for (let i = 0; i < 8; i++) {
-      const angle = i * 45;
-      svgs.push(this.createFishSVG(angle));
+/* ======================================================
+   Timeline Helpers
+====================================================== */
+function timeToX(t){
+  return (t/timeline.duration)*timelineEl.clientWidth
+}
+function xToTime(x){
+  return (x/timelineEl.clientWidth)*timeline.duration
+}
+
+/* ======================================================
+   UI / Uploads
+====================================================== */
+addBg.onclick=()=>bgInput.click()
+bgInput.onchange=e=>{
+  const img=new Image()
+  img.onload=()=>{
+    assets.backgrounds.push(img)
+    clips.push({
+      id:crypto.randomUUID(),
+      type:"background",
+      asset:img,
+      start:timeline.currentTime,
+      duration:4
+    })
+    renderClips()
+  }
+  img.src=URL.createObjectURL(e.target.files[0])
+}
+
+addFish.onclick=()=>{
+  clips.push({
+    id:"fish",
+    type:"character",
+    start:timeline.currentTime,
+    duration:10,
+    keyframes:[]
+  })
+  renderClips()
+}
+
+/* ======================================================
+   Timeline Rendering
+====================================================== */
+const tracks=document.getElementById("tracks")
+
+function renderClips(){
+  tracks.innerHTML=""
+  clips.forEach(clip=>{
+    const div=document.createElement("div")
+    div.className="clip "+clip.type
+    div.style.left=timeToX(clip.start)+"px"
+    div.style.width=timeToX(clip.duration)+"px"
+    div.style.top=clip.type==="background"?0:"22px"
+    tracks.appendChild(div)
+
+    div.onpointerdown=e=>{
+      const startX=e.clientX
+      const startTime=clip.start
+      document.onpointermove=ev=>{
+        clip.start=Math.max(0,startTime+xToTime(ev.clientX-startX))
+        renderClips()
+      }
+      document.onpointerup=()=>document.onpointermove=null
     }
-    return svgs;
-  }
-
-  createFishSVG(angle) {
-    const body = `
-      <ellipse cx="60" cy="40" rx="40" ry="22"
-        fill="#7dd3fc" stroke="#0ea5e9" stroke-width="3"/>
-    `;
-
-    const tail = `
-      <polygon points="15,40 0,25 0,55"
-        fill="#38bdf8"/>
-    `;
-
-    const eye = `
-      <circle cx="75" cy="34" r="4" fill="#0b0b0b"/>
-    `;
-
-    return `
-      <svg xmlns="http://www.w3.org/2000/svg"
-           width="120" height="80"
-           viewBox="0 0 120 80">
-        <g transform="rotate(${angle} 60 40)">
-          ${tail}
-          ${body}
-          ${eye}
-        </g>
-      </svg>
-    `;
-  }
-
-  /* ---------- Draw ---------- */
-  draw(ctx, selected) {
-    this.swimPhase += 0.1;
-
-    const img = new Image();
-    img.src = "data:image/svg+xml;utf8," +
-      encodeURIComponent(this.svgs[this.direction]);
-
-    ctx.save();
-    ctx.translate(this.x, this.y);
-    ctx.rotate(this.rotation);
-    ctx.scale(this.scale, this.scale);
-
-    const sway = Math.sin(this.swimPhase) * 4;
-    ctx.translate(sway, 0);
-
-    ctx.drawImage(img, -60, -40, 120, 80);
-
-    if (selected) {
-      ctx.strokeStyle = "rgba(0,255,255,0.8)";
-      ctx.setLineDash([6,4]);
-      ctx.strokeRect(-60, -40, 120, 80);
-    }
-
-    ctx.restore();
-  }
+  })
 }
 
-/* =========================================================
-   Replace Object Logic With Fish
-========================================================= */
-
-const fish = new Fish();
-
-/* --- Override object state sync --- */
-function syncFishFromState(prevX, prevY) {
-  const dx = fish.x - prevX;
-  const dy = fish.y - prevY;
-  fish.updateDirection(dx, dy);
+/* ======================================================
+   Playback + Scrub
+====================================================== */
+timelineEl.onpointerdown=e=>{
+  timeline.playing=false
+  timeline.currentTime=xToTime(e.clientX)
 }
 
-/* =========================================================
-   INTEGRATION POINTS
-========================================================= */
+playBtn.onclick=()=>timeline.playing=!timeline.playing
 
-/*
-1️⃣ Replace object drawing in render loop:
-
-   fish.draw(ctx, selected);
-
-2️⃣ Replace state updates:
-
-   let prevX = fish.x;
-   let prevY = fish.y;
-
-   fish.x += e.movementX;
-   fish.y += e.movementY;
-
-   syncFishFromState(prevX, prevY);
-
-3️⃣ Keyframes should store:
-   { time, x, y, scale, rotation, direction }
-
-4️⃣ Playback assigns:
-   fish.x = kf.x;
-   fish.y = kf.y;
-   fish.scale = kf.scale;
-   fish.rotation = kf.rotation;
-   fish.direction = kf.direction;
-
-*/
-/* =========================================================
-   Core State
-========================================================= */
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
-
-let backgrounds = [];
-let scenes = [];
-let activeBgIndex = 0;
-
-let objImage = null;
-let selected = false;
-
-let state = { x: 640, y: 360, scale: 1, rotation: 0 };
-let keyframes = [];
-
-let timeline = {
-  duration: 20,
-  currentTime: 0,
-  playing: false
-};
-
-let recording = false;
-let recorder, chunks = [], recordStart;
-
-/* =========================================================
-   UI Toggle
-========================================================= */
-toggleUI.onclick = () => {
-  aui.style.display = aui.style.display === "none" ? "flex" : "none";
-};
-
-/* =========================================================
-   Uploads
-========================================================= */
-addBg.onclick = () => bgInput.click();
-addObj.onclick = () => objInput.click();
-
-bgInput.onchange = e => {
-  [...e.target.files].forEach(file => {
-    const img = new Image();
-    img.onload = () => {
-      backgrounds.push(img);
-      rebuildScenes();
-      renderBgList();
-      renderSceneBlocks();
-    };
-    img.src = URL.createObjectURL(file);
-  });
-};
-
-objInput.onchange = e => {
-  const img = new Image();
-  img.onload = () => objImage = img;
-  img.src = URL.createObjectURL(e.target.files[0]);
-};
-
-/* =========================================================
-   Scenes
-========================================================= */
-function rebuildScenes() {
-  const dur = timeline.duration / backgrounds.length;
-  scenes = backgrounds.map((_, i) => ({
-    bgIndex: i,
-    start: i * dur,
-    duration: dur
-  }));
-}
-
-function renderBgList() {
-  bgList.innerHTML = "";
-  backgrounds.forEach((img, i) => {
-    const t = document.createElement("img");
-    t.src = img.src;
-    if (i === activeBgIndex) t.classList.add("active");
-    t.onclick = () => timeline.currentTime = scenes[i].start;
-    bgList.appendChild(t);
-  });
-}
-
-function renderSceneBlocks() {
-  scenesEl.innerHTML = "";
-  scenes.forEach(scene => {
-    const div = document.createElement("div");
-    div.className = "scene";
-    div.style.flex = scene.duration;
-    scenesEl.appendChild(div);
-  });
-}
-
-/* =========================================================
-   Selection & Pointer Control
-========================================================= */
-let pointers = new Map();
-
-canvas.addEventListener("pointerdown", e => {
-  canvas.setPointerCapture(e.pointerId);
-  pointers.set(e.pointerId, e);
-
-  if (!objImage) return;
-
-  const r = canvas.getBoundingClientRect();
-  const mx = e.clientX - r.left;
-  const my = e.clientY - r.top;
-
-  const dx = mx - state.x;
-  const dy = my - state.y;
-
-  selected =
-    Math.abs(dx) < (objImage.width * state.scale) / 2 &&
-    Math.abs(dy) < (objImage.height * state.scale) / 2;
-});
-
-canvas.addEventListener("pointermove", e => {
-  if (!selected) return;
-  pointers.set(e.pointerId, e);
-
-  if (pointers.size === 1) {
-    state.x += e.movementX;
-    state.y += e.movementY;
-  }
-
-  if (pointers.size === 2) {
-    const [a, b] = [...pointers.values()];
-    const dx = b.clientX - a.clientX;
-    const dy = b.clientY - a.clientY;
-    state.scale = Math.max(0.2, Math.hypot(dx, dy) / 200);
-    state.rotation = Math.atan2(dy, dx);
-  }
-});
-
-canvas.addEventListener("pointerup", e => {
-  pointers.delete(e.pointerId);
-});
-
-/* =========================================================
-   Timeline Interaction
-========================================================= */
-timelineEl.addEventListener("pointerdown", e => {
-  timeline.playing = false;
-  scrub(e.clientX);
-});
-
-timelineEl.addEventListener("pointermove", e => {
-  if (e.buttons) scrub(e.clientX);
-});
-
-function scrub(x) {
-  const r = timelineEl.getBoundingClientRect();
-  const pct = (x - r.left) / r.width;
-  timeline.currentTime = Math.max(0, Math.min(timeline.duration, pct * timeline.duration));
-}
-
-/* =========================================================
-   Playback
-========================================================= */
-playBtn.onclick = () => timeline.playing = !timeline.playing;
-
-/* =========================================================
-   Recording
-========================================================= */
-recordBtn.onclick = () => {
-  if (!recording) {
-    const stream = canvas.captureStream(60);
-    recorder = new MediaRecorder(stream);
-    chunks = [];
-    keyframes = [];
-    recordStart = performance.now();
-    recorder.ondataavailable = e => chunks.push(e.data);
-    recorder.start();
-    recording = true;
-    recordBtn.textContent = "■ Stop";
-  } else {
-    recorder.stop();
-    recording = false;
-    recordBtn.textContent = "● Record";
-  }
-};
-
-/* =========================================================
-   Keyframe Evaluation
-========================================================= */
-function lerp(a,b,t){ return a+(b-a)*t; }
-
-function evalKeyframes(t) {
-  const before = keyframes.filter(k => k.time <= t).pop();
-  const after = keyframes.find(k => k.time > t);
-  if (!before || !after) return before || state;
-
-  const f = (t - before.time) / (after.time - before.time);
-  return {
-    x: lerp(before.x, after.x, f),
-    y: lerp(before.y, after.y, f),
-    scale: lerp(before.scale, after.scale, f),
-    rotation: lerp(before.rotation, after.rotation, f)
-  };
-}
-
-/* =========================================================
+/* ======================================================
    Render Loop
-========================================================= */
-let last = performance.now();
-function draw(now) {
-  const dt = (now - last) / 1000;
-  last = now;
+====================================================== */
+const canvas=document.getElementById("canvas")
+const ctx=canvas.getContext("2d")
+let last=performance.now()
 
-  if (timeline.playing) {
-    timeline.currentTime += dt;
-    if (timeline.currentTime > timeline.duration) {
-      timeline.currentTime = timeline.duration;
-      timeline.playing = false;
+function draw(now){
+  const dt=(now-last)/1000;last=now
+  if(timeline.playing){
+    timeline.currentTime+=dt
+    if(timeline.currentTime>timeline.duration){
+      timeline.currentTime=timeline.duration
+      timeline.playing=false
     }
   }
 
-  const scene = scenes.find(
-    s => timeline.currentTime >= s.start &&
-         timeline.currentTime < s.start + s.duration
-  );
+  ctx.clearRect(0,0,canvas.width,canvas.height)
 
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle = "black";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-
-  if (scene && backgrounds[scene.bgIndex])
-    ctx.drawImage(backgrounds[scene.bgIndex],0,0,canvas.width,canvas.height);
-
-  if (objImage) {
-    if (!recording) Object.assign(state, evalKeyframes(timeline.currentTime));
-
-    ctx.save();
-    ctx.translate(state.x, state.y);
-    ctx.rotate(state.rotation);
-    ctx.scale(state.scale, state.scale);
-    ctx.drawImage(objImage, -objImage.width/2, -objImage.height/2);
-
-    if (selected) {
-      ctx.strokeStyle = "rgba(0,255,255,0.8)";
-      ctx.setLineDash([6,4]);
-      ctx.strokeRect(
-        -objImage.width/2,
-        -objImage.height/2,
-        objImage.width,
-        objImage.height
-      );
+  clips.forEach(clip=>{
+    if(timeline.currentTime>=clip.start &&
+       timeline.currentTime<=clip.start+clip.duration){
+      if(clip.type==="background")
+        ctx.drawImage(clip.asset,0,0,canvas.width,canvas.height)
+      if(clip.type==="character")
+        fish.draw(ctx)
     }
+  })
 
-    ctx.restore();
-  }
-
-  if (recording && selected) {
-    keyframes.push({
-      time: (now - recordStart) / 1000,
-      ...state
-    });
-  }
-
-  playhead.style.left = `${(timeline.currentTime / timeline.duration) * 100}%`;
-
-  requestAnimationFrame(draw);
+  playhead.style.left=timeToX(timeline.currentTime)+"px"
+  requestAnimationFrame(draw)
 }
-requestAnimationFrame(draw);
-
-/* =========================================================
-   MP4 Export
-========================================================= */
-const { FFmpeg } = FFmpegWASM;
-const ffmpeg = new FFmpeg();
-
-exportBtn.onclick = async () => {
-  if (!chunks.length) return alert("Record first");
-
-  const blob = new Blob(chunks, { type: "video/webm" });
-  const data = new Uint8Array(await blob.arrayBuffer());
-
-  if (!ffmpeg.loaded) await ffmpeg.load();
-
-  await ffmpeg.writeFile("input.webm", data);
-  await ffmpeg.exec([
-    "-i","input.webm",
-    "-movflags","faststart",
-    "-pix_fmt","yuv420p",
-    "out.mp4"
-  ]);
-
-  const mp4 = await ffmpeg.readFile("out.mp4");
-  const url = URL.createObjectURL(new Blob([mp4.buffer], { type:"video/mp4" }));
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "movie.mp4";
-  a.click();
-};
+requestAnimationFrame(draw)
 </script>
-
 </body>
 </html>

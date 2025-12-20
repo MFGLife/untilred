@@ -131,6 +131,145 @@ button {
 <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js"></script>
 
 <script>
+
+/* =========================================================
+   Fish Object Model (𓆝)
+========================================================= */
+
+class Fish {
+  constructor() {
+    this.x = 640;
+    this.y = 360;
+    this.scale = 1;
+    this.rotation = 0;
+
+    this.vx = 0;
+    this.vy = 0;
+
+    this.direction = 0; // 0–7
+    this.swimPhase = 0;
+
+    this.size = 120;
+    this.svgs = this.buildSVGs();
+  }
+
+  /* ---------- Direction Detection ---------- */
+  updateDirection(dx, dy) {
+    if (Math.abs(dx) + Math.abs(dy) < 0.1) return;
+    const angle = Math.atan2(dy, dx);
+    const deg = (angle * 180 / Math.PI + 360) % 360;
+    this.direction = Math.round(deg / 45) % 8;
+  }
+
+  /* ---------- SVG Builder ---------- */
+  buildSVGs() {
+    const svgs = [];
+    for (let i = 0; i < 8; i++) {
+      const angle = i * 45;
+      svgs.push(this.createFishSVG(angle));
+    }
+    return svgs;
+  }
+
+  createFishSVG(angle) {
+    const body = `
+      <ellipse cx="60" cy="40" rx="40" ry="22"
+        fill="#7dd3fc" stroke="#0ea5e9" stroke-width="3"/>
+    `;
+
+    const tail = `
+      <polygon points="15,40 0,25 0,55"
+        fill="#38bdf8"/>
+    `;
+
+    const eye = `
+      <circle cx="75" cy="34" r="4" fill="#0b0b0b"/>
+    `;
+
+    return `
+      <svg xmlns="http://www.w3.org/2000/svg"
+           width="120" height="80"
+           viewBox="0 0 120 80">
+        <g transform="rotate(${angle} 60 40)">
+          ${tail}
+          ${body}
+          ${eye}
+        </g>
+      </svg>
+    `;
+  }
+
+  /* ---------- Draw ---------- */
+  draw(ctx, selected) {
+    this.swimPhase += 0.1;
+
+    const img = new Image();
+    img.src = "data:image/svg+xml;utf8," +
+      encodeURIComponent(this.svgs[this.direction]);
+
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.rotation);
+    ctx.scale(this.scale, this.scale);
+
+    const sway = Math.sin(this.swimPhase) * 4;
+    ctx.translate(sway, 0);
+
+    ctx.drawImage(img, -60, -40, 120, 80);
+
+    if (selected) {
+      ctx.strokeStyle = "rgba(0,255,255,0.8)";
+      ctx.setLineDash([6,4]);
+      ctx.strokeRect(-60, -40, 120, 80);
+    }
+
+    ctx.restore();
+  }
+}
+
+/* =========================================================
+   Replace Object Logic With Fish
+========================================================= */
+
+const fish = new Fish();
+
+/* --- Override object state sync --- */
+function syncFishFromState(prevX, prevY) {
+  const dx = fish.x - prevX;
+  const dy = fish.y - prevY;
+  fish.updateDirection(dx, dy);
+}
+
+/* =========================================================
+   INTEGRATION POINTS
+========================================================= */
+
+/*
+1️⃣ Replace object drawing in render loop:
+
+   fish.draw(ctx, selected);
+
+2️⃣ Replace state updates:
+
+   let prevX = fish.x;
+   let prevY = fish.y;
+
+   fish.x += e.movementX;
+   fish.y += e.movementY;
+
+   syncFishFromState(prevX, prevY);
+
+3️⃣ Keyframes should store:
+   { time, x, y, scale, rotation, direction }
+
+4️⃣ Playback assigns:
+   fish.x = kf.x;
+   fish.y = kf.y;
+   fish.scale = kf.scale;
+   fish.rotation = kf.rotation;
+   fish.direction = kf.direction;
+
+*/
 /* =========================================================
    Core State
 ========================================================= */

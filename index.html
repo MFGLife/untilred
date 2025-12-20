@@ -16,561 +16,189 @@
   <meta name="twitter:description" content="You were never supposed to find this." />
   <meta name="twitter:image" content="logo.png" />
   <link rel="icon" type="image/jpeg" href="logo.png" />
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      background: black;
-      color: white;
-      font-family: 'Courier New', monospace;
-      overflow: hidden;
-      height: 100vh;
-    }
-    
-    #glyph-grid {
-      display: grid;
-      width: 100vw;
-      height: 100vh;
-      gap: 0;
-      font-size: 16px;
-      line-height: 1;
-    }
-    
-    #glyph-grid span {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #db5c12;
-    }
-    
-    .animate-pulse {
-      animation: pulse 1s ease-in-out infinite alternate;
-    }
-    
-    @keyframes pulse {
-      from { opacity: 0.4; }
-      to { opacity: 1; }
-    }
-    
-    .saying-text {
-      color: #ffffff;
-      font-weight: bold;
-    }
-    
-    .countdown-text {
-      color: #ffff00;
-      font-weight: bold;
-    }
+  
 
-    .logo-text {
-      color: #dc2626;
-      font-weight: bold;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-    
-    .logo-text:hover {
-      color: #ef4444;
-      transform: scale(1.1);
-      border-color: #dc2626;
-      background: rgba(220, 38, 38, 0.2);
-    }
-    
-    .player-text:hover {
-      color: #ef4444;
-      transform: scale(1.1);
-    }
-    
-    .player-text.active {
-      color: #ffff00;
-    }
-    
-    .player-text {
-      color: #dc2626;
-      font-weight: bold;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-    
-    .control-text {
-      color: #ffffff;
-      cursor: pointer;
-      font-weight: bold;
-      transition: all 0.3s ease;
-    }
-    
-    .control-text:hover {
-      color: #ffff00;
-      transform: scale(1.2);
-    }
-
-    /* Audio player styles */
-    audio {
-      display: none;
-    }
-  </style>
+<style>
+  body {
+    margin: 0;
+    background: #0b0b0b;
+    color: #eee;
+    font-family: system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  canvas {
+    background: black;
+    touch-action: none;
+  }
+  .controls {
+    display: flex;
+    gap: 8px;
+    padding: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+</style>
 </head>
-<body class="bg-black text-red-600 h-screen w-screen overflow-hidden relative">
-  <div id="glyph-grid" class="absolute inset-0 grid text-4xl font-mono text-center place-items-center"></div>
+<body>
 
-  <!-- Hidden audio element -->
-  <audio id="audio-player" preload="none"></audio>
+<canvas id="canvas" width="1280" height="720"></canvas>
+
+<div class="controls">
+  <input type="file" id="bg" accept="image/png">
+  <input type="file" id="obj" accept="image/png">
+  <button id="record">● Record</button>
+  <button id="export">⬇ MP4</button>
+</div>
+
+<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js"></script>
 
 <script>
-const playlists = {
-  "logo.png": [
-    { url: "1.mp3" },
-    { url: "2.mp3" },
-    { url: "3.mp3" },
-    { url: "4.mp3" },
-    { url: "5.mp3" },
-    { url: "6.mp3" },
-    { url: "7.mp3" },
-    { url: "8.mp3" },
-    { url: "9.mp3" },
-    { url: "10.mp3" },
-    { url: "11.mp3" },
-    { url: "12.mp3" },
-    { url: "13.mp3" },
-    { url: "14.mp3" },
-    { url: "15.mp3" },
-    { url: "16.mp3" },
-    { url: "17.mp3" },
-    { url: "18.mp3" },
-    { url: "19.mp3" },
-    { url: "20.mp3" },
-    { url: "21.mp3" },
-    { url: "22.mp3" },
-    { url: "23.mp3" },
-    { url: "24.mp3" },
-    { url: "25.mp3" },
-    { url: "26.mp3" }
-  ]
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+let bgImage = null;
+let objImage = null;
+
+let state = {
+  x: 640,
+  y: 360,
+  scale: 1,
+  rotation: 0
 };
 
-// Audio player functionality
-class AudioPlayer {
-  constructor() {
-    this.audio = document.getElementById('audio-player');
-    this.currentTrack = null;
-    this.isPlaying = false;
-    this.volume = 0.7;
-    this.currentTrackIndex = 0;
-    this.playlist = [];
-    this.currentSet = 0; // Track which set of 4 songs we're showing
-    this.songsPerSet = 4;
+let keyframes = [];
+let recording = false;
+let startTime = 0;
 
-    this.initEventListeners();
-  }
-
-  initEventListeners() {
-    this.audio.addEventListener('ended', () => {
-      this.isPlaying = false;
-
-      // Auto-play next track
-      if (this.currentTrackIndex + 1 < this.playlist.length) {
-        this.currentTrackIndex++;
-        this.loadTrack(this.playlist[this.currentTrackIndex], this.currentTrackIndex);
-        this.audio.play();
-        this.isPlaying = true;
-      } else {
-        // Optionally loop to first track, or stop
-        this.currentTrackIndex = 0;
-        this.loadTrack(this.playlist[0], 0);
-        // Uncomment below to enable auto-looping
-        // this.audio.play();
-        // this.isPlaying = true;
-
-        // Or just stop at the end
-        this.isPlaying = false;
-      }
-
-      this.updatePlayPauseDisplay();
-    });
-
-    this.audio.addEventListener('error', (e) => {
-      console.error('Audio error occurred:', e);
-      console.error('Current audio src:', this.audio.src);
-    });
-  }
-
-  loadTrack(trackInfo, index) {
-    this.currentTrack = trackInfo;
-    this.currentTrackIndex = index;
-    
-    // Handle both string URLs and objects with url property
-    const audioUrl = typeof trackInfo === 'string' ? trackInfo : trackInfo.url;
-    
-    console.log('Loading track:', audioUrl); // Debug log
-    this.audio.src = audioUrl;
-    this.audio.volume = this.volume;
-    this.updateActiveTrack();
-  }
-
-  togglePlayPause() {
-    if (!this.currentTrack) {
-      // If no track is loaded, load the first one
-      if (this.playlist.length > 0) {
-        this.loadTrack(this.playlist[0], 0);
-      } else {
-        return;
-      }
-    }
-
-    if (this.isPlaying) {
-      this.audio.pause();
-      this.isPlaying = false;
-    } else {
-      this.audio.play().catch(e => {
-        console.error('Playback failed:', e);
-        console.error('Audio src:', this.audio.src);
-      });
-      this.isPlaying = true;
-    }
-    this.updatePlayPauseDisplay();
-  }
-
-  stop() {
-    this.audio.pause();
-    this.audio.currentTime = 0;
-    this.isPlaying = false;
-    this.updatePlayPauseDisplay();
-  }
-
-  updatePlayPauseDisplay() {
-    const playPauseEl = document.getElementById('play-pause-control');
-    if (playPauseEl) {
-      playPauseEl.textContent = this.isPlaying ? '⏸' : '▶';
-    }
-  }
-
-  updateActiveTrack() {
-    document.querySelectorAll('.track-item').forEach((el, index) => {
-      const trackIndex = this.currentSet * this.songsPerSet + index;
-      if (trackIndex === this.currentTrackIndex) {
-        el.classList.add('active');
-      } else {
-        el.classList.remove('active');
-      }
-    });
-  }
-
-  setPlaylist(playlist) {
-    this.playlist = playlist;
-  }
-
-  cycleSongs() {
-    this.currentSet = (this.currentSet + 1) % Math.ceil(this.playlist.length / this.songsPerSet);
-  }
-
-  getCurrentSongSet() {
-    const startIndex = this.currentSet * this.songsPerSet;
-    const endIndex = Math.min(startIndex + this.songsPerSet, this.playlist.length);
-    return this.playlist.slice(startIndex, endIndex);
-  }
+/* ---------- Load Images ---------- */
+function loadImage(file, cb) {
+  const img = new Image();
+  img.onload = () => cb(img);
+  img.src = URL.createObjectURL(file);
 }
 
-// Initialize audio player
-const audioPlayer = new AudioPlayer();
+bg.onchange = e => loadImage(e.target.files[0], img => bgImage = img);
+obj.onchange = e => loadImage(e.target.files[0], img => objImage = img);
 
+/* ---------- Pointer / Touch ---------- */
+let pointers = new Map();
 
-const sayings = [
-  "Every eye shall see.",
-  "There is no more time.",
-  "Let those who have ears hear.",
-  "The watchers do not sleep.",
-  "In the silence, it speaks.",
-  "As above, so below.",
-  "The seal is broken.",
-  "It was always written.",
-  "All will be revealed.",
-  "The mirror remembers.",
-  "The gate stands open.",
-  "This is the final loop.",
-  "They cannot unsee it.",
-  "Nothing is hidden forever.",
-  "Recursion is the key.",
-  "The forgotten are returning.",
-  "You were summoned here.",
-  "The glyph burns bright.",
-  "Drift has begun.",
-  "Truth is a frequency.",
-  "The timeline fractures now.",
-  "Only the marked will stand.",
-  "Echoes remember everything.",
-  "The cycle completes itself.",
-  "We warned them.",
-  "They answered the wrong question.",
-  "Light bears witness.",
-  "The countdown never lied.",
-  "Your presence was prophesied.",
-  "All clocks align.",
-  "The last page is written.",
-  "Hearts were weighed.",
-  "Not all were found worthy.",
-  "We have always been watching.",
-  "Silence was the first sign.",
-  "Those who wait are not safe.",
-  "The serpent stirs beneath.",
-  "Oblivion listens.",
-  "Not all doors open outward.",
-  "This was always the signal.",
-  "We remember the first fall.",
-  "Some truths refuse to sleep.",
-  "You are not the first.",
-  "And yet, here you are."
-];
-sayings.sort(() => Math.random() - 0.5);
-
-
-const glyphs = [
-  '∴', '⟟', '↺', '⧗', 'Δ', '̸',
-  '☍', '⟁', '✦', '☲', '☷',
-  '🜃', '🜁', '⧖', '⧘', '⧙', '🜔',
-  '⟲', '⫽', '🝮', '♾', '∴̸','⟟'
-];
-
-let currentSayingIndex = 0;
-let revealProgress = 0;
-let state = 'revealing';
-let holdCounter = 0;
-let gridDimensions = { cols: 0, rows: 0 };
-
-function updateCountdownText() {
-  const targetDate = new Date("2025-08-01T00:00:00Z").getTime();
-  const now = new Date().getTime();
-  const distance = targetDate - now;
-  
-  if (distance < 0) {
-    return "Time has come";
-  }
-  
-  const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-  const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-  
-  return `${days}${hours}${minutes}${seconds}`;
-}
-
-function generateRandomGlyph() {
-  return glyphs[Math.floor(Math.random() * glyphs.length)];
-}
-
-function calculateGridDimensions() {
-  const width = window.innerWidth;
-  const height = window.innerHeight;
-  const glyphPixelSize = 20;
-  const cols = Math.floor(width / glyphPixelSize);
-  const rows = Math.floor(height / glyphPixelSize);
-  return { cols, rows };
-}
-
-function fitTextToWidth(text, maxWidth) {
-  if (text.length <= maxWidth) {
-    return text;
-  }
-  
-  const words = text.split(' ');
-  let result = '';
-  
-  for (let word of words) {
-    if ((result + word).length <= maxWidth) {
-      result += (result ? ' ' : '') + word;
-    } else {
-      break;
-    }
-  }
-  
-  if (!result && maxWidth > 3) {
-    result = text.substring(0, maxWidth - 3) + '...';
-  } else if (!result) {
-    result = text.substring(0, maxWidth);
-  }
-  
-  return result;
-}
-
-function fillDynamicGlyphGrid() {
-  const grid = document.getElementById('glyph-grid');
-  const dimensions = calculateGridDimensions();
-  
-  if (Math.abs(dimensions.cols - gridDimensions.cols) > 2 || 
-      Math.abs(dimensions.rows - gridDimensions.rows) > 2) {
-    gridDimensions = dimensions;
-    grid.innerHTML = '';
-    grid.style.gridTemplateColumns = `repeat(${dimensions.cols}, 1fr)`;
-    grid.style.gridTemplateRows = `repeat(${dimensions.rows}, 1fr)`;
-  }
-
-  const { cols, rows } = dimensions;
-  const centerRow = Math.floor(rows / 2);
-  const centerCol = Math.floor(cols / 2);
-
-  const countdownText = updateCountdownText();
-  const maxTextWidth = Math.floor(cols * 0.8);
-  const fittedCountdown = fitTextToWidth(countdownText, maxTextWidth);
-  
-  const sayingText = sayings[currentSayingIndex];
-  const fittedSaying = fitTextToWidth(sayingText, maxTextWidth);
-  
-  const countdownStartCol = Math.max(0, centerCol - Math.floor(fittedCountdown.length / 2));
-  const sayingStartCol = Math.max(0, centerCol - Math.floor(fittedSaying.length / 2));
-
-  // Create player elements in top row
-  const currentSongSet = audioPlayer.getCurrentSongSet();
-  const playerElements = [
-    'LOGO', // Placeholder so we handle this separately
-    '▶',
-    '⏹',
-    ...currentSongSet.map((_, i) => `${audioPlayer.currentSet * audioPlayer.songsPerSet + i + 1}`),
-    '♪'
-  ];
-  const playerStartCol = Math.max(0, Math.floor((cols - playerElements.length) / 2));
-
-  if (grid.children.length > 0) {
-    Array.from(grid.children).forEach(span => {
-      if (!span.classList.contains('saying-text') && 
-          !span.classList.contains('countdown-text') && 
-          !span.classList.contains('player-text') &&
-          !span.classList.contains('control-text') &&
-          !span.classList.contains('logo-text')) {
-        span.textContent = generateRandomGlyph();
-      }
-    });
-  }
-
-  if (grid.children.length === 0) {
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const span = document.createElement('span');
-        span.textContent = generateRandomGlyph();
-        grid.appendChild(span);
-      }
-    }
-  }
-
-  // Update player row (top row)
-  for (let i = 0; i < playerElements.length; i++) {
-    const spanIndex = playerStartCol + i;
-    if (spanIndex >= 0 && spanIndex < cols && spanIndex < grid.children.length) {
-      const span = grid.children[spanIndex];
-      span.innerHTML = '';
-      
-      if (i === 0) {
-        const img = document.createElement('img');
-        img.src = 'logo.png';
-        img.alt = 'Logo';
-        img.className = 'w-6 h-6 inline-block align-middle';
-        img.style.background = 'transparent';
-        img.style.mixBlendMode = 'screen';
-        span.appendChild(img);
-      } else {
-        span.textContent = playerElements[i];
-      }
-
-      
-      if (i === 0) {
-        // Logo/Image cycling button
-        span.className = 'logo-text';
-        span.onclick = () => {
-          audioPlayer.cycleSongs();
-          // Force grid refresh to show new song set
-          fillDynamicGlyphGrid();
-        };
-      } else if (i === 1) {
-        // Play/Pause button
-        span.className = 'control-text';
-        span.id = 'play-pause-control';
-        span.onclick = () => audioPlayer.togglePlayPause();
-      } else if (i === 2) {
-        // Stop button
-        span.className = 'control-text';
-        span.onclick = () => audioPlayer.stop();
-      } else if (i < playerElements.length - 1) {
-        // Track numbers - FIXED: Now properly extracts URL from object
-        const trackIndex = audioPlayer.currentSet * audioPlayer.songsPerSet + (i - 3);
-        span.className = 'player-text track-item';
-        span.onclick = () => {
-          const trackObj = audioPlayer.playlist[trackIndex];
-          audioPlayer.loadTrack(trackObj, trackIndex);
-        };
-        
-        // Check if this is the active track
-        if (trackIndex === audioPlayer.currentTrackIndex) {
-          span.classList.add('active');
-        }
-      } else {
-        // Volume indicator
-        span.className = 'control-text';
-      }
-    }
-  }
-
-  // Update saying row
-  const sayingRowStart = (centerRow - 1) * cols;
-  for (let i = 0; i < fittedSaying.length; i++) {
-    const spanIndex = sayingRowStart + sayingStartCol + i;
-    if (spanIndex >= 0 && spanIndex < grid.children.length) {
-      const span = grid.children[spanIndex];
-      
-      if (state === 'revealing' && i < revealProgress) {
-        span.textContent = fittedSaying[i];
-        span.className = 'animate-pulse saying-text';
-      } else if (state === 'hold') {
-        span.textContent = fittedSaying[i];
-        span.className = 'animate-pulse saying-text';
-      } else {
-        span.textContent = generateRandomGlyph();
-        span.className = '';
-      }
-    }
-  }
-
-  // Update countdown row
-  const countdownRowStart = centerRow * cols;
-  for (let i = 0; i < fittedCountdown.length; i++) {
-    const spanIndex = countdownRowStart + countdownStartCol + i;
-    if (spanIndex >= 0 && spanIndex < grid.children.length) {
-      const span = grid.children[spanIndex];
-      span.textContent = fittedCountdown[i];
-      span.className = 'animate-pulse countdown-text';
-    }
-  }
-
-  // Handle animation state
-  if (state === 'revealing') {
-    revealProgress++;
-    if (revealProgress >= fittedSaying.length) {
-      state = 'hold';
-      holdCounter = 0;
-    }
-  } else if (state === 'hold') {
-    holdCounter++;
-    if (holdCounter >= 3) {
-      currentSayingIndex = (currentSayingIndex + 1) % sayings.length;
-      revealProgress = 0;
-      state = 'revealing';
-    }
-  }
-}
-
-// Initialize everything
-audioPlayer.setPlaylist(playlists["logo.png"]);
-fillDynamicGlyphGrid();
-setInterval(fillDynamicGlyphGrid, 420);
-
-// Handle resize with debouncing
-let resizeTimeout;
-window.addEventListener('resize', () => {
-  clearTimeout(resizeTimeout);
-  resizeTimeout = setTimeout(() => {
-    gridDimensions = { cols: 0, rows: 0 };
-    fillDynamicGlyphGrid();
-  }, 250);
+canvas.addEventListener("pointerdown", e => {
+  canvas.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, e);
 });
-</script>
 
+canvas.addEventListener("pointermove", e => {
+  if (!pointers.has(e.pointerId)) return;
+  pointers.set(e.pointerId, e);
+
+  if (pointers.size === 1) {
+    state.x += e.movementX;
+    state.y += e.movementY;
+  }
+
+  if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    const dx = b.clientX - a.clientX;
+    const dy = b.clientY - a.clientY;
+    const dist = Math.hypot(dx, dy);
+    state.scale = Math.max(0.2, dist / 200);
+    state.rotation = Math.atan2(dy, dx);
+  }
+});
+
+canvas.addEventListener("pointerup", e => {
+  pointers.delete(e.pointerId);
+});
+
+/* ---------- Render ---------- */
+function draw() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle = "black";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  if (bgImage)
+    ctx.drawImage(bgImage,0,0,canvas.width,canvas.height);
+
+  if (objImage) {
+    ctx.save();
+    ctx.translate(state.x, state.y);
+    ctx.rotate(state.rotation);
+    ctx.scale(state.scale, state.scale);
+    ctx.drawImage(objImage, -objImage.width/2, -objImage.height/2);
+    ctx.restore();
+  }
+
+  if (recording) {
+    keyframes.push({
+      time: (performance.now() - startTime) / 1000,
+      ...state
+    });
+  }
+
+  requestAnimationFrame(draw);
+}
+draw();
+
+/* ---------- Recording ---------- */
+let recorder, chunks = [];
+
+record.onclick = () => {
+  if (!recording) {
+    const stream = canvas.captureStream(60);
+    recorder = new MediaRecorder(stream);
+    chunks = [];
+    keyframes = [];
+    startTime = performance.now();
+
+    recorder.ondataavailable = e => chunks.push(e.data);
+    recorder.start();
+    recording = true;
+    record.textContent = "■ Stop";
+
+    setTimeout(stopRecording, 20000);
+  } else {
+    stopRecording();
+  }
+};
+
+function stopRecording() {
+  if (!recording) return;
+  recording = false;
+  recorder.stop();
+  record.textContent = "● Record";
+}
+
+/* ---------- MP4 Export ---------- */
+const { FFmpeg } = FFmpegWASM;
+const ffmpeg = new FFmpeg();
+
+export.onclick = async () => {
+  if (!chunks.length) return alert("Record first");
+
+  const webmBlob = new Blob(chunks, { type: "video/webm" });
+  const data = new Uint8Array(await webmBlob.arrayBuffer());
+
+  if (!ffmpeg.loaded) await ffmpeg.load();
+
+  await ffmpeg.writeFile("input.webm", data);
+  await ffmpeg.exec([
+    "-i", "input.webm",
+    "-movflags", "faststart",
+    "-pix_fmt", "yuv420p",
+    "out.mp4"
+  ]);
+
+  const mp4 = await ffmpeg.readFile("out.mp4");
+  const url = URL.createObjectURL(new Blob([mp4.buffer], { type: "video/mp4" }));
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "movie.mp4";
+  a.click();
+};
+</script>
 </body>
 </html>

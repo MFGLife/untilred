@@ -100,121 +100,172 @@
 <div id="foreground-layer"></div>
 
 <script type="module">
+
 import * as THREE from "https://cdn.skypack.dev/three@0.125.2";
 import { GLTFLoader } from "https://cdn.skypack.dev/three@0.125.2/examples/jsm/loaders/GLTFLoader.js";
 import { Flow } from "https://cdn.skypack.dev/three@0.125.2/examples/jsm/modifiers/CurveModifier.js";
 import { OrbitControls } from "https://cdn.skypack.dev/three@0.125.2/examples/jsm/controls/OrbitControls.js";
 
-// --- UI Logic ---
-const menuBtn = document.getElementById('menu-btn');
-const sideMenu = document.getElementById('side-menu');
-const imgUpload = document.getElementById('img-upload');
-const saveBtn = document.getElementById('save-btn');
-const uiControls = document.getElementById('ui-controls');
-const fgLayer = document.getElementById('foreground-layer');
+class Scene {
+  constructor(sketch, settings) {
+    this.sketch = sketch;
+    this.settings = { ...settings };
 
-let activeEl = null;
-let transform = { x: window.innerWidth/2, y: window.innerHeight/2, s: 1 };
+    this.scene = new THREE.Scene();
+    this.scene.background = new THREE.Color(0x222299);
+    this.scene.fog = new THREE.FogExp2(0x222277, 0.2);
+    return this.scene;
+  }
+}
+class Renderer {
+  constructor(sketch, settings) {
+    this.sketch = sketch;
+    this.settings = { ...settings };
+    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer.setSize(this.sketch.sizes.width, this.sketch.sizes.height);
+    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+    this.renderer.shadowMap.enabled = true;
+this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+		this.renderer.physicallyCorrectLights = true;
+		this.renderer.outputEncoding = THREE.sRGBEncoding;
+		this.renderer.toneMapping = THREE.ReinhardToneMapping;
 
-menuBtn.onclick = () => sideMenu.classList.toggle('open');
+    this.renderer.update = this.update.bind(this.sketch);
 
-imgUpload.onchange = (e) => {
-    const file = e.target.files[0];
-    if(!file) return;
-    const url = URL.createObjectURL(file);
-    
-    if(activeEl) activeEl.remove();
-    activeEl = document.createElement('img');
-    activeEl.src = url;
-    activeEl.className = 'active-img';
-    activeEl.style.width = "200px";
-    document.body.appendChild(activeEl);
-    
-    transform = { x: window.innerWidth/2, y: window.innerHeight/2, s: 1 };
-    updateImgStyle();
-    uiControls.style.display = 'block';
-    sideMenu.classList.remove('open');
-    setupDrag();
-};
+	
+    return this.renderer;
+  }
+  update() {
+    this.renderer.render(this.scene, this.camera);
+  }
+}
+class Camera {
+  constructor(sketch, settings) {
+    this.sketch = sketch;
+    this.settings = { ...settings };
 
-function setupDrag() {
-    let dragging = false;
-    activeEl.onpointerdown = (e) => { dragging = true; activeEl.setPointerCapture(e.pointerId); };
-    window.onpointermove = (e) => {
-        if(!dragging) return;
-        transform.x = e.clientX;
-        transform.y = e.clientY;
-        updateImgStyle();
+    this.camera = new THREE.PerspectiveCamera(
+      75,
+      this.sketch.sizes.width / this.sketch.sizes.height,
+      0.01,
+      200
+    );
+    this.camera.position.x = 0;
+    this.camera.position.y = 1;
+    this.camera.position.z = 2;
+		this.camera.lookAt(0,0,0)
+    this.sketch.scene.add(this.camera);
+
+    return this.camera;
+  }
+}
+class Animator {
+  constructor(sketch, settings) {
+    this.sketch = sketch;
+    this.settings = { ...settings };
+
+    this.tasks = [];
+  }
+  /**
+   *
+   * @param {function} fn
+   */
+  add(fn) {
+    this.tasks.push(fn);
+  }
+  animate() {
+    requestAnimationFrame(this.animate.bind(this));
+
+    this.tasks.forEach((task) => task());
+
+    this.sketch.renderer.update();
+  }
+}
+class Controls {
+  constructor(sketch, settings) {
+    this.sketch = sketch;
+    this.settings = { ...settings };
+
+    this.controls = new OrbitControls(
+      this.sketch.camera,
+      this.sketch.renderer.domElement
+    );
+
+    return this.controls;
+  }
+}
+class Events {
+  constructor(sketch, settings) {
+    this.sketch = sketch;
+    this.settings = { ...settings };
+
+    this.addEvents();
+  }
+  addEvents() {
+    window.addEventListener("resize", this.onWindowResize.bind(this), false);
+  }
+  onWindowResize() {
+    this.sketch.sizes = {
+      width: window.innerWidth,
+      height: window.innerHeight,
     };
-    window.onpointerup = () => dragging = false;
-    window.onwheel = (e) => {
-        if(!activeEl) return;
-        transform.s += e.deltaY * -0.001;
-        transform.s = Math.max(0.1, transform.s);
-        updateImgStyle();
-    };
+
+    this.sketch.camera.aspect =
+      this.sketch.sizes.width / this.sketch.sizes.height;
+    this.sketch.camera.updateProjectionMatrix();
+    this.sketch.renderer.setSize(
+      this.sketch.sizes.width,
+      this.sketch.sizes.height
+    );
+    this.sketch.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+  }
+}
+class Lights {
+  constructor(sketch, settings) {
+    this.sketch = sketch;
+    this.settings = { ...settings };
+
+    this.ambient();
+    this.directional();
+  }
+  ambient() {
+    let ambLight = new THREE.AmbientLight(0xffffff, 0.6, 100);
+    this.sketch.scene.add(ambLight);
+  }
+  directional() {
+    let dirLight = new THREE.DirectionalLight(0xffffff, 1.2, 100);
+    dirLight.position.set(-3, 5, -3);
+    this.sketch.scene.add(dirLight);
+  }
 }
 
-function updateImgStyle() {
-    if(!activeEl) return;
-    activeEl.style.transform = `translate(calc(${transform.x}px - 50%), calc(${transform.y}px - 50%)) scale(${transform.s})`;
-}
-
-saveBtn.onclick = () => {
-    const saved = activeEl.cloneNode();
-    saved.classList.remove('active-img');
-    saved.style.outline = "none";
-    fgLayer.appendChild(saved);
-    activeEl.remove();
-    activeEl = null;
-    uiControls.style.display = 'none';
-};
-
-// --- Three.js Logic ---
-class SalmonApp {
-    constructor() {
-        this.sizes = { width: window.innerWidth, height: window.innerHeight };
-        this.canvas = document.createElement('canvas');
-        document.body.appendChild(this.canvas);
-
-        this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x002C9B);
-        this.scene.fog = new THREE.FogExp2(0x002C9B, 0.15);
-
-        this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
-        this.renderer.setSize(this.sizes.width, this.sizes.height);
-        this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
-
-        this.camera = new THREE.PerspectiveCamera(75, this.sizes.width/this.sizes.height, 0.1, 1000);
-        this.camera.position.set(0, 2, 5);
-        
-        this.controls = new OrbitControls(this.camera, this.canvas);
-        this.clock = new THREE.Clock();
-        this.flow = null;
-        this.flipRotation = 0;
-
-        this.init();
-    }
-
-    init() {
-        this.addLights();
-        this.loadModels();
-        this.addEvents();
-        this.animate();
-    }
-
-    addLights() {
-        this.scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-        const dir = new THREE.DirectionalLight(0xffffff, 1);
-        dir.position.set(5, 5, 5);
-        this.scene.add(dir);
-    }
-
-    loadModels() {
-        const loader = new GLTFLoader();
-        
-        // Load Fish
-        loader.load("https://assets.codepen.io/5946/fish.glb", function (gltf) {
+let flow;
+class Sketch {
+  constructor() {
+    this.sizes = {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    };
+    this.scene = new Scene(this);
+    this.renderer = new Renderer(this);
+    this.camera = new Camera(this);
+    this.lights = new Lights(this);
+    this.controls = new Controls(this);
+    this.events = new Events(this);
+    this.animator = new Animator(this);
+		this.clock = new THREE.Clock();
+		this.refractor = null;
+    // this.gui = new dat.GUI();
+  }
+  init() {
+    this.addObjects();
+    document.body.appendChild(this.renderer.domElement);
+    this.animator.animate();
+  }
+  addObjects() {
+    const that = this;
+    const loader = new GLTFLoader();
+    loader.load("https://assets.codepen.io/5946/fish.glb", function (gltf) {
       const fish = gltf.scene.children[0];
       fish.scale.x = 0.01;
       fish.scale.y = 0.01;
@@ -245,7 +296,10 @@ class SalmonApp {
         new THREE.BufferGeometry().setFromPoints(points),
         new THREE.LineBasicMaterial({ color: 0x00ff00 })
       );
-     flow = new Flow(fish);
+
+      // that.scene.add(line);
+
+      flow = new Flow(fish);
       flow.updateCurve(0, curve);
       that.scene.add(flow.object3D);
 
@@ -254,41 +308,30 @@ class SalmonApp {
       });
     });
 
-        // Load Landscape
-        loader.load("https://assets.codepen.io/5946/landscape.glb", (gltf) => {
-            const landscape = gltf.scene;
-            landscape.scale.set(10, 10, 10);
-            landscape.position.y = -2;
-            this.scene.add(landscape);
-        });
-    }
+    loader.load("https://assets.codepen.io/5946/landscape.glb", function (gltf) {
+      const landscape = gltf.scene;
+      landscape.scale.x = 10;
+      landscape.scale.y = 10;
+      landscape.scale.z = 10;
+      landscape.position.x = -1;
+      landscape.position.z = -2;
+      landscape.rotation.y = 0.0;
 
-    addEvents() {
-        window.addEventListener('resize', () => {
-            this.sizes.width = window.innerWidth;
-            this.sizes.height = window.innerHeight;
-            this.camera.aspect = this.sizes.width / this.sizes.height;
-            this.camera.updateProjectionMatrix();
-            this.renderer.setSize(this.sizes.width, this.sizes.height);
-        });
-
-        // Double Click to Flip
-        window.addEventListener('dblclick', () => {
-            if(this.flow) {
-                this.flipRotation = this.flipRotation === 0 ? Math.PI : 0;
-                this.flow.object3D.rotation.y = this.flipRotation;
-            }
-        });
-    }
-
-    animate() {
-        requestAnimationFrame(this.animate.bind(this));
-        if (this.flow) this.flow.moveAlongCurve(0.002);
-        this.renderer.render(this.scene, this.camera);
-    }
+      that.scene.add(landscape);
+    });
+  }
 }
 
-new SalmonApp();
+
+let sketch = new Sketch();
+sketch.init();
+
+
+
+	
+
+
+
 </script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Salmon</title>
+    <title>Salmon - Expanded Landscape</title>
     <style>
         :root {
             --ui-bg: rgba(0, 0, 0, 0.8);
@@ -12,36 +12,6 @@
 
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         canvas { display: block; width: 100vw; height: 100vh; }
-
-        /* UI Styling */
-        #menu-btn {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            z-index: 100;
-            padding: 10px 20px;
-            background: var(--ui-bg);
-            color: white;
-            border: 1px solid var(--accent);
-            cursor: pointer;
-            border-radius: 4px;
-        }
-
-        #side-menu {
-            position: fixed;
-            top: 0;
-            left: -300px;
-            width: 250px;
-            height: 100%;
-            background: var(--ui-bg);
-            color: white;
-            transition: 0.3s;
-            padding: 80px 20px;
-            z-index: 90;
-            border-right: 1px solid #333;
-        }
-
-        #side-menu.open { left: 0; }
 
         #foreground-layer {
             position: fixed;
@@ -60,42 +30,9 @@
             touch-action: none;
             outline: 2px dashed white;
         }
-
-        #ui-controls {
-            display: none;
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 110;
-        }
-
-        .btn-save {
-            padding: 12px 24px;
-            background: #28a745;
-            color: white;
-            border: none;
-            border-radius: 50px;
-            cursor: pointer;
-            font-weight: bold;
-        }
     </style>
 </head>
 <body>
-
-<button id="menu-btn">Salmon Menu</button>
-
-<div id="side-menu">
-    <h2>Salmon</h2>
-    <hr>
-    <p>Add Foreground Image:</p>
-    <input type="file" id="img-upload" accept="image/*">
-    <p><small>Scroll to resize, drag to move. Double-click fish in 3D to flip.</small></p>
-</div>
-
-<div id="ui-controls">
-    <button class="btn-save" id="save-btn">Accept & Set in Foreground</button>
-</div>
 
 <div id="foreground-layer"></div>
 
@@ -109,132 +46,81 @@ import { OrbitControls } from "https://cdn.skypack.dev/three@0.125.2/examples/js
 class Scene {
   constructor(sketch, settings) {
     this.sketch = sketch;
-    this.settings = { ...settings };
-
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x222299);
-    this.scene.fog = new THREE.FogExp2(0x222277, 0.2);
+    this.scene.fog = new THREE.FogExp2(0x222277, 0.1); // Reduced fog density for larger landscape
     return this.scene;
   }
 }
+
 class Renderer {
   constructor(sketch, settings) {
     this.sketch = sketch;
-    this.settings = { ...settings };
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(this.sketch.sizes.width, this.sketch.sizes.height);
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
     this.renderer.shadowMap.enabled = true;
-this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-		this.renderer.physicallyCorrectLights = true;
-		this.renderer.outputEncoding = THREE.sRGBEncoding;
-		this.renderer.toneMapping = THREE.ReinhardToneMapping;
-
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.physicallyCorrectLights = true;
+    this.renderer.outputEncoding = THREE.sRGBEncoding;
+    this.renderer.toneMapping = THREE.ReinhardToneMapping;
     this.renderer.update = this.update.bind(this.sketch);
-
-	
     return this.renderer;
   }
   update() {
     this.renderer.render(this.scene, this.camera);
   }
 }
+
 class Camera {
   constructor(sketch, settings) {
     this.sketch = sketch;
-    this.settings = { ...settings };
-
-    this.camera = new THREE.PerspectiveCamera(
-      75,
-      this.sketch.sizes.width / this.sketch.sizes.height,
-      0.01,
-      200
-    );
-    this.camera.position.x = 0;
-    this.camera.position.y = 1;
-    this.camera.position.z = 2;
-		this.camera.lookAt(0,0,0)
+    this.camera = new THREE.PerspectiveCamera(75, this.sketch.sizes.width / this.sketch.sizes.height, 0.1, 1000);
+    this.camera.position.set(0, 5, 10); // Moved camera back and up to see larger landscape
     this.sketch.scene.add(this.camera);
-
     return this.camera;
   }
 }
-class Animator {
-  constructor(sketch, settings) {
-    this.sketch = sketch;
-    this.settings = { ...settings };
 
+class Animator {
+  constructor(sketch) {
+    this.sketch = sketch;
     this.tasks = [];
   }
-  /**
-   *
-   * @param {function} fn
-   */
-  add(fn) {
-    this.tasks.push(fn);
-  }
+  add(fn) { this.tasks.push(fn); }
   animate() {
     requestAnimationFrame(this.animate.bind(this));
-
     this.tasks.forEach((task) => task());
-
     this.sketch.renderer.update();
   }
 }
+
 class Controls {
-  constructor(sketch, settings) {
-    this.sketch = sketch;
-    this.settings = { ...settings };
-
-    this.controls = new OrbitControls(
-      this.sketch.camera,
-      this.sketch.renderer.domElement
-    );
-
+  constructor(sketch) {
+    this.controls = new OrbitControls(sketch.camera, sketch.renderer.domElement);
     return this.controls;
   }
 }
+
 class Events {
-  constructor(sketch, settings) {
+  constructor(sketch) {
     this.sketch = sketch;
-    this.settings = { ...settings };
-
-    this.addEvents();
-  }
-  addEvents() {
-    window.addEventListener("resize", this.onWindowResize.bind(this), false);
-  }
-  onWindowResize() {
-    this.sketch.sizes = {
-      width: window.innerWidth,
-      height: window.innerHeight,
-    };
-
-    this.sketch.camera.aspect =
-      this.sketch.sizes.width / this.sketch.sizes.height;
-    this.sketch.camera.updateProjectionMatrix();
-    this.sketch.renderer.setSize(
-      this.sketch.sizes.width,
-      this.sketch.sizes.height
-    );
-    this.sketch.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+    window.addEventListener("resize", () => {
+        this.sketch.sizes = { width: window.innerWidth, height: window.innerHeight };
+        this.sketch.camera.aspect = this.sketch.sizes.width / this.sketch.sizes.height;
+        this.sketch.camera.updateProjectionMatrix();
+        this.sketch.renderer.setSize(this.sketch.sizes.width, this.sketch.sizes.height);
+    });
   }
 }
-class Lights {
-  constructor(sketch, settings) {
-    this.sketch = sketch;
-    this.settings = { ...settings };
 
-    this.ambient();
-    this.directional();
-  }
-  ambient() {
-    let ambLight = new THREE.AmbientLight(0xffffff, 0.6, 100);
+class Lights {
+  constructor(sketch) {
+    this.sketch = sketch;
+    let ambLight = new THREE.AmbientLight(0xffffff, 0.8);
     this.sketch.scene.add(ambLight);
-  }
-  directional() {
-    let dirLight = new THREE.DirectionalLight(0xffffff, 1.2, 100);
-    dirLight.position.set(-3, 5, -3);
+    let dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    dirLight.position.set(-10, 20, 10);
     this.sketch.scene.add(dirLight);
   }
 }
@@ -242,10 +128,7 @@ class Lights {
 let flow;
 class Sketch {
   constructor() {
-    this.sizes = {
-      width: window.innerWidth,
-      height: window.innerHeight,
-    };
+    this.sizes = { width: window.innerWidth, height: window.innerHeight };
     this.scene = new Scene(this);
     this.renderer = new Renderer(this);
     this.camera = new Camera(this);
@@ -253,97 +136,79 @@ class Sketch {
     this.controls = new Controls(this);
     this.events = new Events(this);
     this.animator = new Animator(this);
-		this.clock = new THREE.Clock();
-		this.refractor = null;
-    // this.gui = new dat.GUI();
   }
+
   init() {
     this.addObjects();
     document.body.appendChild(this.renderer.domElement);
     this.animator.animate();
   }
+
   addObjects() {
     const that = this;
     const loader = new GLTFLoader();
-    loader.load("https://assets.codepen.io/5946/fish.glb", function (gltf) {
+
+    // 1. LOAD FISH
+    loader.load("https://assets.codepen.io/5946/fish.glb", (gltf) => {
       const fish = gltf.scene.children[0];
-
-
-fish.traverse((child) => {
-    if (child.isMesh) {
-      child.material = new THREE.MeshStandardMaterial({
-        color: 0x000000,      // Pure black
-        roughness: 0.3,       // Makes it look slightly shiny/wet
-        metalness: 0.2        // Gives it a slight organic sheen
+      fish.traverse((child) => {
+        if (child.isMesh) {
+          child.material = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.3, metalness: 0.2 });
+        }
       });
-    }
-  });
 
-
-      fish.scale.x = 0.01;
-      fish.scale.y = 0.01;
-      fish.scale.z = 0.01;
+      fish.scale.set(0.01, 0.01, 0.01);
       fish.rotation.x = Math.PI * 0.5;
       fish.updateMatrix();
       fish.geometry.applyMatrix4(fish.matrix);
-
       fish.position.set(0, 0, 0);
       fish.rotation.set(0, 0, 0);
       fish.scale.set(1, 1, 1);
-      fish.updateMatrix();
 
       const initialPoints = [];
-
-      let pointCount = 100;
-      for (let i = 0; i < Math.PI * 2; i += Math.PI / pointCount) {
-        const dist = 1 + Math.sin(i * 10) / 30;
-        initialPoints.push(
-          new THREE.Vector3(Math.sin(i) * dist, 0, Math.cos(i) * dist)
-        );
+      for (let i = 0; i < Math.PI * 2; i += Math.PI / 100) {
+        const dist = 3 + Math.sin(i * 10) / 10; // Slightly larger path for the fish
+        initialPoints.push(new THREE.Vector3(Math.sin(i) * dist, 1, Math.cos(i) * dist));
       }
 
       const curve = new THREE.CatmullRomCurve3(initialPoints);
-
-      const points = curve.getPoints(50);
-      const line = new THREE.LineLoop(
-        new THREE.BufferGeometry().setFromPoints(points),
-        new THREE.LineBasicMaterial({ color: 0x00ff00 })
-      );
-
-      // that.scene.add(line);
-
       flow = new Flow(fish);
       flow.updateCurve(0, curve);
       that.scene.add(flow.object3D);
 
-      that.animator.add(() => {
-        flow.moveAlongCurve(0.001);
-      });
+      that.animator.add(() => { flow.moveAlongCurve(0.001); });
     });
 
-    loader.load("https://assets.codepen.io/5946/landscape.glb", function (gltf) {
-      const landscape = gltf.scene;
-      landscape.scale.x = 10;
-      landscape.scale.y = 10;
-      landscape.scale.z = 10;
-      landscape.position.x = -1;
-      landscape.position.z = -2;
-      landscape.rotation.y = 0.0;
+    // 2. LOAD & MULTIPLY LANDSCAPE
+    loader.load("https://assets.codepen.io/5946/landscape.glb", (gltf) => {
+      const baseLandscape = gltf.scene;
+      
+      // We create a loop to add multiple patches of grass/flowers
+      const amount = 12; 
+      const spread = 40; // How far apart they are scattered
 
-      that.scene.add(landscape);
+      for(let i = 0; i < amount; i++) {
+        const clone = baseLandscape.clone();
+        
+        // 5x Bigger (Original was 10, so 10 * 5 = 50)
+        clone.scale.set(50, 50, 50); 
+        
+        // Randomly scatter them around the center
+        clone.position.x = (Math.random() - 0.5) * spread;
+        clone.position.z = (Math.random() - 0.5) * spread;
+        clone.position.y = -2; // Keep them on the floor level
+        
+        // Random rotation so they don't look like a grid
+        clone.rotation.y = Math.random() * Math.PI * 2;
+        
+        that.scene.add(clone);
+      }
     });
   }
 }
 
-
 let sketch = new Sketch();
 sketch.init();
-
-
-
-	
-
-
 
 </script>
 </body>

@@ -1,116 +1,237 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Swimming Fish</title>
-  <style>
-    * { box-sizing: border-box; }
 
-    body {
-      padding: 0;
-      margin: 0;
-      font-family: sans-serif;
-      /* Deep sea blue background */
-      background-color: #004d7a;
-      background-image: linear-gradient(#006994, #004d7a);
-    }
+<style>
 
-    .wrapper {
-      position: absolute;
-      width: 100%;
-      height: 100vh;
-      overflow: hidden;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
 
-    /* LEG REMOVAL: We don't need legs for a fish */
-    .leg { display: none; }
+:root {
+  --coilSize: 14px;
+  --delayCount: 40ms;
+  --scaleMe: 1;
 
-    .body {
-      position: absolute;
-      /* Fish Body Sprite */
-      background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASAAAAAwCAYAAACxIqevAAAAAXNSR0IArs4c6QAABKJJREFUeF7tm2uW0zAQREfPInmAmSxmF8n6YSaBvG9lP1h4idvdaUtyXWn6T884TstVpS6XfLp6+fPh97fHvx9f6381/P9vAm8E6E2H7RME9idAAnS/R86KCRD8AIGGBAhQQ0hsAQJ0f3vAeX7ffl9uP2+Xy9fbf7fL5evN87lffn29/fT8X78+eL7fI0CP4H/+2oM49rSjOfC082Y3fX9zB/TzYeeZ7m/t/7m5A3of/M0R8K7mDmh3/N8R0N3O8/l5X90BvaX/S1yv4+jP+1f3v9S/026un95X6z5XN99/r9U6T9bO0+fGf8uK88/tN3v3fL78+Xq5vN4+f/98vj7fLv8uP/88v+vL8+f7P1dAd677R/7YpT0pQE9Pz9Xm9Gf15f7v+pW594/13+Xn+f0vM6/7Xp7f/2sF6FvO++vj09v+v/66W35vC99z9T05t0Vf89f4X/z7S3H199jX6v33p69/r39P7z//92u97pX7T/ev6XnS767S//p37m3mDsh3fG7p3vKzG76m58z6v/r+507/7n21z639P7f3nN7/m+Xp+b9+pP+1/937Xv/v3vO8578P3f9rAXL35V/U3H5/2Lp689v/f668v/uL8z9Xf/++Wv9V7z/937m/76v3v9Z/p/fVvt+p/797P/e7n6v/3fvX9P9mAd3f82S9A9o7S7DveG6O38yO3xL22A7In9X6j89f7f9X7/u797P1z/zXG76m/2/uP+t+9f/2P7D8mS94K74G6D+34EGA2M67ESBAXIAIEAQIDmgtQO43+Xf8I8v86K7O73K/+2W/oP376f9uN3h/9r86X7/p362/798/P06vU3WvP/0W63/vP7/e+p9bn6n/1P7Vv++V989unN97X+u7T/un77m6Xv/X7u/u9Of679Z/uv+9/zdfDggv179mX8P7N/276XpU/v3v8/O6v+t7p/O/7P6177H9S999/u6Xm8f70/u39/8vT9ffn5u37/X7O73e/P8v179vT1/vv9f3H+6AmR/YOfn3f07+f+77/5fO/f3P9d35m6vn7v9Z/Wft7+7p/Z/7O/877/t5r99/uf7V9f8tA/S7/1G92e0XfM6t/+qO79/u9M/+X62v50l/p/fVvs/96c/1363/p/fFv7+O3H+v7y/1/6T/0/Xf6f2v9N/uPd/u7977ev9X6++p0+9f3X+6/9N63vPf99X9z/0+vV7Vvt+p/z/9u/fV59Y+v/f+7v7X/m9v/9+u/6+2P84vI78E6E9H8RUECH4AQIDggNYCNL97G5A/AQRIn9mGfAIEqM9sQz4BAtRntiGfAAHqM9uQT4AA9ZltyCdAgPrMNuQTIEB9ZhvyCRCgPrMN+QQIUJ/ZhnwCBKjPbEM+AQLUZ7YhnwAB6jPbkE+AAPWZbchnE6AnIAn8CYHhLzN/SoxXEqAJvE9geI+Y678hQI99oMofAsN7xKz/hgA99oEqf0CgeI+I9d8QIH1mG/IJEKA+sw35BAhQn9mGfAIEqM9sQz4BAtRntiGfAAHqM9uQT4AA9ZltyCdAgPrMNuQTIEB9ZhvyCRCgPrMN+QQIUJ/ZhnwCBKjPbEM+AQLUZ7YhnwAB6jPbkE+AAPWZbchn+wU99S/pU3F+zQAAAABJRU5ErkJggg==);
-      width: calc(2 * 6 * 48px);
-      height: calc(2 * 48px);
-      background-size: calc(2 * 6 * 48px) calc(2 * 48px) !important;
-    }
+  --scaleFlip: 1;
+  --posFlip: 0;
+}
+body,
+.seaLevel {
+  font-family: "Open Sans", sans-serif;
+  background-color: lightblue;
+  overflow: hidden;
+}
+.fish {
+  position: absolute;
+  top: -35%;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(
+    calc(var(--coilSize) * 4) calc(var(--coilSize) / 3) 5px rgba(0, 0, 0, 0.3)
+  );
+}
+.fish .koiCoil {
+  position: absolute;
+  width: var(--coilSize);
+  height: var(--coilSize);
+  background-color: orangered;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  margin-left: calc(var(--coilSize) / -2);
+  margin-top: calc(var(--coilSize) / -2);
+  transform: scale(var(--scaleMe), var(--scaleMe));
+  filter: contrast(200%);
+  offset-path: path(
+    "M11.7692 229.5C14.552 200.052 7.51901 171.858 -42.8757 170.644C-105.869 169.128 -131.294 76.612 -101.695 51.5872C-72.0955 26.5625 -24.6607 -50.7867 70.5883 51.5872C165.837 153.961 27.7073 131.211 33.0199 183.157C38.3326 235.102 90.3211 195.669 139.274 223.727C188.226 251.785 207.959 299.56 139.274 316.243C70.5883 332.926 41.3685 398.9 81.9726 419.754C122.577 440.608 222 478.524 222 419.754C222 372.738 222 242.432 222 183.157C219.091 129.948 175.78 30.8091 25.8099 59.9288C-161.652 96.3284 -30.3529 119.837 25.8099 141.07C81.9726 162.303 171.529 204.769 126.751 260.506C81.9726 316.243 101.326 362.501 139.274 373.496C177.222 384.492 170.012 464.495 70.5883 462.979C-28.835 461.462 -42.8757 393.015 -42.8757 373.496C-42.8757 238.288 11.7692 293 11.7692 240.506C11.7692 208.05 11.7692 237.336 11.7692 229.5Z"
+  );
+  animation: fishAnim 20000ms linear infinite;
+  box-shadow: calc(var(--coilSize) / -2) calc(var(--coilSize) / -10) 0 white
+    inset;
+}
 
-    .head {
-      position: absolute;
-      /* Fish Head Sprite */
-      background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALoAAAAgCAYAAACl82LUAAAAAXNSR0IArs4c6QAABGJJREFUeF7tmu1W0zAQhadnkbzATBaze5GsH2YSyPtW9oOFF7Xdm06S7pTidDnjOC1Xlbpc8unqx4ffX5//fHzp/9Xw/78JvBGgNx22TxDYnwAJ0P0eOSsmQPDDBBoSIEAdbpk9L6/H78v95eF2vny9/vdyufy8ex6Py6+vj5+en3/9fPD8vEeAHsH/9r0HcexlR3PgaefNfXp+swN6e+85pvt96/++uQP66P2dE/Cu5g5od/zPCuim8/h8vq5Xf6v79/7P8X3Ooz/v957/e/076f776XvX95+qm++/10rdZ9b+fXvP3O/MivvP7fN8fn79erlcXm6fv38+X59vl3+Xn38e3/Xl8XP9zyugO9f99X7u0v4UoMfHx9Xm9Gf15fz933p17v2j/nv5eX7/y8zr7/O9fv+vFaCPrvvr7fF9f76v7v/evP/u/dfnd/f83vP/nK77X/P/fO9Xf+rXp69/r39P7z//72u97pX7T/ev6XnS767S//p37m3mDsh3fG7p3vKzG76m58z6v/v8z07/7n21z639v7f3nN7/m+Xp8X/8SP9r/7v3vf6/vOf5nv8+vP9rAXL35V/U3H5/2Lp689v/f668v/uL8z9Xf78/fK1fqvcf76/ef7797f7X+u/0vtr3K/X/d+/n88/v1X9u/2r+v1fef/rO1fm997W++7R/+p6r6/V/7f7uTn+u/279p/vf53/z5YDwcv1r9jW8f9O/m65H5d//vj6v87u+dzr/y+5f+x7bv/Td5+/+vlyO5/fH8+fv97vX6/f7u77e/P8v179v98e7v7/X9x/ugJkf2Cn59z8n/9/7/v995/7+Z/vu/K7V88j/rP7T9nf39P7P/Z3/ndf9PNfnPVX/7fV/r/7V9f8tA/S7/1G92e0XfM6t/+qO79/u9M/+X62v50l/p/fVvs/96c/1363/p/fFv79VfD/p/3f/X9v/283P8fjz+Wf/X67/T61+p/3T/R/rn9Dq9ftO/3/f9Sv3/3fuZ79/096bruf91/2v/t3f+f7v+v9r+OD+M/BKgPx3FVxAg+AEAAfIDWgvQ/O5tQP4EECB9ZivyCRKgPrMV+QQIUI/ZinyCBKjPXEU+AQLUZbYinyCB6jNXkU+AAHWZrcgnSKD6zFXkEyBAXWYr8gkQqD5zFfkECFCX2Yp8ggSqz1xFPp8A/QBJ4F8IDD+ZeSgxXkmARvA+geE9Yu7/hgA99oEqf0CgeI+I9X8TID1mK/IJEKA+sxX5BAhQn9mGfAIEqM9sRT5BAtRnrCKfAAHqMluRT5BA9ZmrSCdAgLrMVuQTIFA9ZivSCBCgDrMV+QQIUIfZinyCBKjLbEU+AQLUZbYinyCB6jNXkU/2G3D5P9L0e/gNAAAAAElFTkSuQmCC);
-      width: calc(2 * 6 * 31px);
-      height: calc(2 * 32px);
-      background-size: calc(2 * 6 * 31px) calc(2 * 32px) !important;
-    }
+.fish:nth-of-type(2) {
+  transform-origin: top center;
+  transform: scale(-1, 1);
+  filter: drop-shadow(
+    calc(var(--coilSize) * -4) calc(var(--coilSize) / 3) 5px rgba(0, 0, 0, 0.3)
+  );
+}
+.fish:nth-of-type(2) .koiCoil {
+  background-color: white;
+  box-shadow: calc(var(--coilSize) / -2) calc(var(--coilSize) / -10) 0 orangered
+    inset;
+}
+.fish .koiCoil:nth-of-type(15),
+.fish .koiCoil:nth-of-type(14) {
+  background-color: orangered;
+}
+.fish:nth-of-type(2) .koiCoil:nth-of-type(15),
+.fish:nth-of-type(2) .koiCoil:nth-of-type(14) {
+  background-color: white;
+}
+.fish .koiCoil:nth-of-type(15)::after {
+  content: ":";
+  position: absolute;
+  color: black;
+  font-weight: 800;
+  text-align: center;
+  line-height: 60%;
+  font-size: calc(var(--coilSize) * 1.2);
+}
+.fish .koiCoil:nth-of-type(1)::before {
+  content: "";
+  position: absolute;
+  width: 100%;
+  height: 50%;
+  top: 25%;
+  left: -100%;
+  border-radius: var(--coilSize);
+  background-color: white;
+  /*box-shadow: calc(var(--coilSize) / -10) calc(var(--coilSize) / -4) calc(var(--coilSize) / 3) rgba(0,0,0,.3) inset;*/
+  transform-origin: center right;
+  animation: backFlip 200ms ease-in-out alternate infinite;
+}
+.fish .koiCoil:nth-of-type(14) {
+  --scaleMe: 1.2;
+  animation-delay: calc(var(--delayCount) * 1);
+}
+.fish .koiCoil:nth-of-type(13) {
+  --scaleMe: 1.35;
+  animation-delay: calc(var(--delayCount) * 2);
+}
+.fish .koiCoil:nth-of-type(12) {
+  --scaleMe: 1.55;
+  animation-delay: calc(var(--delayCount) * 3);
+}
+.fish .koiCoil:nth-of-type(11) {
+  --scaleMe: 1.75;
+  animation-delay: calc(var(--delayCount) * 4);
+}
+.fish .koiCoil:nth-of-type(10) {
+  --scaleMe: 1.9;
+  animation-delay: calc(var(--delayCount) * 5);
+}
+.fish .koiCoil:nth-of-type(9) {
+  --scaleMe: 2;
+  animation-delay: calc(var(--delayCount) * 6);
+}
+.fish .koiCoil:nth-of-type(8) {
+  --scaleMe: 2;
+  animation-delay: calc(var(--delayCount) * 7);
+}
+.fish .koiCoil:nth-of-type(7) {
+  --scaleMe: 2;
+  animation-delay: calc(var(--delayCount) * 8);
+}
+.fish .koiCoil:nth-of-type(6) {
+  --scaleMe: 1.9;
+  animation-delay: calc(var(--delayCount) * 9);
+}
+.fish .koiCoil:nth-of-type(5) {
+  --scaleMe: 1.75;
+  animation-delay: calc(var(--delayCount) * 10);
+}
+.fish .koiCoil:nth-of-type(4) {
+  --scaleMe: 1.55;
+  animation-delay: calc(var(--delayCount) * 11);
+}
+.fish .koiCoil:nth-of-type(3) {
+  --scaleMe: 1.35;
+  animation-delay: calc(var(--delayCount) * 12);
+}
+.fish .koiCoil:nth-of-type(2) {
+  --scaleMe: 1.2;
+  animation-delay: calc(var(--delayCount) * 13);
+}
+.fish .koiCoil:nth-of-type(1) {
+  animation-delay: calc(var(--delayCount) * 14);
+}
+.fish .koiCoil:nth-of-type(12)::before,
+.fish .koiCoil:nth-of-type(12)::after {
+  content: "";
+  position: absolute;
+  width: 100%;
+  height: 20%;
+  top: -10%;
+  left: -100%;
+  border-radius: var(--coilSize);
+  background-color: white;
+  transform-origin: center right;
+  animation: sideFlip 500ms ease-in-out alternate infinite;
+}
+.fish .koiCoil:nth-of-type(12)::after {
+  --scaleFlip: -1;
+  --posFlip: calc(var(--coilSize) * -1);
+}
+.seaLevel {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  opacity: 0.4;
+}
+@keyframes fishAnim {
+  0% {
+    offset-distance: 0%;
+  }
+  100% {
+    offset-distance: 100%;
+  }
+}
+@keyframes backFlip {
+  0% {
+    transform: rotate(45deg);
+  }
+  100% {
+    transform: rotate(-45deg);
+  }
+}
+@keyframes sideFlip {
+  0% {
+    transform: scale(1, var(--scaleFlip)) translateY(var(--posFlip))rotate(80deg);
+  }
+  100% {
+    transform: scale(1, var(--scaleFlip)) translateY(var(--posFlip))rotate(20deg);
+  }
+}
 
-    .head-wrapper.happy > .head {
-      /* Happy/Swimming Fish Sprite */
-      background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALoAAAAgCAYAAACl82LUAAAAAXNSR0IArs4c6QAABIpJREFUeF7tmu1W0zAQhadnkbzATBaze5GsH2YSyPtW9oOFF7Xdm06S7pTidDnjOC1Xlbpc8unqx4ffX5//fHzp/9Xw/78JvBGgNx22TxDYnwAJ0P0eOSsmQPDDBBoSIEAdbpk9L6/H78v95eF2vny9/vdyufy8ex6Py6+vj5+en3/9fPD8vEeAHsH/9r0HcexlR3PgaefNfXp+swN6e+85pvt96/++uQP66P2dE/Cu5g5od/zPCuim8/h8vq5Xf6v79/7P8X3Ooz/v957/e/076f776XvX95+qm++/10rdZ9b+fXvP3O/MivvP7fN8fn79erlcXm6fv38+X59vl3+Xn38e3/Xl8XP9zyugO9f99X7u0v4UoMfHx9Xm9Gf15fz933p17v2j/nv5eX7/y8zr7/O9fv+vFaCPrvvr7fF9f76v7v/evP/u/dfnd/f83vP/nK77X/P/fO9Xf+rXp69/r39P7z//72u97pX7T/ev6XnS767S//p37m3mDsh3fG7p3vKzG76m58z6v/v8z07/7n21z639v7f3nN7/m+Xp8f/8SP9r/7v3vf6/vOf5nv8+vP9rAXL35V/U3H5/2Lp689v/f668v/uL8z9Xf78/fK1fqvcf76/ef7797f7X+u/0vtr3K/X/d+/n88/v1X9u/2r+v1fef/rO1fm997W++7R/+p6r6/V/7f7uTn+u/279p/vf53/z5YDwcv1r9jW8f9O/m65H5d//vj6v87u+dzr/y+5f+x7bv/Td5+/+vlyO5/fH8+fv97vX6/f7u77e/P8v179v98e7v7/X9x/ugJkf2Cn59z8n/9/7/v995/7+Z/vu/K7V88j/rP7T9nf39P7P/Z3/ndf9PNfnPVX/7fV/r/7V9f8tA/S7/1G92e0XfM6t/+qO79/u9M/+X62v50l/p/fVvs/96c/1363/p/fFv79VfD/p/3f/X9v/283P8fjz+Wf/X67/T61+p/3T/R/rn9Dq9ftO/3/f9Sv3/3fuZ79/096bruf91/2v/t3f+f7v+v9r+OD+M/BKgPx3FVxAg+AEAAfIDWgvQ/O5tQP4EECB9ZivyCRKgPrMV+QQIUI/ZinyCBKjPXEU+AQLUZbYinyCB6jNXkU+AAHWZrcgnSKD6zFXkEyBAXWYr8gkQqD5zFfkECFCX2Yp8ggSqz1xFPp8A/QBJ4F8IDD+ZeSgxXkmARvA+geE9Yu7/hgA99oEqf0CgeI+I9X8TID1mK/IJEKA+sxX5BAhQn9mGfAIEqM9sRT5BAtRnrCKfAAHqMluRT5BA9ZmrSCdAgLrMVuQTIFA9ZivSCBCgDrMV+QQIUIfZinyCBKjLbEU+AQLUZbYinyCB6jNXkU/2G3D5P9L0e/gNAAAAAElFTkSuQmCC);
-    }
+</style>
 
-    /* Tail is now a fin */
-    .tail {
-      position: absolute;
-      background: #ff7b00;
-      width: calc(2 * 12px);
-      height: calc(2 * 16px);
-      border-radius: 50% 0 0 50%;
-      clip-path: polygon(100% 0%, 0% 50%, 100% 100%);
-    }
 
-    .wag {
-      animation: infinite 0.3s wag; /* Faster tail movement for a fish */
-    }
 
-    @keyframes wag {
-      0%, 100% { transform: rotate(-15deg); }
-      50% { transform: rotate(15deg); }
-    }
 
-    .dog {
-      filter: drop-shadow(0 5px 15px rgba(0,0,0,0.3)); /* Add some depth in water */
-    }
+<div class="fish">
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+</div>
+<div class="fish">
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+  <div class="koiCoil"></div>
+</div>
+<div class="seaLevel"></div>
 
-    /* Rest of your existing CSS remains similar but with renamed button */
-    #add-fish-btn {
-      position: absolute;
-      z-index: 10;
-      padding: 10px;
-      cursor: pointer;
-    }
-  </style>
-</head>
-<body>
-  <button id="add-fish-btn">Add Fish</button>
 
-  <div class="wrapper">
-    <div class="dog"> <div class="body-wrapper">
-        <div class="body img-bg"></div>
-      </div>
-      <div class="head-wrapper">
-        <div class="head img-bg"></div>
-      </div>
-      <div class="leg-wrapper"><div class="leg"></div></div>
-      <div class="leg-wrapper"><div class="leg"></div></div>
-      <div class="leg-wrapper"><div class="leg"></div></div>
-      <div class="leg-wrapper"><div class="leg"></div></div>
-      <div class="tail-wrapper">
-        <div class="tail img-bg"></div>
-      </div>
-    </div>  
-  </div>
-
-  <script>
-    // Note: I renamed the button ID in HTML, so we update it in JS
-    // The rest of your script logic stays identical, as the fish 
-    // simply "glides" using the existing coordinate logic but 
-    // with the CSS 'leg' display set to none.
-    
-    // [Insert your original script here, just change the button ID reference]
-    // const addDogButton = document.getElementById('add-fish-btn');
-  </script>
-</body>
-</html>

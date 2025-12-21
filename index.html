@@ -67,8 +67,8 @@ class Sketch {
   }
 
   createOrganicStrands() {
-    const strandCount = 2000; 
-    const particlesPerStrand = 40; // Increased for better density
+    const strandCount = 20000; 
+    const particlesPerStrand = 60; // Increased for better density
     const totalParticles = strandCount * particlesPerStrand;
 
     const geometry = new THREE.BufferGeometry();
@@ -90,7 +90,7 @@ class Sketch {
         
         positions[idx * 3] = rootX;
         // Negative spacing (extremely tight overlap)
-        positions[idx * 3 + 1] = j * 0.02; 
+        positions[idx * 3 + 1] = j * 0.001; 
         positions[idx * 3 + 2] = rootZ;
 
         randoms[idx * 4] = xDir;
@@ -131,7 +131,7 @@ class Sketch {
           vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
           
           // Size randomization: base size + variation based on strand
-          gl_PointSize = (18.0 + aRandom.w * 10.0) * (1.0 / -mvPosition.z);
+          gl_PointSize = (30.0 + aRandom.w * 18.0) * (1.0 / -mvPosition.z);
           gl_Position = projectionMatrix * mvPosition;
         }
       `,

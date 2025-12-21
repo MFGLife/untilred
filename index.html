@@ -54,34 +54,17 @@ class Sketch {
   }
 
   createReflectiveGround() {
-    const loader = new THREE.TextureLoader();
-    
-    // Load a pebble texture (using a placeholder URL here)
-    const pebbleTexture = loader.load('https://www.transparenttextures.com/patterns/pebbly-embers.png');
-    pebbleTexture.wrapS = THREE.RepeatWrapping;
-    pebbleTexture.wrapT = THREE.RepeatWrapping;
-    pebbleTexture.repeat.set(10, 10); // Repeat the pattern across the floor
-
-    // CHANGE: Use CircleGeometry and make it smaller
-    // Original radius was around 50, so one-third is ~16.7
-    const floorGeo = new THREE.CircleGeometry(16.7, 64); 
-    
-    const floorMat = new THREE.MeshPhysicalMaterial({ 
-        map: pebbleTexture,
-        color: 0x555566, // Lighter base color to avoid "pitch black"
-        metalness: 0.4,
-        roughness: 0.2,
-        clearcoat: 1.0,
-        clearcoatRoughness: 0.1,
-        reflectivity: 1.0
+    const floorGeo = new THREE.PlaneGeometry(100, 100);
+    const floorMat = new THREE.MeshStandardMaterial({ 
+        color: 0x111122,
+        roughness: 0.1,
+        metalness: 0.8
     });
-
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -1.0; 
     this.scene.add(floor);
-}
-
+  }
 
   createOrganicStrands() {
     const strandCount = 20000; 

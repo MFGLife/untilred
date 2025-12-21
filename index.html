@@ -217,22 +217,6 @@ class SalmonApp {
         loader.load("https://assets.codepen.io/5946/fish.glb", (gltf) => {
             const fish = gltf.scene.children[0];
             
-            // Texture modification: Solid Black with White Glow (Outline)
-            gltf.scene.traverse((child) => {
-                if (child.isMesh) {
-                    child.material = new THREE.MeshBasicMaterial({ 
-                        color: 0x000000,
-                    });
-                    // Adding wireframe overlay for visibility "outline" effect
-                    const wire = new THREE.Mesh(child.geometry, new THREE.MeshBasicMaterial({
-                        color: 0xffffff,
-                        wireframe: true,
-                        transparent: true,
-                        opacity: 0.2
-                    }));
-                    child.add(wire);
-                }
-            });
 
             fish.scale.set(0.01, 0.01, 0.01);
             fish.rotation.x = Math.PI * 0.5;

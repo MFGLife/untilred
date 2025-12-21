@@ -3,13 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Reactive Koi Scene</title>
+    <title>Organic Koi Scene</title>
     <style>
         :root {
             --coilSize: 14px;
             --delayCount: 40ms;
             --fishColor: black;
             --outlineColor: white;
+            /* The path is now a variable for seamless randomization */
+            --fishPath: path("M11.7,229.5 C14.5,200 7.5,171.8 -42.8,170.6 C-105.8,169 -131.2,76.6 -101.6,51.5 C-72,26.5 -24.6,-50.7 70.5,51.5 C165.8,153.9 27.7,131.2 33,183.1 C38.3,235.1 90.3,195.6 139.2,223.7 C188.2,251.7 207.9,299.5 139.2,316.2 C70.5,332.9 41.3,398.9 81.9,419.7 C122.5,440.6 222,478.5 222,419.7 C222,372.7 222,242.4 222,183.1 C219,129.9 175.7,30.8 25.8,59.9 C-161.6,96.3 -30.3,119.8 25.8,141 C81.9,162.3 171.5,204.7 126.7,260.5 C81.9,316.2 101.3,362.5 139.2,373.4 C177.2,384.4 170,464.4 70.5,462.9 C-28.8,461.4 -42.8,393 -42.8,373.4 C-42.8,238.2 11.7,293 11.7,240.5 C11.7,208 11.7,237.3 11.7,229.5");
         }
 
         body, html {
@@ -17,28 +19,17 @@
             background-color: #add8e6;
             overflow: hidden;
             touch-action: none;
-            font-family: "Open Sans", sans-serif;
+            font-family: sans-serif;
         }
 
-        /* The UI Controls */
         #ui-root {
-            position: absolute;
-            bottom: 20px; left: 20px;
-            z-index: 1000;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 15px;
-            border-radius: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            position: absolute; bottom: 20px; left: 20px; z-index: 1000;
+            background: rgba(255, 255, 255, 0.9); padding: 15px; border-radius: 12px;
+            display: flex; flex-direction: column; gap: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
 
-        /* Fish Container - The Filter handles the Outline */
         .fish {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none;
             filter: 
                 drop-shadow(1.5px 1.5px 0 var(--outlineColor)) 
@@ -48,43 +39,51 @@
         }
 
         .koiCoil {
-            position: absolute;
-            width: var(--coilSize); height: var(--coilSize);
-            background-color: var(--fishColor);
-            border-radius: 50%;
-            top: 50%; left: 50%;
-            margin: calc(var(--coilSize) / -2);
-            offset-path: path("M11.7,229.5 C14.5,200 7.5,171.8 -42.8,170.6 C-105.8,169 -131.2,76.6 -101.6,51.5 C-72,26.5 -24.6,-50.7 70.5,51.5 C165.8,153.9 27.7,131.2 33,183.1 C38.3,235.1 90.3,195.6 139.2,223.7 C188.2,251.7 207.9,299.5 139.2,316.2 C70.5,332.9 41.3,398.9 81.9,419.7 C122.5,440.6 222,478.5 222,419.7 C222,372.7 222,242.4 222,183.1 C219,129.9 175.7,30.8 25.8,59.9 C-161.6,96.3 -30.3,119.8 25.8,141 C81.9,162.3 171.5,204.7 126.7,260.5 C81.9,316.2 101.3,362.5 139.2,373.4 C177.2,384.4 170,464.4 70.5,462.9 C-28.8,461.4 -42.8,393 -42.8,373.4 C-42.8,238.2 11.7,293 11.7,240.5 C11.7,208 11.7,237.3 11.7,229.5");
+            position: absolute; width: var(--coilSize); height: var(--coilSize);
+            background-color: var(--fishColor); border-radius: 50%;
+            top: 50%; left: 50%; margin: calc(var(--coilSize) / -2);
+            offset-path: var(--fishPath);
             animation: fishAnim 20000ms linear infinite;
         }
 
-        /* Tail and Fins */
+        /* --- NEW LONGER ROUNDED TAIL --- */
+        .koiCoil:nth-of-type(1)::before,
+        .koiCoil:nth-of-type(1)::after {
+            content: ""; position: absolute; background: var(--fishColor);
+            border-radius: 50% 0 0 50%; transform-origin: center right;
+        }
+        /* Top Tail Fin */
         .koiCoil:nth-of-type(1)::before {
-            content: ""; position: absolute; width: 100%; height: 50%; left: -100%; top: 25%;
-            background: var(--fishColor); 
-            transform-origin: center right;
-            animation: backFlip 200ms ease-in-out alternate infinite;
+            width: 250%; height: 60%; left: -220%; top: 0%;
+            animation: backFlip 300ms ease-in-out alternate infinite;
+        }
+        /* Bottom Tail Fin */
+        .koiCoil:nth-of-type(1)::after {
+            width: 200%; height: 50%; left: -180%; top: 40%;
+            animation: backFlip 300ms ease-in-out alternate-reverse infinite;
         }
 
+        /* --- NEW LONGER ROUNDED SIDE FINS --- */
         .koiCoil:nth-of-type(12)::before,
         .koiCoil:nth-of-type(12)::after {
-            content: ""; position: absolute; width: 100%; height: 20%; top: -10%; left: -100%;
-            border-radius: var(--coilSize);
-            background-color: var(--fishColor);
+            content: ""; position: absolute;
+            width: 280%; height: 40%; left: -250%; top: 0%;
+            border-radius: 100px; background-color: var(--fishColor);
             transform-origin: center right;
-            animation: sideFlip 500ms ease-in-out alternate infinite;
+            animation: sideFlip 600ms ease-in-out alternate infinite;
+        }
+        .koiCoil:nth-of-type(12)::after {
+            --scaleFlip: -1;
+            --posFlip: calc(var(--coilSize) * -1.2);
         }
 
-        .koiCoil:nth-of-type(12)::after { --scaleFlip: -1; --posFlip: calc(var(--coilSize) * -1); }
-
-        /* Eye for the Head */
         .koiCoil:nth-of-type(15)::after {
             content: ":"; position: absolute; color: var(--outlineColor);
             font-weight: 800; text-align: center; width: 100%;
             line-height: 60%; font-size: calc(var(--coilSize) * 1.2);
         }
 
-        /* Tapered Body Scaling */
+        /* Body Tapering */
         .koiCoil:nth-of-type(14) { transform: scale(1.2); animation-delay: calc(var(--delayCount) * 1); }
         .koiCoil:nth-of-type(13) { transform: scale(1.35); animation-delay: calc(var(--delayCount) * 2); }
         .koiCoil:nth-of-type(12) { transform: scale(1.55); animation-delay: calc(var(--delayCount) * 3); }
@@ -100,15 +99,13 @@
         .koiCoil:nth-of-type(2) { transform: scale(1.2); animation-delay: calc(var(--delayCount) * 13); }
         .koiCoil:nth-of-type(1) { transform: scale(1); animation-delay: calc(var(--delayCount) * 14); }
 
-        /* Animations */
         @keyframes fishAnim { 0% { offset-distance: 0%; } 100% { offset-distance: 100%; } }
-        @keyframes backFlip { 0% { transform: rotate(45deg); } 100% { transform: rotate(-45deg); } }
+        @keyframes backFlip { 0% { transform: rotate(35deg); } 100% { transform: rotate(-35deg); } }
         @keyframes sideFlip {
-            0% { transform: scale(1, var(--scaleFlip, 1)) translateY(var(--posFlip, 0)) rotate(80deg); }
-            100% { transform: scale(1, var(--scaleFlip, 1)) translateY(var(--posFlip, 0)) rotate(20deg); }
+            0% { transform: scale(1, var(--scaleFlip, 1)) translateY(var(--posFlip, 0)) rotate(70deg); }
+            100% { transform: scale(1, var(--scaleFlip, 1)) translateY(var(--posFlip, 0)) rotate(15deg); }
         }
 
-        /* Dropped Images */
         .dropped-image {
             position: absolute; cursor: move; user-select: none;
             touch-action: none; transform: translate(-50%, -50%);
@@ -118,11 +115,9 @@
 <body>
 
 <div id="ui-root">
-    <label>1. Select Image</label>
     <input type="file" id="imageUpload" accept="image/*">
-    <label>2. Set Scale: <input type="range" id="scaleSlider" min="50" max="400" value="150"></label>
-    <hr>
-    <small>Tap: Pause/Play<br>Double Tap: Randomize Path</small>
+    <label>Scale: <input type="range" id="scaleSlider" min="50" max="400" value="150"></label>
+    <small>Tap: Pause | Double Tap: New Direction</small>
 </div>
 
 <div class="fish" id="fishBox">
@@ -134,7 +129,6 @@
 </div>
 
 <script>
-    const fishBox = document.getElementById('fishBox');
     const coils = document.querySelectorAll('.koiCoil');
     const upload = document.getElementById('imageUpload');
     const scaleSlider = document.getElementById('scaleSlider');
@@ -142,16 +136,11 @@
     let isPaused = false;
     let lastTap = 0;
 
-    // TOUCH CONTROLS
     document.addEventListener('pointerdown', (e) => {
         if (e.target.closest('#ui-root') || e.target.classList.contains('dropped-image')) return;
-
         const now = Date.now();
-        if (now - lastTap < 300) {
-            randomizePath();
-        } else {
-            togglePause();
-        }
+        if (now - lastTap < 300) randomizePath();
+        else togglePause();
         lastTap = now;
     });
 
@@ -163,29 +152,25 @@
     function randomizePath() {
         const w = window.innerWidth;
         const h = window.innerHeight;
+        // Generate new random coordinates
         const p1 = `${Math.random()*w},${Math.random()*h}`;
         const p2 = `${Math.random()*w},${Math.random()*h}`;
         const p3 = `${Math.random()*w},${Math.random()*h}`;
-        const p4 = `${Math.random()*w},${Math.random()*h}`;
         
-        const newPath = `M${p1} C${p2} ${p3} ${p4} S${Math.random()*w},${Math.random()*h} ${p1}`;
-        coils.forEach(c => c.style.offsetPath = `path("${newPath}")`);
+        // This updates the CSS variable so the fish shifts to the new path without resetting progress
+        document.documentElement.style.setProperty('--fishPath', `path("M${p1} Q${p2} ${p3} T${Math.random()*w},${Math.random()*h}")`);
     }
 
-    // IMAGE SYSTEM
     upload.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
-
         const reader = new FileReader();
         reader.onload = (event) => {
             const img = document.createElement('img');
             img.src = event.target.result;
             img.className = 'dropped-image';
             img.style.width = scaleSlider.value + 'px';
-            img.style.left = '50%';
-            img.style.top = '50%';
-            
+            img.style.left = '50%'; img.style.top = '50%';
             setupDragging(img);
             document.body.appendChild(img);
         };
@@ -195,24 +180,17 @@
     function setupDragging(el) {
         el.onpointerdown = (e) => {
             e.preventDefault();
-            let shiftX = e.clientX - el.getBoundingClientRect().left - el.offsetWidth/2;
-            let shiftY = e.clientY - el.getBoundingClientRect().top - el.offsetHeight/2;
+            let startX = e.clientX;
+            let startY = e.clientY;
+            let left = el.offsetLeft;
+            let top = el.offsetTop;
 
-            function moveAt(clientX, clientY) {
-                el.style.left = clientX + 'px';
-                el.style.top = clientY + 'px';
+            function move(e) {
+                el.style.left = (left + (e.clientX - startX)) + 'px';
+                el.style.top = (top + (e.clientY - startY)) + 'px';
             }
-
-            function onPointerMove(e) {
-                moveAt(e.clientX, e.clientY);
-            }
-
-            document.addEventListener('pointermove', onPointerMove);
-
-            el.onpointerup = () => {
-                document.removeEventListener('pointermove', onPointerMove);
-                el.onpointerup = null;
-            };
+            document.addEventListener('pointermove', move);
+            el.onpointerup = () => document.removeEventListener('pointermove', move);
         };
     }
 </script>

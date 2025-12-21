@@ -169,19 +169,25 @@ init() {
   addObjects() {
     const that = this;
     const loader = new GLTFLoader();
-    loader.load("https://assets.codepen.io/5946/fish.glb", function (gltf) {
+        loader.load("https://assets.codepen.io/5946/fish.glb", function (gltf) {
       const fish = gltf.scene.children[0];
+      
+      // Traverse the fish to find all meshes and apply a solid black material
+      gltf.scene.traverse((child) => {
+        if (child.isMesh) {
+          child.material = new THREE.MeshBasicMaterial({ color: 0x000000 });
+          // If you want it to react to light but still be black, use:
+          // child.material = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.5 });
+        }
+      });
+
       fish.scale.x = 0.01;
       fish.scale.y = 0.01;
       fish.scale.z = 0.01;
       fish.rotation.x = Math.PI * 0.5;
       fish.updateMatrix();
       fish.geometry.applyMatrix4(fish.matrix);
-
-      fish.position.set(0, 0, 0);
-      fish.rotation.set(0, 0, 0);
-      fish.scale.set(1, 1, 1);
-      fish.updateMatrix();
+     
 
       const initialPoints = [];
 

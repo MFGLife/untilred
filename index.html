@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Salmon - Rippling Strands</title>
+    <title>Salmon - Continuous Strands</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; }
         canvas { display: block; width: 100vw; height: 100vh; }
@@ -21,16 +21,19 @@ class Sketch {
   constructor() {
     this.sizes = { width: window.innerWidth, height: window.innerHeight };
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x050520);
-    this.scene.fog = new THREE.FogExp2(0x050520, 0.1);
+    this.scene.background = new THREE.Color(0x101535); // Slightly lighter blue
+    this.scene.fog = new THREE.FogExp2(0x101535, 0.1);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(this.sizes.width, this.sizes.height);
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+    // Enable better lighting calculations
+    this.renderer.physicallyCorrectLights = true;
+    this.renderer.outputEncoding = THREE.sRGBEncoding;
     document.body.appendChild(this.renderer.domElement);
 
     this.camera = new THREE.PerspectiveCamera(75, this.sizes.width / this.sizes.height, 0.1, 500);
-    this.camera.position.set(0, 2, 5);
+    this.camera.position.set(0, 2, 4);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.clock = new THREE.Clock();
@@ -41,68 +44,90 @@ class Sketch {
   }
 
   init() {
-    this.createGround();
-    this.createRipplingGrass();
+    this.addLights();
+    this.createReflectiveGround();
+    this.createContinuousStrands();
     this.loadFish();
   }
 
-  createGround() {
-    const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(100, 100),
-      new THREE.MeshStandardMaterial({ color: 0x050505 })
-    );
+  addLights() {
+    // Ambient light for general visibility
+    this.scene.add(new THREE.AmbientLight(0x4040ff, 0.5));
+    
+    // Directional light from top
+    const topLight = new THREE.DirectionalLight(0xffffff, 2);
+    topLight.position.set(0, 10, 0);
+    this.scene.add(topLight);
+
+    // Floor glow light - This prevents the bottom from being pitch black
+    const floorLight = new THREE.PointLight(0x00ffff, 10, 20);
+    floorLight.position.set(0, -0.5, 0);
+    this.scene.add(floorLight);
+  }
+
+  createReflectiveGround() {
+    // Using Physical Material for reflections and "wet" look
+    const floorGeo = new THREE.PlaneGeometry(100, 100);
+    const floorMat = new THREE.MeshPhysicalMaterial({ 
+        color: 0x1a1a2e,
+        metalness: 0.6,
+        roughness: 0.2,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.1,
+        reflectivity: 1.0
+    });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -1.0; 
     this.scene.add(floor);
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.8));
   }
 
-  createRipplingGrass() {
-    const strandCount = 1000; // Number of grass clumps
-    const particlesPerStrand = 30; // 30 vertical particles as requested
+  createContinuousStrands() {
+    const strandCount = 1200; 
+    const particlesPerStrand = 30; 
     const totalParticles = strandCount * particlesPerStrand;
 
     const geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(totalParticles * 3);
-    const delays = new Float32Array(totalParticles); // Used for the ripple delay
+    const delays = new Float32Array(totalParticles);
 
     for (let i = 0; i < strandCount; i++) {
-      const rootX = (Math.random() - 0.5) * 40;
-      const rootZ = (Math.random() - 0.5) * 40;
+      const rootX = (Math.random() - 0.5) * 45;
+      const rootZ = (Math.random() - 0.5) * 45;
 
       for (let j = 0; j < particlesPerStrand; j++) {
         const idx = (i * particlesPerStrand + j);
         
         positions[idx * 3] = rootX;
-        positions[idx * 3 + 1] = j * 0.1; // Stacked vertically
+        // TIGHTER SPACING: j * 0.04 instead of 0.1 makes them touch
+        positions[idx * 3 + 1] = j * 0.04; 
         positions[idx * 3 + 2] = rootZ;
 
-        // Higher particles have more delay/movement
-        delays[idx] = j * 0.1; 
+        delays[idx] = j * 0.15; 
       }
     }
 
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('aDelay', new THREE.BufferAttribute(delays, 1));
 
-    // Custom Shader to handle the ripple/wave movement
     const material = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
-        uColor: { value: new THREE.Color(0x22ff88) }
+        uColor: { value: new THREE.Color(0x44ffaa) }
       },
       vertexShader: `
         uniform float uTime;
         attribute float aDelay;
         void main() {
           vec3 pos = position;
-          // Ripple effect: offset X and Z based on height (aDelay) and time
-          float wave = sin(uTime * 2.0 - (pos.y * 2.0)) * (aDelay * 0.5);
+          // Sway logic
+          float wave = sin(uTime * 1.5 - (pos.y * 4.0)) * (aDelay * 0.08);
           pos.x += wave;
           pos.z += wave;
 
           vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-          gl_PointSize = 4.0 * (1.0 / -mvPosition.z); // Scale size by distance
+          // SIZE INCREASED to 12.0 so particles overlap into a strand
+          gl_PointSize = 12.0 * (1.0 / -mvPosition.z); 
           gl_Position = projectionMatrix * mvPosition;
         }
       `,
@@ -110,11 +135,13 @@ class Sketch {
         uniform vec3 uColor;
         void main() {
           float d = distance(gl_PointCoord, vec2(0.5));
-          if(d > 0.5) discard; // Make particles round
-          gl_FragColor = vec4(uColor, 1.0 - (d * 2.0));
+          if(d > 0.5) discard;
+          // Softer edges for a continuous organic look
+          gl_FragColor = vec4(uColor, 0.8);
         }
       `,
-      transparent: true
+      transparent: true,
+      depthWrite: false // Helps avoid black boxes when particles overlap
     });
 
     const points = new THREE.Points(geometry, material);
@@ -130,9 +157,8 @@ class Sketch {
     const loader = new GLTFLoader();
     loader.load("https://assets.codepen.io/5946/fish.glb", (gltf) => {
       const fish = gltf.scene.children[0];
+      fish.traverse(c => { if(c.isMesh) c.material = new THREE.MeshStandardMaterial({color: 0x000000, roughness: 0.1}); });
       
-      // Original tight Scale & Black material
-      fish.traverse(c => { if(c.isMesh) c.material = new THREE.MeshStandardMaterial({color: 0x000000}); });
       fish.scale.set(0.01, 0.01, 0.01);
       fish.rotation.x = Math.PI * 0.5;
       fish.updateMatrix();
@@ -141,12 +167,10 @@ class Sketch {
       fish.rotation.set(0,0,0);
       fish.scale.set(1,1,1);
 
-      // RESTORED: Original Movement Path
       const initialPoints = [];
-      const pointCount = 100;
-      for (let i = 0; i < Math.PI * 2; i += Math.PI / pointCount) {
-        const dist = 1 + Math.sin(i * 10) / 30; // Original logic
-        initialPoints.push(new THREE.Vector3(Math.sin(i) * dist, 0, Math.cos(i) * dist));
+      for (let i = 0; i < Math.PI * 2; i += Math.PI / 100) {
+        const dist = 1 + Math.sin(i * 10) / 30;
+        initialPoints.push(new THREE.Vector3(Math.sin(i) * dist, -0.2, Math.cos(i) * dist));
       }
 
       const curve = new THREE.CatmullRomCurve3(initialPoints);
@@ -160,7 +184,6 @@ class Sketch {
 
   animate() {
     requestAnimationFrame(() => this.animate());
-    const delta = this.clock.getDelta();
     this.tasks.forEach(t => t());
     this.renderer.render(this.scene, this.camera);
   }

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Salmon - Continuous Strands</title>
+    <title>Salmon - Dense Bioluminescent Field</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; }
         canvas { display: block; width: 100vw; height: 100vh; }
@@ -21,14 +21,12 @@ class Sketch {
   constructor() {
     this.sizes = { width: window.innerWidth, height: window.innerHeight };
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x101535); // Slightly lighter blue
-    this.scene.fog = new THREE.FogExp2(0x101535, 0.1);
+    this.scene.background = new THREE.Color(0x0a0a1a);
+    this.scene.fog = new THREE.FogExp2(0x0a0a1a, 0.12);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(this.sizes.width, this.sizes.height);
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
-    // Enable better lighting calculations
-    this.renderer.physicallyCorrectLights = true;
     this.renderer.outputEncoding = THREE.sRGBEncoding;
     document.body.appendChild(this.renderer.domElement);
 
@@ -44,37 +42,23 @@ class Sketch {
   }
 
   init() {
-    this.addLights();
+    // Enhanced Lighting
+    this.scene.add(new THREE.AmbientLight(0x4040ff, 0.6));
+    const pLight = new THREE.PointLight(0x00ffff, 15, 30);
+    pLight.position.set(0, 1, 0);
+    this.scene.add(pLight);
+
     this.createReflectiveGround();
-    this.createContinuousStrands();
+    this.createOrganicStrands();
     this.loadFish();
   }
 
-  addLights() {
-    // Ambient light for general visibility
-    this.scene.add(new THREE.AmbientLight(0x4040ff, 0.5));
-    
-    // Directional light from top
-    const topLight = new THREE.DirectionalLight(0xffffff, 2);
-    topLight.position.set(0, 10, 0);
-    this.scene.add(topLight);
-
-    // Floor glow light - This prevents the bottom from being pitch black
-    const floorLight = new THREE.PointLight(0x00ffff, 10, 20);
-    floorLight.position.set(0, -0.5, 0);
-    this.scene.add(floorLight);
-  }
-
   createReflectiveGround() {
-    // Using Physical Material for reflections and "wet" look
     const floorGeo = new THREE.PlaneGeometry(100, 100);
-    const floorMat = new THREE.MeshPhysicalMaterial({ 
-        color: 0x1a1a2e,
-        metalness: 0.6,
-        roughness: 0.2,
-        clearcoat: 1.0,
-        clearcoatRoughness: 0.1,
-        reflectivity: 1.0
+    const floorMat = new THREE.MeshStandardMaterial({ 
+        color: 0x111122,
+        roughness: 0.1,
+        metalness: 0.8
     });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
@@ -82,66 +66,89 @@ class Sketch {
     this.scene.add(floor);
   }
 
-  createContinuousStrands() {
-    const strandCount = 1200; 
-    const particlesPerStrand = 30; 
+  createOrganicStrands() {
+    const strandCount = 2000; 
+    const particlesPerStrand = 40; // Increased for better density
     const totalParticles = strandCount * particlesPerStrand;
 
     const geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(totalParticles * 3);
-    const delays = new Float32Array(totalParticles);
+    const randoms = new Float32Array(totalParticles * 4); // [xDir, zDir, speed, lengthMult]
 
     for (let i = 0; i < strandCount; i++) {
-      const rootX = (Math.random() - 0.5) * 45;
-      const rootZ = (Math.random() - 0.5) * 45;
+      const rootX = (Math.random() - 0.5) * 50;
+      const rootZ = (Math.random() - 0.5) * 50;
+      
+      // Randomize direction and speed for this specific strand
+      const xDir = (Math.random() - 0.5) * 2.0;
+      const zDir = (Math.random() - 0.5) * 2.0;
+      const speed = 0.5 + Math.random() * 2.0;
+      const lengthMult = 0.5 + Math.random() * 1.5;
 
       for (let j = 0; j < particlesPerStrand; j++) {
         const idx = (i * particlesPerStrand + j);
         
         positions[idx * 3] = rootX;
-        // TIGHTER SPACING: j * 0.04 instead of 0.1 makes them touch
-        positions[idx * 3 + 1] = j * 0.04; 
+        // Negative spacing (extremely tight overlap)
+        positions[idx * 3 + 1] = j * 0.02; 
         positions[idx * 3 + 2] = rootZ;
 
-        delays[idx] = j * 0.15; 
+        randoms[idx * 4] = xDir;
+        randoms[idx * 4 + 1] = zDir;
+        randoms[idx * 4 + 2] = speed;
+        randoms[idx * 4 + 3] = lengthMult;
       }
     }
 
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('aDelay', new THREE.BufferAttribute(delays, 1));
+    geometry.setAttribute('aRandom', new THREE.BufferAttribute(randoms, 4));
 
     const material = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
-        uColor: { value: new THREE.Color(0x44ffaa) }
+        uColor: { value: new THREE.Color(0x00ffcc) }
       },
       vertexShader: `
         uniform float uTime;
-        attribute float aDelay;
+        attribute vec4 aRandom;
+        varying float vHeight;
+
         void main() {
           vec3 pos = position;
-          // Sway logic
-          float wave = sin(uTime * 1.5 - (pos.y * 4.0)) * (aDelay * 0.08);
-          pos.x += wave;
-          pos.z += wave;
+          float h = pos.y; // Height from ground
+          vHeight = h;
+
+          // Scale length based on randomized attribute
+          pos.y *= aRandom.w;
+
+          // Unique sway using the strand's randomized speed and direction
+          float time = uTime * aRandom.z;
+          float wave = sin(time - (pos.y * 5.0)) * (pos.y * 0.2);
+          
+          pos.x += wave * aRandom.x;
+          pos.z += wave * aRandom.y;
 
           vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-          // SIZE INCREASED to 12.0 so particles overlap into a strand
-          gl_PointSize = 12.0 * (1.0 / -mvPosition.z); 
+          
+          // Size randomization: base size + variation based on strand
+          gl_PointSize = (18.0 + aRandom.w * 10.0) * (1.0 / -mvPosition.z);
           gl_Position = projectionMatrix * mvPosition;
         }
       `,
       fragmentShader: `
         uniform vec3 uColor;
+        varying float vHeight;
         void main() {
           float d = distance(gl_PointCoord, vec2(0.5));
           if(d > 0.5) discard;
-          // Softer edges for a continuous organic look
-          gl_FragColor = vec4(uColor, 0.8);
+          
+          // Color gets brighter at the tips
+          vec3 finalColor = uColor + (vHeight * 0.3);
+          gl_FragColor = vec4(finalColor, 1.0);
         }
       `,
       transparent: true,
-      depthWrite: false // Helps avoid black boxes when particles overlap
+      depthWrite: false
     });
 
     const points = new THREE.Points(geometry, material);
@@ -157,7 +164,7 @@ class Sketch {
     const loader = new GLTFLoader();
     loader.load("https://assets.codepen.io/5946/fish.glb", (gltf) => {
       const fish = gltf.scene.children[0];
-      fish.traverse(c => { if(c.isMesh) c.material = new THREE.MeshStandardMaterial({color: 0x000000, roughness: 0.1}); });
+      fish.traverse(c => { if(c.isMesh) c.material = new THREE.MeshStandardMaterial({color: 0x000000, roughness: 0}); });
       
       fish.scale.set(0.01, 0.01, 0.01);
       fish.rotation.x = Math.PI * 0.5;
@@ -177,8 +184,7 @@ class Sketch {
       const flow = new Flow(fish);
       flow.updateCurve(0, curve);
       this.scene.add(flow.object3D);
-
-      this.tasks.push(() => { flow.moveAlongCurve(0.001); });
+      this.tasks.push(() => flow.moveAlongCurve(0.001));
     });
   }
 

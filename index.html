@@ -267,6 +267,19 @@ class Sketch {
     const loader = new GLTFLoader();
     loader.load("https://assets.codepen.io/5946/fish.glb", function (gltf) {
       const fish = gltf.scene.children[0];
+
+
+fish.traverse((child) => {
+    if (child.isMesh) {
+      child.material = new THREE.MeshStandardMaterial({
+        color: 0x000000,      // Pure black
+        roughness: 0.3,       // Makes it look slightly shiny/wet
+        metalness: 0.2        // Gives it a slight organic sheen
+      });
+    }
+  });
+
+
       fish.scale.x = 0.01;
       fish.scale.y = 0.01;
       fish.scale.z = 0.01;

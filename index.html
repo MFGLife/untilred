@@ -3,160 +3,159 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Salmon - Expanded Landscape</title>
+    <title>Salmon - Particle World</title>
     <style>
-        :root {
-            --ui-bg: rgba(0, 0, 0, 0.8);
-            --accent: #ffffff;
-        }
-
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
         canvas { display: block; width: 100vw; height: 100vh; }
-
-        #foreground-layer {
+        #ui-hint {
             position: fixed;
-            top: 0;
-            left: 0;
+            bottom: 20px;
             width: 100%;
-            height: 100%;
+            text-align: center;
+            color: white;
             pointer-events: none;
+            text-shadow: 1px 1px 2px black;
             z-index: 10;
-        }
-
-        .active-img {
-            position: absolute;
-            pointer-events: auto;
-            cursor: move;
-            touch-action: none;
-            outline: 2px dashed white;
         }
     </style>
 </head>
 <body>
 
-<div id="foreground-layer"></div>
+<div id="ui-hint">Drag to rotate • Scroll to zoom</div>
 
 <script type="module">
-
 import * as THREE from "https://cdn.skypack.dev/three@0.125.2";
 import { GLTFLoader } from "https://cdn.skypack.dev/three@0.125.2/examples/jsm/loaders/GLTFLoader.js";
 import { Flow } from "https://cdn.skypack.dev/three@0.125.2/examples/jsm/modifiers/CurveModifier.js";
 import { OrbitControls } from "https://cdn.skypack.dev/three@0.125.2/examples/jsm/controls/OrbitControls.js";
 
-class Scene {
-  constructor(sketch, settings) {
-    this.sketch = sketch;
-    this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x222299);
-    this.scene.fog = new THREE.FogExp2(0x222277, 0.1); // Reduced fog density for larger landscape
-    return this.scene;
-  }
-}
-
-class Renderer {
-  constructor(sketch, settings) {
-    this.sketch = sketch;
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    this.renderer.setSize(this.sketch.sizes.width, this.sketch.sizes.height);
-    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.renderer.physicallyCorrectLights = true;
-    this.renderer.outputEncoding = THREE.sRGBEncoding;
-    this.renderer.toneMapping = THREE.ReinhardToneMapping;
-    this.renderer.update = this.update.bind(this.sketch);
-    return this.renderer;
-  }
-  update() {
-    this.renderer.render(this.scene, this.camera);
-  }
-}
-
-class Camera {
-  constructor(sketch, settings) {
-    this.sketch = sketch;
-    this.camera = new THREE.PerspectiveCamera(75, this.sketch.sizes.width / this.sketch.sizes.height, 0.1, 1000);
-    this.camera.position.set(0, 5, 10); // Moved camera back and up to see larger landscape
-    this.sketch.scene.add(this.camera);
-    return this.camera;
-  }
-}
-
-class Animator {
-  constructor(sketch) {
-    this.sketch = sketch;
-    this.tasks = [];
-  }
-  add(fn) { this.tasks.push(fn); }
-  animate() {
-    requestAnimationFrame(this.animate.bind(this));
-    this.tasks.forEach((task) => task());
-    this.sketch.renderer.update();
-  }
-}
-
-class Controls {
-  constructor(sketch) {
-    this.controls = new OrbitControls(sketch.camera, sketch.renderer.domElement);
-    return this.controls;
-  }
-}
-
-class Events {
-  constructor(sketch) {
-    this.sketch = sketch;
-    window.addEventListener("resize", () => {
-        this.sketch.sizes = { width: window.innerWidth, height: window.innerHeight };
-        this.sketch.camera.aspect = this.sketch.sizes.width / this.sketch.sizes.height;
-        this.sketch.camera.updateProjectionMatrix();
-        this.sketch.renderer.setSize(this.sketch.sizes.width, this.sketch.sizes.height);
-    });
-  }
-}
-
-class Lights {
-  constructor(sketch) {
-    this.sketch = sketch;
-    let ambLight = new THREE.AmbientLight(0xffffff, 0.8);
-    this.sketch.scene.add(ambLight);
-    let dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
-    dirLight.position.set(-10, 20, 10);
-    this.sketch.scene.add(dirLight);
-  }
-}
-
-let flow;
 class Sketch {
   constructor() {
     this.sizes = { width: window.innerWidth, height: window.innerHeight };
-    this.scene = new Scene(this);
-    this.renderer = new Renderer(this);
-    this.camera = new Camera(this);
-    this.lights = new Lights(this);
-    this.controls = new Controls(this);
-    this.events = new Events(this);
-    this.animator = new Animator(this);
+    
+    // Scene setup
+    this.scene = new THREE.Scene();
+    this.scene.background = new THREE.Color(0x050520);
+    this.scene.fog = new THREE.FogExp2(0x050520, 0.08);
+
+    // Renderer
+    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer.setSize(this.sizes.width, this.sizes.height);
+    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+    this.renderer.outputEncoding = THREE.sRGBEncoding;
+    document.body.appendChild(this.renderer.domElement);
+
+    // Camera
+    this.camera = new THREE.PerspectiveCamera(75, this.sizes.width / this.sizes.height, 0.1, 500);
+    this.camera.position.set(0, 4, 8);
+
+    // Controls
+    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.controls.enableDamping = true;
+
+    // Lights
+    const ambLight = new THREE.AmbientLight(0xffffff, 0.8);
+    this.scene.add(ambLight);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    dirLight.position.set(5, 10, 5);
+    this.scene.add(dirLight);
+
+    this.clock = new THREE.Clock();
+    this.tasks = [];
+    
+    this.init();
+    this.animate();
+    
+    window.addEventListener("resize", () => this.onResize());
+  }
+
+  onResize() {
+    this.sizes.width = window.innerWidth;
+    this.sizes.height = window.innerHeight;
+    this.camera.aspect = this.sizes.width / this.sizes.height;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(this.sizes.width, this.sizes.height);
   }
 
   init() {
-    this.addObjects();
-    document.body.appendChild(this.renderer.domElement);
-    this.animator.animate();
+    this.createGround();
+    this.createParticleGrass();
+    this.loadFish();
   }
 
-  addObjects() {
-    const that = this;
-    const loader = new GLTFLoader();
+  createGround() {
+    // A simple dark floor plane that we can move down independently
+    const floorGeo = new THREE.CircleGeometry(50, 32);
+    const floorMat = new THREE.MeshStandardMaterial({ 
+        color: 0x111122, 
+        roughness: 0.8 
+    });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -1.5; // Moving the ground DOWN
+    this.scene.add(floor);
+  }
 
-    // 1. LOAD FISH
+  createParticleGrass() {
+    // Creating "A lot more" (15,000 particles)
+    const count = 15000;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(count * 3);
+    const colors = new Float32Array(count * 3);
+
+    for (let i = 0; i < count; i++) {
+      // Spread across the landscape
+      positions[i * 3] = (Math.random() - 0.5) * 60; 
+      
+      // Separate height control - some "plants" taller than others
+      positions[i * 3 + 1] = Math.random() * 2.0; 
+      
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 60;
+
+      // Give them organic green/teal colors
+      colors[i * 3] = 0.1; 
+      colors[i * 3 + 1] = 0.4 + Math.random() * 0.4; 
+      colors[i * 3 + 2] = 0.2 + Math.random() * 0.3;
+    }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const material = new THREE.PointsMaterial({
+      size: 0.25, // Increased size (5x bigger feel)
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.8,
+      sizeAttenuation: true
+    });
+
+    const grassPoints = new THREE.Points(geometry, material);
+    grassPoints.position.y = -1.5; // Aligned with the floor
+    this.scene.add(grassPoints);
+    
+    // Animate the grass slightly
+    this.tasks.push(() => {
+        const time = this.clock.getElapsedTime();
+        grassPoints.rotation.y = Math.sin(time * 0.2) * 0.05;
+    });
+  }
+
+  loadFish() {
+    const loader = new GLTFLoader();
     loader.load("https://assets.codepen.io/5946/fish.glb", (gltf) => {
       const fish = gltf.scene.children[0];
+
       fish.traverse((child) => {
         if (child.isMesh) {
-          child.material = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.3, metalness: 0.2 });
+          child.material = new THREE.MeshStandardMaterial({
+            color: 0x000000,
+            roughness: 0.3,
+            metalness: 0.5
+          });
         }
       });
 
+      // Prepare fish geometry for the curve flow
       fish.scale.set(0.01, 0.01, 0.01);
       fish.rotation.x = Math.PI * 0.5;
       fish.updateMatrix();
@@ -165,82 +164,36 @@ class Sketch {
       fish.rotation.set(0, 0, 0);
       fish.scale.set(1, 1, 1);
 
-      const initialPoints = [];
-      for (let i = 0; i < Math.PI * 2; i += Math.PI / 100) {
-        const dist = 3 + Math.sin(i * 10) / 10; // Slightly larger path for the fish
-        initialPoints.push(new THREE.Vector3(Math.sin(i) * dist, 1, Math.cos(i) * dist));
+      // Create a swimming path for the fish
+      const points = [];
+      for (let i = 0; i < Math.PI * 2; i += Math.PI / 50) {
+        points.push(new THREE.Vector3(
+            Math.sin(i) * 5, 
+            0.5 + Math.cos(i * 2) * 0.5, // Slight up/down movement
+            Math.cos(i) * 5
+        ));
       }
 
-      const curve = new THREE.CatmullRomCurve3(initialPoints);
-      flow = new Flow(fish);
+      const curve = new THREE.CatmullRomCurve3(points);
+      const flow = new Flow(fish);
       flow.updateCurve(0, curve);
-      that.scene.add(flow.object3D);
+      this.scene.add(flow.object3D);
 
-      that.animator.add(() => { flow.moveAlongCurve(0.001); });
-    });
-
-    
-      addObjects() {
-    const that = this;
-    const loader = new GLTFLoader();
-
-    // 1. CREATE GRASS PARTICLES (Replacing the .glb landscape)
-    const grassCount = 10000; // Total number of grass blades
-    const grassGeometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(grassCount * 3);
-    const colors = new Float32Array(grassCount * 3);
-
-    for (let i = 0; i < grassCount; i++) {
-      // Spread the grass across a wide area (80x80)
-      const x = (Math.random() - 0.5) * 80;
-      const z = (Math.random() - 0.5) * 80;
-      
-      // Control height independently! 
-      // This makes some blades taller than others
-      const y = Math.random() * 1.5; 
-
-      positions[i * 3] = x;
-      positions[i * 3 + 1] = y;
-      positions[i * 3 + 2] = z;
-
-      // Color variation (different shades of green)
-      colors[i * 3] = 0.1;             // Red
-      colors[i * 3 + 1] = 0.5 + Math.random() * 0.5; // Green
-      colors[i * 3 + 2] = 0.1;             // Blue
-    }
-
-    grassGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    grassGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-    const grassMaterial = new THREE.PointsMaterial({
-      size: 0.15, // Make them "5x bigger" by increasing this number
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.8
-    });
-
-    const grassField = new THREE.Points(grassGeometry, grassMaterial);
-    // Move the entire field down slightly so it sits on your floor level
-    grassField.position.y = -1; 
-    this.scene.add(grassField);
-
-    // 2. FISH LOADER (Keep your existing fish code here...)
-    loader.load("https://assets.codepen.io/5946/fish.glb", function (gltf) {
-      // ... (your existing fish logic)
+      this.tasks.push(() => {
+        flow.moveAlongCurve(0.0015);
+      });
     });
   }
 
-
-
-
-
-
+  animate() {
+    requestAnimationFrame(() => this.animate());
+    this.tasks.forEach(task => task());
+    this.controls.update();
+    this.renderer.render(this.scene, this.camera);
   }
 }
 
-let sketch = new Sketch();
-sketch.init();
-
+new Sketch();
 </script>
 </body>
 </html>

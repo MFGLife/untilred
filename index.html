@@ -3,25 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Salmon - Particle World</title>
+    <title>Salmon - Rippling Strands</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
+        body { margin: 0; overflow: hidden; background: #000; }
         canvas { display: block; width: 100vw; height: 100vh; }
-        #ui-hint {
-            position: fixed;
-            bottom: 20px;
-            width: 100%;
-            text-align: center;
-            color: white;
-            pointer-events: none;
-            text-shadow: 1px 1px 2px black;
-            z-index: 10;
-        }
     </style>
 </head>
 <body>
-
-<div id="ui-hint">Drag to rotate • Scroll to zoom</div>
 
 <script type="module">
 import * as THREE from "https://cdn.skypack.dev/three@0.125.2";
@@ -32,111 +20,109 @@ import { OrbitControls } from "https://cdn.skypack.dev/three@0.125.2/examples/js
 class Sketch {
   constructor() {
     this.sizes = { width: window.innerWidth, height: window.innerHeight };
-    
-    // Scene setup
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x050520);
-    this.scene.fog = new THREE.FogExp2(0x050520, 0.08);
+    this.scene.fog = new THREE.FogExp2(0x050520, 0.1);
 
-    // Renderer
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(this.sizes.width, this.sizes.height);
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
-    this.renderer.outputEncoding = THREE.sRGBEncoding;
     document.body.appendChild(this.renderer.domElement);
 
-    // Camera
     this.camera = new THREE.PerspectiveCamera(75, this.sizes.width / this.sizes.height, 0.1, 500);
-    this.camera.position.set(0, 4, 8);
+    this.camera.position.set(0, 2, 5);
 
-    // Controls
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enableDamping = true;
-
-    // Lights
-    const ambLight = new THREE.AmbientLight(0xffffff, 0.8);
-    this.scene.add(ambLight);
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
-    dirLight.position.set(5, 10, 5);
-    this.scene.add(dirLight);
-
     this.clock = new THREE.Clock();
     this.tasks = [];
     
     this.init();
     this.animate();
-    
-    window.addEventListener("resize", () => this.onResize());
-  }
-
-  onResize() {
-    this.sizes.width = window.innerWidth;
-    this.sizes.height = window.innerHeight;
-    this.camera.aspect = this.sizes.width / this.sizes.height;
-    this.camera.updateProjectionMatrix();
-    this.renderer.setSize(this.sizes.width, this.sizes.height);
   }
 
   init() {
     this.createGround();
-    this.createParticleGrass();
+    this.createRipplingGrass();
     this.loadFish();
   }
 
   createGround() {
-    // A simple dark floor plane that we can move down independently
-    const floorGeo = new THREE.CircleGeometry(50, 32);
-    const floorMat = new THREE.MeshStandardMaterial({ 
-        color: 0x111122, 
-        roughness: 0.8 
-    });
-    const floor = new THREE.Mesh(floorGeo, floorMat);
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(100, 100),
+      new THREE.MeshStandardMaterial({ color: 0x050505 })
+    );
     floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -1.5; // Moving the ground DOWN
+    floor.position.y = -1.0; 
     this.scene.add(floor);
+    this.scene.add(new THREE.AmbientLight(0xffffff, 0.8));
   }
 
-  createParticleGrass() {
-    // Creating "A lot more" (15,000 particles)
-    const count = 15000;
+  createRipplingGrass() {
+    const strandCount = 1000; // Number of grass clumps
+    const particlesPerStrand = 30; // 30 vertical particles as requested
+    const totalParticles = strandCount * particlesPerStrand;
+
     const geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(count * 3);
-    const colors = new Float32Array(count * 3);
+    const positions = new Float32Array(totalParticles * 3);
+    const delays = new Float32Array(totalParticles); // Used for the ripple delay
 
-    for (let i = 0; i < count; i++) {
-      // Spread across the landscape
-      positions[i * 3] = (Math.random() - 0.5) * 60; 
-      
-      // Separate height control - some "plants" taller than others
-      positions[i * 3 + 1] = Math.random() * 2.0; 
-      
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 60;
+    for (let i = 0; i < strandCount; i++) {
+      const rootX = (Math.random() - 0.5) * 40;
+      const rootZ = (Math.random() - 0.5) * 40;
 
-      // Give them organic green/teal colors
-      colors[i * 3] = 0.1; 
-      colors[i * 3 + 1] = 0.4 + Math.random() * 0.4; 
-      colors[i * 3 + 2] = 0.2 + Math.random() * 0.3;
+      for (let j = 0; j < particlesPerStrand; j++) {
+        const idx = (i * particlesPerStrand + j);
+        
+        positions[idx * 3] = rootX;
+        positions[idx * 3 + 1] = j * 0.1; // Stacked vertically
+        positions[idx * 3 + 2] = rootZ;
+
+        // Higher particles have more delay/movement
+        delays[idx] = j * 0.1; 
+      }
     }
 
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geometry.setAttribute('aDelay', new THREE.BufferAttribute(delays, 1));
 
-    const material = new THREE.PointsMaterial({
-      size: 0.25, // Increased size (5x bigger feel)
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.8,
-      sizeAttenuation: true
+    // Custom Shader to handle the ripple/wave movement
+    const material = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uColor: { value: new THREE.Color(0x22ff88) }
+      },
+      vertexShader: `
+        uniform float uTime;
+        attribute float aDelay;
+        void main() {
+          vec3 pos = position;
+          // Ripple effect: offset X and Z based on height (aDelay) and time
+          float wave = sin(uTime * 2.0 - (pos.y * 2.0)) * (aDelay * 0.5);
+          pos.x += wave;
+          pos.z += wave;
+
+          vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+          gl_PointSize = 4.0 * (1.0 / -mvPosition.z); // Scale size by distance
+          gl_Position = projectionMatrix * mvPosition;
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 uColor;
+        void main() {
+          float d = distance(gl_PointCoord, vec2(0.5));
+          if(d > 0.5) discard; // Make particles round
+          gl_FragColor = vec4(uColor, 1.0 - (d * 2.0));
+        }
+      `,
+      transparent: true
     });
 
-    const grassPoints = new THREE.Points(geometry, material);
-    grassPoints.position.y = -1.5; // Aligned with the floor
-    this.scene.add(grassPoints);
-    
-    // Animate the grass slightly
+    const points = new THREE.Points(geometry, material);
+    points.position.y = -1.0; 
+    this.scene.add(points);
+
     this.tasks.push(() => {
-        const time = this.clock.getElapsedTime();
-        grassPoints.rotation.y = Math.sin(time * 0.2) * 0.05;
+      material.uniforms.uTime.value = this.clock.getElapsedTime();
     });
   }
 
@@ -144,51 +130,38 @@ class Sketch {
     const loader = new GLTFLoader();
     loader.load("https://assets.codepen.io/5946/fish.glb", (gltf) => {
       const fish = gltf.scene.children[0];
-
-      fish.traverse((child) => {
-        if (child.isMesh) {
-          child.material = new THREE.MeshStandardMaterial({
-            color: 0x000000,
-            roughness: 0.3,
-            metalness: 0.5
-          });
-        }
-      });
-
-      // Prepare fish geometry for the curve flow
+      
+      // Original tight Scale & Black material
+      fish.traverse(c => { if(c.isMesh) c.material = new THREE.MeshStandardMaterial({color: 0x000000}); });
       fish.scale.set(0.01, 0.01, 0.01);
       fish.rotation.x = Math.PI * 0.5;
       fish.updateMatrix();
       fish.geometry.applyMatrix4(fish.matrix);
-      fish.position.set(0, 0, 0);
-      fish.rotation.set(0, 0, 0);
-      fish.scale.set(1, 1, 1);
+      fish.position.set(0,0,0);
+      fish.rotation.set(0,0,0);
+      fish.scale.set(1,1,1);
 
-      // Create a swimming path for the fish
-      const points = [];
-      for (let i = 0; i < Math.PI * 2; i += Math.PI / 50) {
-        points.push(new THREE.Vector3(
-            Math.sin(i) * 5, 
-            0.5 + Math.cos(i * 2) * 0.5, // Slight up/down movement
-            Math.cos(i) * 5
-        ));
+      // RESTORED: Original Movement Path
+      const initialPoints = [];
+      const pointCount = 100;
+      for (let i = 0; i < Math.PI * 2; i += Math.PI / pointCount) {
+        const dist = 1 + Math.sin(i * 10) / 30; // Original logic
+        initialPoints.push(new THREE.Vector3(Math.sin(i) * dist, 0, Math.cos(i) * dist));
       }
 
-      const curve = new THREE.CatmullRomCurve3(points);
+      const curve = new THREE.CatmullRomCurve3(initialPoints);
       const flow = new Flow(fish);
       flow.updateCurve(0, curve);
       this.scene.add(flow.object3D);
 
-      this.tasks.push(() => {
-        flow.moveAlongCurve(0.0015);
-      });
+      this.tasks.push(() => { flow.moveAlongCurve(0.001); });
     });
   }
 
   animate() {
     requestAnimationFrame(() => this.animate());
-    this.tasks.forEach(task => task());
-    this.controls.update();
+    const delta = this.clock.getDelta();
+    this.tasks.forEach(t => t());
     this.renderer.render(this.scene, this.camera);
   }
 }

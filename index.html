@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Salmon - Dense Bioluminescent Field</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Salmon — Audio Reactive</title>
 
 <style>
 body { margin: 0; overflow: hidden; background: #000; }
@@ -17,15 +17,14 @@ canvas { display: block; width: 100vw; height: 100vh; }
   background: rgba(0,0,0,0.6);
   padding: 8px 10px;
   border-radius: 6px;
-  backdrop-filter: blur(5px);
 }
 #audioPanel button {
   background: #00ffd0;
   border: none;
-  padding: 5px 9px;
+  padding: 6px 10px;
   border-radius: 5px;
-  cursor: pointer;
   font-weight: 600;
+  cursor: pointer;
 }
 #audioPanel input {
   display: none;
@@ -49,36 +48,42 @@ import { OrbitControls } from "https://cdn.skypack.dev/three@0.125.2/examples/js
 
 class Sketch {
   constructor() {
-    this.sizes = { width: window.innerWidth, height: window.innerHeight };
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x0a0a1a);
-    this.scene.fog = new THREE.FogExp2(0x0a0a1a, 0.12);
+    
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    this.renderer.setSize(this.sizes.width, this.sizes.height);
+    this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
+    this.camera.position.set(0, 1.2, 3);
+
+    this.renderer = new THREE.WebGLRenderer({
+  antialias: true,
+  alpha: true
+});
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
-    this.renderer.outputEncoding = THREE.sRGBEncoding;
     document.body.appendChild(this.renderer.domElement);
-
-    this.camera = new THREE.PerspectiveCamera(75, this.sizes.width / this.sizes.height, 0.1, 500);
-    this.camera.position.set(0, 2, 4);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.clock = new THREE.Clock();
     this.tasks = [];
 
-    /* === AUDIO (ADDED, ISOLATED) === */
+    /* AUDIO */
     this.audioCtx = null;
     this.analyser = null;
     this.freqData = null;
-    this.audioBands = { low: 0, mid: 0, high: 0 };
 
-    this.init();
+    this.initLights();
     this.initAudioUI();
+    this.loadFish();
     this.animate();
   }
 
-  /* ===== AUDIO UI ===== */
+  initLights() {
+    this.scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+    const light = new THREE.PointLight(0x00ffff, 2, 10);
+    light.position.set(0, 2, 2);
+    this.scene.add(light);
+  }
+
   initAudioUI() {
     const btn = document.getElementById("toggleAudio");
     const input = document.getElementById("audioFile");
@@ -106,158 +111,54 @@ class Sketch {
     };
   }
 
-  init() {
-    this.scene.add(new THREE.AmbientLight(0x4040ff, 0.6));
-    const pLight = new THREE.PointLight(0x00ffff, 15, 30);
-    pLight.position.set(0, 1, 0);
-    this.scene.add(pLight);
-
-    this.createReflectiveGround();
-    this.createOrganicStrands();
-    this.loadFish(); // ← untouched
-  }
-
-  createReflectiveGround() {
-    const floorGeo = new THREE.PlaneGeometry(100, 100);
-    const floorMat = new THREE.MeshStandardMaterial({
-      color: 0x111122,
-      roughness: 0.1,
-      metalness: 0.8
-    });
-    const floor = new THREE.Mesh(floorGeo, floorMat);
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -1.0;
-    this.scene.add(floor);
-  }
-
-  createOrganicStrands() {
-    const strandCount = 20000;
-    const particlesPerStrand = 60;
-    const totalParticles = strandCount * particlesPerStrand;
-
-    const geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(totalParticles * 3);
-    const randoms = new Float32Array(totalParticles * 4);
-
-    for (let i = 0; i < strandCount; i++) {
-      const rootX = (Math.random() - 0.5) * 50;
-      const rootZ = (Math.random() - 0.5) * 50;
-      const xDir = (Math.random() - 0.5) * 2.0;
-      const zDir = (Math.random() - 0.5) * 2.0;
-      const speed = 0.5 + Math.random() * 2.0;
-      const lengthMult = 0.5 + Math.random() * 1.5;
-
-      for (let j = 0; j < particlesPerStrand; j++) {
-        const idx = (i * particlesPerStrand + j);
-        positions[idx * 3] = rootX;
-        positions[idx * 3 + 1] = j * 0.01;
-        positions[idx * 3 + 2] = rootZ;
-        randoms.set([xDir, zDir, speed, lengthMult], idx * 4);
-      }
-    }
-
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('aRandom', new THREE.BufferAttribute(randoms, 4));
-
-    const material = new THREE.ShaderMaterial({
-      uniforms: {
-        uTime: { value: 0 },
-        uColor: { value: new THREE.Color(0x00ffcc) },
-        uLow: { value: 0 },
-        uMid: { value: 0 },
-        uHigh: { value: 0 }
-      },
-      vertexShader: `
-        uniform float uTime, uLow, uMid;
-        attribute vec4 aRandom;
-        varying float vHeight;
-
-        void main() {
-          vec3 pos = position;
-          pos.y *= aRandom.w * (1.0 + uLow * 2.0);
-          vHeight = pos.y;
-
-          float t = uTime * aRandom.z;
-          float wave = sin(t - pos.y * 5.0) * (pos.y * (0.2 + uMid));
-          pos.x += wave * aRandom.x;
-          pos.z += wave * aRandom.y;
-
-          vec4 mv = modelViewMatrix * vec4(pos, 1.0);
-          gl_PointSize = (30.0 + aRandom.w * 18.0) * (1.0 / -mv.z);
-          gl_Position = projectionMatrix * mv;
-        }
-      `,
-      fragmentShader: `
-        uniform vec3 uColor;
-        uniform float uLow, uMid, uHigh;
-        varying float vHeight;
-
-        void main() {
-          float d = distance(gl_PointCoord, vec2(0.5));
-          if(d > 0.5) discard;
-
-          vec3 bass = vec3(0.0, 1.0, 1.0);
-          vec3 mids = vec3(0.3, 1.0, 0.5);
-          vec3 highs = vec3(1.0, 0.2, 1.0);
-
-          vec3 eqColor = bass * uLow + mids * uMid + highs * uHigh;
-          vec3 finalColor = mix(uColor, eqColor, 0.7) + vHeight * 0.3;
-
-          gl_FragColor = vec4(finalColor, 1.0);
-        }
-      `,
-      transparent: true,
-      depthWrite: false
-    });
-
-    const points = new THREE.Points(geometry, material);
-    points.position.y = -1.0;
-    this.scene.add(points);
-
-    this.tasks.push(() => {
-      material.uniforms.uTime.value = this.clock.getElapsedTime();
-
-      if (this.analyser) {
-        this.analyser.getByteFrequencyData(this.freqData);
-        const low = this.freqData.slice(0, 60);
-        const mid = this.freqData.slice(60, 200);
-        const high = this.freqData.slice(200);
-
-        material.uniforms.uLow.value = low.reduce((a,b)=>a+b,0)/low.length/255;
-        material.uniforms.uMid.value = mid.reduce((a,b)=>a+b,0)/mid.length/255;
-        material.uniforms.uHigh.value = high.reduce((a,b)=>a+b,0)/high.length/255;
-      }
-    });
-  }
-
-  /* ===== FISH: UNCHANGED ===== */
   loadFish() {
     const loader = new GLTFLoader();
-    loader.load("https://assets.codepen.io/5946/fish.glb", (gltf) => {
+    loader.load("https://assets.codepen.io/5946/fish.glb", gltf => {
+
       const fish = gltf.scene.children[0];
-      fish.traverse(c => {
-        if(c.isMesh) c.material = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0 });
+      const material = new THREE.MeshStandardMaterial({
+        color: 0x00ffee,
+        emissive: 0x001111,
+        roughness: 0.3,
+        metalness: 0.2
       });
+
+      fish.traverse(c => { if (c.isMesh) c.material = material; });
 
       fish.scale.set(0.01, 0.01, 0.01);
       fish.rotation.x = Math.PI * 0.5;
       fish.updateMatrix();
       fish.geometry.applyMatrix4(fish.matrix);
-      fish.position.set(0,0,0);
-      fish.rotation.set(0,0,0);
-      fish.scale.set(1,1,1);
+      fish.position.set(0, 0, 0);
+      fish.rotation.set(0, 0, 0);
+      fish.scale.set(1, 1, 1);
 
-      const initialPoints = [];
-      for (let i = 0; i < Math.PI * 2; i += Math.PI / 100) {
-        const dist = 1 + Math.sin(i * 10) / 30;
-        initialPoints.push(new THREE.Vector3(Math.sin(i) * dist, -0.2, Math.cos(i) * dist));
+      const points = [];
+      for (let i = 0; i < Math.PI * 2; i += Math.PI / 80) {
+        points.push(new THREE.Vector3(Math.sin(i), -0.2, Math.cos(i)));
       }
 
-      const curve = new THREE.CatmullRomCurve3(initialPoints);
+      const curve = new THREE.CatmullRomCurve3(points);
       const flow = new Flow(fish);
       flow.updateCurve(0, curve);
       this.scene.add(flow.object3D);
-      this.tasks.push(() => flow.moveAlongCurve(0.001));
+
+      this.tasks.push(() => {
+        flow.moveAlongCurve(0.0015);
+
+        if (!this.analyser) return;
+        this.analyser.getByteFrequencyData(this.freqData);
+
+        const low = this.freqData.slice(0, 60).reduce((a,b)=>a+b,0)/60/255;
+        const mid = this.freqData.slice(60, 200).reduce((a,b)=>a+b,0)/140/255;
+        const high = this.freqData.slice(200).reduce((a,b)=>a+b,0)/(this.freqData.length-200)/255;
+
+        const pulse = 1 + low * 0.25;
+        flow.object3D.scale.set(pulse, pulse, pulse);
+
+        material.emissiveIntensity = 0.4 + high * 2.5;
+        material.color.setHSL(0.48 + mid * 0.1, 1.0, 0.5);
+      });
     });
   }
 

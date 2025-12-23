@@ -144,21 +144,24 @@ class Sketch {
       this.scene.add(flow.object3D);
 
       this.tasks.push(() => {
-        flow.moveAlongCurve(0.0015);
+  flow.moveAlongCurve(0.0015);
 
-        if (!this.analyser) return;
-        this.analyser.getByteFrequencyData(this.freqData);
+  if (!this.analyser) return;
+  this.analyser.getByteFrequencyData(this.freqData);
 
-        const low = this.freqData.slice(0, 60).reduce((a,b)=>a+b,0)/60/255;
-        const mid = this.freqData.slice(60, 200).reduce((a,b)=>a+b,0)/140/255;
-        const high = this.freqData.slice(200).reduce((a,b)=>a+b,0)/(this.freqData.length-200)/255;
+  const low  = this.freqData.slice(0, 60).reduce((a,b)=>a+b,0) / 60 / 255;
+  const mid  = this.freqData.slice(60, 200).reduce((a,b)=>a+b,0) / 140 / 255;
+  const high = this.freqData.slice(200).reduce((a,b)=>a+b,0) / (this.freqData.length - 200) / 255;
 
-        const pulse = 1 + low * 0.25;
-        flow.object3D.scale.set(pulse, pulse, pulse);
+  // 🎨 Color mapping ONLY (safe)
+  const hue = 0.48 + mid * 0.15;        // mids shift hue
+  const glow = 0.2 + high * 2.0;        // highs control glow
+  const lightness = 0.45 + low * 0.15;  // bass thickens color
 
-        material.emissiveIntensity = 0.4 + high * 2.5;
-        material.color.setHSL(0.48 + mid * 0.1, 1.0, 0.5);
-      });
+  material.color.setHSL(hue, 1.0, lightness);
+  material.emissive.setHSL(hue, 1.0, 0.3);
+  material.emissiveIntensity = glow;
+});
     });
   }
 

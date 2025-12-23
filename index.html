@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Salmon — Audio Reactive Swim</title>
+<title>Salmon — Audio Dominance Flash</title>
 
 <style>
 body { margin: 0; overflow: hidden; background: #000; }
@@ -60,10 +60,8 @@ class Sketch {
     this.camera.position.set(0, 2, 4);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.clock = new THREE.Clock();
     this.tasks = [];
 
-    /* AUDIO */
     this.audioCtx = null;
     this.analyser = null;
     this.freqData = null;
@@ -75,8 +73,8 @@ class Sketch {
   }
 
   initLights() {
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-    const light = new THREE.PointLight(0x00ffff, 3, 20);
+    this.scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+    const light = new THREE.PointLight(0xffffff, 3, 20);
     light.position.set(0, 2, 2);
     this.scene.add(light);
   }
@@ -114,9 +112,10 @@ class Sketch {
 
       const fish = gltf.scene.children[0];
 
+      const baseColor = new THREE.Color(0x00ffee);
       const fishMaterial = new THREE.MeshStandardMaterial({
-        color: 0x00ffee,
-        emissive: 0x000000,
+        color: baseColor.clone(),
+        emissive: new THREE.Color(0x000000),
         roughness: 0.2,
         metalness: 0.1
       });
@@ -125,7 +124,7 @@ class Sketch {
         if (c.isMesh) c.material = fishMaterial;
       });
 
-      /* === ORIGINAL GEOMETRY BAKE (UNCHANGED) === */
+      /* ORIGINAL GEOMETRY BAKE — UNCHANGED */
       fish.scale.set(0.01, 0.01, 0.01);
       fish.rotation.x = Math.PI * 0.5;
       fish.updateMatrix();
@@ -145,23 +144,33 @@ class Sketch {
       flow.updateCurve(0, curve);
       this.scene.add(flow.object3D);
 
-      /* === SAFE AUDIO COLOR MAPPING ONLY === */
       this.tasks.push(() => {
         flow.moveAlongCurve(0.001);
 
         if (!this.analyser) return;
         this.analyser.getByteFrequencyData(this.freqData);
 
-        const low  = this.freqData.slice(0, 60).reduce((a,b)=>a+b,0) / 60 / 255;
-        const mid  = this.freqData.slice(60, 200).reduce((a,b)=>a+b,0) / 140 / 255;
+        const low  = this.freqData.slice(0, 80).reduce((a,b)=>a+b,0) / 80 / 255;
         const high = this.freqData.slice(200).reduce((a,b)=>a+b,0) / (this.freqData.length - 200) / 255;
 
-        const hue = 0.48 + mid * 0.15;
-        const lightness = 0.4 + low * 0.2;
+        const threshold = 0.15;
 
-        fishMaterial.color.setHSL(hue, 1.0, lightness);
-        fishMaterial.emissive.setHSL(hue, 1.0, 0.3);
-        fishMaterial.emissiveIntensity = 0.3 + high * 2.0;
+        if (high > low && high > threshold) {
+          // 🔥 HIGH DOMINANT → WHITE FLASH
+          fishMaterial.color.set(0xffffff);
+          fishMaterial.emissive.set(0xffffff);
+          fishMaterial.emissiveIntensity = high * 3.0;
+        } else if (low > high && low > threshold) {
+          // 🖤 BASS DOMINANT → BLACK FLASH
+          fishMaterial.color.set(0x000000);
+          fishMaterial.emissive.set(0x000000);
+          fishMaterial.emissiveIntensity = 0;
+        } else {
+          // 🐟 NEUTRAL → BASE COLOR
+          fishMaterial.color.copy(baseColor);
+          fishMaterial.emissive.set(0x000000);
+          fishMaterial.emissiveIntensity = 0;
+        }
       });
     });
   }

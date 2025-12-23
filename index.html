@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Salmon — Audio Reactive</title>
+<title>Salmon — Audio Reactive Swim</title>
 
 <style>
 body { margin: 0; overflow: hidden; background: #000; }
@@ -23,8 +23,8 @@ canvas { display: block; width: 100vw; height: 100vh; }
   border: none;
   padding: 6px 10px;
   border-radius: 5px;
-  font-weight: 600;
   cursor: pointer;
+  font-weight: 600;
 }
 #audioPanel input {
   display: none;
@@ -49,18 +49,15 @@ import { OrbitControls } from "https://cdn.skypack.dev/three@0.125.2/examples/js
 class Sketch {
   constructor() {
     this.scene = new THREE.Scene();
-    
+    this.scene.background = new THREE.Color(0x000000);
 
-    this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
-    this.camera.position.set(0, 1.2, 3);
-
-    this.renderer = new THREE.WebGLRenderer({
-  antialias: true,
-  alpha: true
-});
+    this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
     document.body.appendChild(this.renderer.domElement);
+
+    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+    this.camera.position.set(0, 2, 4);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.clock = new THREE.Clock();
@@ -78,8 +75,8 @@ class Sketch {
   }
 
   initLights() {
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-    const light = new THREE.PointLight(0x00ffff, 2, 10);
+    this.scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    const light = new THREE.PointLight(0x00ffff, 3, 20);
     light.position.set(0, 2, 2);
     this.scene.add(light);
   }
@@ -116,15 +113,19 @@ class Sketch {
     loader.load("https://assets.codepen.io/5946/fish.glb", gltf => {
 
       const fish = gltf.scene.children[0];
-      const material = new THREE.MeshStandardMaterial({
+
+      const fishMaterial = new THREE.MeshStandardMaterial({
         color: 0x00ffee,
-        emissive: 0x001111,
-        roughness: 0.3,
-        metalness: 0.2
+        emissive: 0x000000,
+        roughness: 0.2,
+        metalness: 0.1
       });
 
-      fish.traverse(c => { if (c.isMesh) c.material = material; });
+      fish.traverse(c => {
+        if (c.isMesh) c.material = fishMaterial;
+      });
 
+      /* === ORIGINAL GEOMETRY BAKE (UNCHANGED) === */
       fish.scale.set(0.01, 0.01, 0.01);
       fish.rotation.x = Math.PI * 0.5;
       fish.updateMatrix();
@@ -134,8 +135,9 @@ class Sketch {
       fish.scale.set(1, 1, 1);
 
       const points = [];
-      for (let i = 0; i < Math.PI * 2; i += Math.PI / 80) {
-        points.push(new THREE.Vector3(Math.sin(i), -0.2, Math.cos(i)));
+      for (let i = 0; i < Math.PI * 2; i += Math.PI / 100) {
+        const dist = 1 + Math.sin(i * 10) / 30;
+        points.push(new THREE.Vector3(Math.sin(i) * dist, -0.2, Math.cos(i) * dist));
       }
 
       const curve = new THREE.CatmullRomCurve3(points);
@@ -143,25 +145,24 @@ class Sketch {
       flow.updateCurve(0, curve);
       this.scene.add(flow.object3D);
 
+      /* === SAFE AUDIO COLOR MAPPING ONLY === */
       this.tasks.push(() => {
-  flow.moveAlongCurve(0.0015);
+        flow.moveAlongCurve(0.001);
 
-  if (!this.analyser) return;
-  this.analyser.getByteFrequencyData(this.freqData);
+        if (!this.analyser) return;
+        this.analyser.getByteFrequencyData(this.freqData);
 
-  const low  = this.freqData.slice(0, 60).reduce((a,b)=>a+b,0) / 60 / 255;
-  const mid  = this.freqData.slice(60, 200).reduce((a,b)=>a+b,0) / 140 / 255;
-  const high = this.freqData.slice(200).reduce((a,b)=>a+b,0) / (this.freqData.length - 200) / 255;
+        const low  = this.freqData.slice(0, 60).reduce((a,b)=>a+b,0) / 60 / 255;
+        const mid  = this.freqData.slice(60, 200).reduce((a,b)=>a+b,0) / 140 / 255;
+        const high = this.freqData.slice(200).reduce((a,b)=>a+b,0) / (this.freqData.length - 200) / 255;
 
-  // 🎨 Color mapping ONLY (safe)
-  const hue = 0.48 + mid * 0.15;        // mids shift hue
-  const glow = 0.2 + high * 2.0;        // highs control glow
-  const lightness = 0.45 + low * 0.15;  // bass thickens color
+        const hue = 0.48 + mid * 0.15;
+        const lightness = 0.4 + low * 0.2;
 
-  material.color.setHSL(hue, 1.0, lightness);
-  material.emissive.setHSL(hue, 1.0, 0.3);
-  material.emissiveIntensity = glow;
-});
+        fishMaterial.color.setHSL(hue, 1.0, lightness);
+        fishMaterial.emissive.setHSL(hue, 1.0, 0.3);
+        fishMaterial.emissiveIntensity = 0.3 + high * 2.0;
+      });
     });
   }
 

@@ -1,541 +1,548 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Neon Salmon Run — Audio Reactive Game</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Beatbox Loop Station</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --panel-color: #1e1e1e;
+            --accent-color: #00e5ff;
+            --active-color: #00ff66;
+            --rec-color: #ff3333;
+            --text-color: #e0e0e0;
+            --pad-off: #333;
+            --pad-loaded: #555;
+        }
 
-<style>
-body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
-canvas { display: block; width: 100vw; height: 100vh; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
 
-/* UI Overlay */
-#uiLayer {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 20px;
-  box-sizing: border-box;
-}
+        h1 { margin-bottom: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--accent-color); }
 
-#hud {
-  display: flex;
-  justify-content: space-between;
-  width: 100%;
-  color: #fff;
-  text-shadow: 0 0 10px #00ffd0;
-  font-weight: bold;
-  font-size: 24px;
-}
+        .station-container {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+            width: 100%;
+            max-width: 1000px;
+            background: var(--panel-color);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
 
-#controls-hint {
-  color: rgba(255,255,255,0.5);
-  font-size: 14px;
-  text-align: center;
-  margin-top: 10px;
-}
+        /* DJ Deck */
+        .deck-section {
+            border-right: 2px solid #333;
+            padding-right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
 
-#healthBarContainer {
-  width: 200px;
-  height: 20px;
-  background: rgba(255,255,255,0.2);
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid rgba(255,255,255,0.5);
-}
+        .visualizer-box {
+            height: 100px;
+            background: #000;
+            border: 1px solid #333;
+            border-radius: 4px;
+            width: 100%;
+        }
 
-#healthBar {
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, #ff4444, #ffbb00);
-  transition: width 0.3s;
-}
+        .control-group {
+            background: #252525;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        
+        .control-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            color: #888;
+            margin-bottom: 5px;
+            display: block;
+        }
 
-/* Audio Panel */
-#audioPanel {
-  pointer-events: auto;
-  background: rgba(0,0,0,0.8);
-  padding: 15px;
-  border-radius: 12px;
-  color: white;
-  border: 1px solid #333;
-  backdrop-filter: blur(5px);
-  align-self: center; /* Center in the bottom */
-  text-align: center;
-  margin-bottom: 20px;
-}
+        input[type=range] { width: 100%; cursor: pointer; accent-color: var(--accent-color); }
 
-#audioPanel button {
-  background: #00ffd0;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 20px;
-  cursor: pointer;
-  font-weight: 800;
-  text-transform: uppercase;
-  color: #000;
-  transition: all 0.2s;
-  box-shadow: 0 0 15px rgba(0, 255, 208, 0.4);
-}
-#audioPanel button:hover {
-  background: #fff;
-  transform: scale(1.05);
-}
-#audioPanel input { display: none; }
+        /* Loop Grid */
+        .loop-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
 
-/* Game Over Screen */
-#gameOverScreen {
-  position: absolute;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0,0,0,0.9);
-  display: none;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  z-index: 20;
-  pointer-events: auto;
-}
-#gameOverScreen h1 { font-size: 60px; margin: 0; color: #ff4444; text-transform: uppercase; }
-#finalScore { font-size: 30px; margin: 20px 0; color: #00ffd0; }
-#restartBtn {
-  background: white; border: none; padding: 15px 40px;
-  font-size: 20px; font-weight: bold; cursor: pointer;
-  border-radius: 30px;
-}
+        .loop-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            width: 100%;
+        }
 
-.hidden { opacity: 0; pointer-events: none; }
-</style>
+        .pad-wrapper {
+            position: relative;
+            width: 100%;
+            padding-bottom: 100%; 
+        }
+
+        .loop-pad {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--pad-off);
+            border: 2px solid #444;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.1s;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .loop-pad:active { transform: scale(0.98); }
+        
+        /* Pad States */
+        .loop-pad.loaded { background: var(--pad-loaded); border-color: #666; }
+        
+        .loop-pad.playing { 
+            background: var(--active-color); 
+            box-shadow: 0 0 15px var(--active-color);
+            border-color: #fff;
+            color: #000;
+            font-weight: bold;
+        }
+
+        .loop-pad.recording {
+            background: var(--rec-color);
+            box-shadow: 0 0 15px var(--rec-color);
+            border-color: #fff;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+
+        .pad-label { font-size: 12px; opacity: 0.7; pointer-events: none; }
+
+        /* Small Buttons on Pad */
+        .pad-ctrl {
+            position: absolute;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            border: 1px solid #555;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            cursor: pointer;
+            z-index: 10;
+            background: #000;
+            color: #fff;
+        }
+        .pad-ctrl:hover { transform: scale(1.1); }
+
+        .load-btn { top: 5px; right: 5px; }
+        .load-btn:hover { background: var(--accent-color); }
+
+        .rec-btn { top: 5px; left: 5px; color: var(--rec-color); border-color: var(--rec-color); }
+        .rec-btn.is-recording { background: var(--rec-color); color: white; }
+
+        input[type="file"] { display: none; }
+
+        /* Tools */
+        .tools-section {
+            grid-column: 1 / -1;
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #333;
+        }
+
+        .btn {
+            background: #333;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .btn:hover { background: #444; }
+        .btn-play { background: var(--accent-color); color: #000; }
+        .btn-stop { background: #ff3333; }
+
+        .bpm-display {
+            background: #000;
+            color: var(--accent-color);
+            font-family: monospace;
+            font-size: 1.5rem;
+            padding: 5px 15px;
+            border-radius: 4px;
+            border: 1px solid #333;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .station-container { grid-template-columns: 1fr; }
+        }
+    </style>
 </head>
-
 <body>
 
-<div id="uiLayer">
-  <div id="hud">
-    <div>SCORE: <span id="scoreVal">0</span></div>
-    <div id="controls-hint">Use ⬅️ ARROWS ➡️ to Roll</div>
-    <div id="healthBarContainer"><div id="healthBar"></div></div>
-  </div>
+    <h1>Live Loop Station</h1>
 
-  <div id="audioPanel">
-    <button id="toggleAudio">Load Song to Start</button>
-    <input type="file" id="audioFile" accept="audio/*">
-    <div style="font-size: 11px; margin-top: 8px; opacity: 0.6;">Upload music to generate the course</div>
-  </div>
-</div>
+    <div class="station-container">
+        <div class="deck-section">
+            <h3 style="margin:0 0 10px 0;">Backing Track Deck</h3>
+            
+            <canvas id="visualizer" class="visualizer-box"></canvas>
+            
+            <div style="display:flex; gap:10px;">
+                <button class="btn" onclick="document.getElementById('deckInput').click()">Load Song</button>
+                <input type="file" id="deckInput" accept="audio/*">
+                <button class="btn btn-play" id="playPauseBtn">Play</button>
+                <div id="trackName" style="align-self:center; font-size:0.8rem; color:#888;">No track loaded</div>
+            </div>
 
-<div id="gameOverScreen">
-  <h1>Wasted</h1>
-  <div id="finalScore">Score: 0</div>
-  <button id="restartBtn">Try Again</button>
-</div>
+            <div class="control-group">
+                <span class="control-label">Volume</span>
+                <input type="range" id="deckVolume" min="0" max="1" step="0.01" value="0.8">
+            </div>
 
-<script type="module">
-import * as THREE from "https://cdn.skypack.dev/three@0.125.2";
-import { GLTFLoader } from "https://cdn.skypack.dev/three@0.125.2/examples/jsm/loaders/GLTFLoader.js";
-import { Flow } from "https://cdn.skypack.dev/three@0.125.2/examples/jsm/modifiers/CurveModifier.js";
+            <div class="control-group">
+                <span class="control-label">Pitch / Speed</span>
+                <input type="range" id="deckSpeed" min="0.5" max="1.5" step="0.01" value="1">
+            </div>
 
-// --- Game Constants ---
-const FISH_SPEED_BASE = 0.001;
-const ROLL_SPEED = 0.08;
-const ITEM_SPAWN_AHEAD = 0.4; // How far ahead on curve to spawn
-const MAX_ITEMS = 40;
+            <div class="control-group">
+                <span class="control-label">Filter (Low Pass / High Pass)</span>
+                <input type="range" id="deckFilter" min="-100" max="100" step="1" value="0">
+            </div>
+        </div>
 
-class Game {
-  constructor() {
-    this.initScene();
-    this.initState();
-    this.initAudioUI();
-    this.initControls();
-    
-    // Start loop
-    this.animate();
-  }
+        <div class="loop-section">
+            <div style="display:flex; justify-content:space-between; width:100%; align-items:center; margin-bottom:10px;">
+                <h3 style="margin:0;">Sampler / Looper</h3>
+                <button class="btn btn-stop" style="padding: 5px 10px; font-size:0.7rem;" onclick="stopAllLoops()">Stop All</button>
+            </div>
 
-  initScene() {
-    this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x050505);
-    this.scene.fog = new THREE.FogExp2(0x050505, 0.15);
+            <div class="loop-grid" id="loopGrid">
+                </div>
+            <p style="font-size: 12px; color: #666; margin-top: 5px;">*Click ⏺ to Record, Click again to Loop.</p>
+        </div>
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
-    document.body.appendChild(this.renderer.domElement);
+        <div class="tools-section">
+            <div style="display:flex; flex-direction:column; align-items:center;">
+                <span class="control-label">BPM TAPPER</span>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn" id="tapBtn">TAP</button>
+                    <div class="bpm-display" id="bpmDisplay">--</div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
-    this.camera.position.set(0, 3, 4);
-    this.camera.lookAt(0, 0, 0);
-
-    // Lights
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-    const light = new THREE.DirectionalLight(0xffffff, 1.0);
-    light.position.set(-3, 5, 2);
-    this.scene.add(light);
-    
-    // Point light following fish (added later)
-    this.fishLight = new THREE.PointLight(0x00ffd0, 1, 10);
-    this.scene.add(this.fishLight);
-
-    // Create Curve
-    this.createPath();
-    
-    // Load Fish
-    this.loadFish();
-
-    // Resize Handler
-    window.addEventListener('resize', () => {
-      this.camera.aspect = window.innerWidth / window.innerHeight;
-      this.camera.updateProjectionMatrix();
-      this.renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-  }
-
-  initState() {
-    this.isPlaying = false;
-    this.score = 0;
-    this.health = 100;
-    this.fishProgress = 0; // 0 to 1 along curve
-    this.playerRoll = 0; // Radians around the curve tube
-    this.inputMap = { ArrowLeft: false, ArrowRight: false, KeyA: false, KeyD: false };
-    
-    this.items = []; // Array of objects { mesh, curvePos, angle, type }
-    this.tasks = [];
-
-    this.audioCtx = null;
-    this.analyser = null;
-    this.freqData = null;
-    
-    // DOM Elements
-    this.uiScore = document.getElementById('scoreVal');
-    this.uiHealth = document.getElementById('healthBar');
-    this.gameOverScreen = document.getElementById('gameOverScreen');
-    
-    document.getElementById('restartBtn').onclick = () => this.resetGame();
-  }
-
-  createPath() {
-    // Create smooth swimming path (Loop)
-    const points = [];
-    const radius = 3;
-    for (let i = 0; i < Math.PI * 2; i += Math.PI / 50) {
-      // Trefoil knot-ish structure for more interesting movement
-      const x = Math.sin(i) * radius;
-      const z = Math.cos(i) * radius;
-      const y = Math.sin(i * 3) * 0.5; 
-      points.push(new THREE.Vector3(x, y, z));
-    }
-    this.curve = new THREE.CatmullRomCurve3(points);
-    this.curve.closed = true;
-
-    // Visual helper for the path (Tunnel effect)
-    const tubeGeo = new THREE.TubeGeometry(this.curve, 100, 0.8, 8, true);
-    const tubeMat = new THREE.MeshBasicMaterial({ 
-      color: 0x111111, 
-      wireframe: true,
-      transparent: true,
-      opacity: 0.1
-    });
-    const tube = new THREE.Mesh(tubeGeo, tubeMat);
-    this.scene.add(tube);
-  }
-
-  loadFish() {
-    const loader = new GLTFLoader();
-    loader.load("https://assets.codepen.io/5946/fish.glb", gltf => {
-      
-      const fish = gltf.scene.children[0];
-      this.fishMeshes = [];
-
-      fish.traverse(c => {
-        if (c.isMesh) {
-          c.material = c.material.clone();
-          this.fishMeshes.push({
-            mesh: c,
-            baseColor: c.material.color.clone()
-          });
-          c.material.emissive = new THREE.Color(0x000000);
-          c.material.emissiveIntensity = 0;
-        }
-      });
-
-      // Normalize Fish
-      fish.scale.set(0.1, 0.1, 0.1); // Original scale
-      fish.rotation.set(0, 0, 0);
-
-      // We need to rotate the fish geometry so it faces forward along the curve
-      fish.rotation.x = Math.PI * 0.5;
-      fish.updateMatrix();
-
-      // Create Flow Modifier
-      this.flow = new Flow(fish);
-      this.flow.updateCurve(0, this.curve);
-      this.scene.add(this.flow.object3D);
-      
-      this.fishLoaded = true;
-    });
-  }
-
-  initControls() {
-    document.addEventListener('keydown', e => this.inputMap[e.code] = true);
-    document.addEventListener('keyup', e => this.inputMap[e.code] = false);
-  }
-
-  initAudioUI() {
-    const btn = document.getElementById("toggleAudio");
-    const input = document.getElementById("audioFile");
-
-    btn.onclick = () => input.click();
-
-    input.onchange = async e => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      document.getElementById('audioPanel').style.display = 'none'; // Hide UI
-      this.isPlaying = true;
-
-      if (!this.audioCtx) this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (this.audioCtx.state === 'suspended') await this.audioCtx.resume();
-
-      if (!this.analyser) {
-        this.analyser = this.audioCtx.createAnalyser();
-        this.analyser.fftSize = 256;
-        this.freqData = new Uint8Array(this.analyser.frequencyBinCount);
-        this.analyser.connect(this.audioCtx.destination);
-      }
-
-      if (this.audio) {
-        this.audio.pause();
-        this.audio = null;
-      }
-
-      this.audio = new Audio(URL.createObjectURL(file));
-      this.audio.loop = true;
-      const source = this.audioCtx.createMediaElementSource(this.audio);
-      source.connect(this.analyser);
-      this.audio.play();
-    };
-  }
-
-  resetGame() {
-    this.score = 0;
-    this.health = 100;
-    this.uiScore.innerText = "0";
-    this.uiHealth.style.width = "100%";
-    this.gameOverScreen.style.display = "none";
-    this.isPlaying = true;
-    
-    // Clear items
-    this.items.forEach(i => this.scene.remove(i.mesh));
-    this.items = [];
-    
-    if(this.audio) {
-      this.audio.currentTime = 0;
-      this.audio.play();
-    }
-  }
-
-  spawnItem(isBad, intensity) {
-    if (this.items.length > MAX_ITEMS) return;
-
-    // Create Mesh
-    const geo = isBad ? new THREE.TetrahedronGeometry(0.15) : new THREE.SphereGeometry(0.08, 8, 8);
-    const mat = new THREE.MeshStandardMaterial({
-      color: isBad ? 0xff0000 : 0x00ff00,
-      emissive: isBad ? 0xff0000 : 0x00ff00,
-      emissiveIntensity: 0.5 + intensity * 2
-    });
-    const mesh = new THREE.Mesh(geo, mat);
-
-    // Calculate Position on Curve
-    // We spawn them ahead of the fish
-    const spawnPos = (this.fishProgress + ITEM_SPAWN_AHEAD) % 1.0;
-    
-    // Calculate Radial Position (Angle around tube)
-    // Quantize into lanes for better gameplay feeling: 5 lanes
-    const lanes = [-2, -1, 0, 1, 2];
-    const lane = lanes[Math.floor(Math.random() * lanes.length)];
-    const angle = lane * (Math.PI / 4); // 45 degree increments
-
-    // Math to place object relative to curve
-    const pt = this.curve.getPointAt(spawnPos);
-    const tan = this.curve.getTangentAt(spawnPos).normalize();
-    
-    // Calculate Normal and Binormal to create the tube cross-section
-    const up = new THREE.Vector3(0, 1, 0);
-    const axis = new THREE.Vector3().crossVectors(up, tan).normalize();
-    const normal = new THREE.Vector3().crossVectors(tan, axis).normalize();
-    const binormal = new THREE.Vector3().crossVectors(tan, normal).normalize();
-
-    // Offset
-    const tubeRadius = 0.5;
-    const cx = Math.cos(angle) * tubeRadius;
-    const cy = Math.sin(angle) * tubeRadius;
-
-    // Final Position
-    const offset = normal.clone().multiplyScalar(cx).add(binormal.clone().multiplyScalar(cy));
-    mesh.position.copy(pt).add(offset);
-    
-    this.scene.add(mesh);
-
-    this.items.push({
-      mesh: mesh,
-      curvePos: spawnPos,
-      angle: angle,
-      isBad: isBad,
-      active: true
-    });
-  }
-
-  updatePhysics(deltaTime, bass, treble) {
-    if (!this.isPlaying || !this.fishLoaded) return;
-    if (this.health <= 0) {
-      this.isPlaying = false;
-      this.gameOverScreen.style.display = "flex";
-      document.getElementById('finalScore').innerText = `Score: ${Math.floor(this.score)}`;
-      if(this.audio) this.audio.pause();
-      return;
-    }
-
-    // 1. Move Fish Forward
-    const speed = FISH_SPEED_BASE + (treble * 0.002); // Music speeds up game
-    this.fishProgress = (this.fishProgress + speed) % 1.0;
-    this.flow.moveAlongCurve(speed);
-
-    // 2. Handle Input (Roll)
-    if (this.inputMap['ArrowLeft'] || this.inputMap['KeyA']) this.playerRoll += ROLL_SPEED;
-    if (this.inputMap['ArrowRight'] || this.inputMap['KeyD']) this.playerRoll -= ROLL_SPEED;
-    
-    // Apply Roll to Fish Visual
-    // The fish mesh inside the flow object needs to rotate
-    // Since flow modifies vertices, we can rotate the container slightly, 
-    // but the best visual for "rolling" on a curve modifier is actually 
-    // harder. Hack: We rotate the fish mesh inside the flow object on Z.
-    if (this.flow.object3D.children[0]) {
-       this.flow.object3D.children[0].rotation.z = this.playerRoll;
-    }
-
-    // 3. Update Camera
-    // Camera follows fish but smoothed
-    const camPos = this.curve.getPointAt((this.fishProgress - 0.05 + 1) % 1);
-    const targetPos = this.curve.getPointAt((this.fishProgress + 0.05) % 1);
-    this.camera.position.lerp(new THREE.Vector3(camPos.x, camPos.y + 1, camPos.z + 1), 0.1);
-    this.camera.lookAt(targetPos);
-    this.fishLight.position.copy(this.curve.getPointAt(this.fishProgress));
-
-    // 4. Check Collisions & Manage Items
-    // Normalize player angle to -PI to PI
-    const normalizedPlayerAngle = (this.playerRoll % (Math.PI * 2));
-    // Correct helper to map arbitrary rotation to -PI/PI range relative to bottom
-    // Actually, let's keep it simple. We check angular difference.
-    
-    for (let i = this.items.length - 1; i >= 0; i--) {
-      const item = this.items[i];
-      
-      // Calculate distance in "Curve Space"
-      let dist = item.curvePos - this.fishProgress;
-      // Handle wrap around
-      if (dist < -0.5) dist += 1;
-      if (dist > 0.5) dist -= 1;
-
-      // Pulse items with bass
-      item.mesh.scale.setScalar(1 + bass * 0.5);
-
-      // If item is active and very close to fish
-      if (item.active && Math.abs(dist) < 0.02) {
+    <script>
+        // --- AUDIO CONTEXT SETUP ---
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
         
-        // Check Angular Collision
-        // We need to match the Player's roll to the Item's spawn angle.
-        // Due to coordinate spaces, we assume playerRoll 0 is "Top" or "Right".
-        // We just need the difference between player rotation and item angle to be small modulo 2PI
-        let angleDiff = (normalizedPlayerAngle - item.angle) % (Math.PI * 2);
-        if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-        if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-        
-        // Hitbox width
-        if (Math.abs(angleDiff) < 0.6) {
-           this.handleCollision(item, i);
-        }
-      }
+        // --- MAIN DECK LOGIC (Backing Track) ---
+        const deckAudio = new Audio();
+        deckAudio.loop = false;
+        const deckSource = audioCtx.createMediaElementSource(deckAudio);
+        const deckGain = audioCtx.createGain();
+        const deckFilter = audioCtx.createBiquadFilter();
+        const analyser = audioCtx.createAnalyser();
 
-      // Cleanup old items behind fish
-      if (dist < -0.1) {
-        this.scene.remove(item.mesh);
-        this.items.splice(i, 1);
-      }
-    }
+        deckSource.connect(deckFilter);
+        deckFilter.connect(deckGain);
+        deckGain.connect(analyser);
+        deckGain.connect(audioCtx.destination);
+        analyser.fftSize = 256;
 
-    // 5. Spawn new Items based on Audio
-    // Probability increases with treble energy
-    if (Math.random() < 0.02 + (treble * 0.1)) {
-       // 30% chance of Bad item
-       this.spawnItem(Math.random() < 0.3, treble);
-    }
-  }
+        // UI References
+        const deckInput = document.getElementById('deckInput');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const deckVolSlider = document.getElementById('deckVolume');
+        const deckSpeedSlider = document.getElementById('deckSpeed');
+        const deckFilterSlider = document.getElementById('deckFilter');
 
-  handleCollision(item, index) {
-    item.active = false;
-    this.scene.remove(item.mesh);
-    this.items.splice(index, 1);
-
-    if (item.isBad) {
-      this.health -= 20;
-      this.uiHealth.style.width = this.health + "%";
-      // Screen shake or red flash could go here
-    } else {
-      this.score += 100;
-      this.uiScore.innerText = Math.floor(this.score);
-    }
-  }
-
-  animate() {
-    requestAnimationFrame(() => this.animate());
-
-    let bass = 0;
-    let treble = 0;
-
-    // Audio Analysis
-    if (this.analyser && this.freqData) {
-      this.analyser.getByteFrequencyData(this.freqData);
-      
-      // Calculate Energy
-      const bassRange = this.freqData.slice(0, 10);
-      const trebleRange = this.freqData.slice(150);
-      
-      bass = bassRange.reduce((a,b)=>a+b,0) / bassRange.length / 255;
-      treble = trebleRange.reduce((a,b)=>a+b,0) / trebleRange.length / 255;
-
-      // Update Fish Visuals (From original code)
-      if (this.fishLoaded) {
-        this.fishMeshes.forEach(({ mesh, baseColor }) => {
-          if (bass > 0.1) {
-             const hue = (0.0 + bass * 0.5) % 1.0; // Red/Yellow shift
-             mesh.material.color.setHSL(hue, 0.8, 0.5);
-          } else {
-             mesh.material.color.lerp(baseColor, 0.1);
-          }
-
-          if (treble > 0.1) {
-            mesh.material.emissive.set(0x00ffd0);
-            mesh.material.emissiveIntensity = treble * 3;
-          } else {
-            mesh.material.emissiveIntensity *= 0.9;
-          }
+        deckInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if(file){
+                deckAudio.src = URL.createObjectURL(file);
+                document.getElementById('trackName').innerText = file.name.substring(0, 20);
+            }
         });
-      }
-    }
 
-    this.updatePhysics(0.016, bass, treble);
-    this.renderer.render(this.scene, this.camera);
-  }
-}
+        playPauseBtn.addEventListener('click', () => {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            if (deckAudio.paused) {
+                deckAudio.play();
+                playPauseBtn.innerText = "Pause";
+                playPauseBtn.classList.add("btn-stop");
+            } else {
+                deckAudio.pause();
+                playPauseBtn.innerText = "Play";
+                playPauseBtn.classList.remove("btn-stop");
+            }
+        });
 
-new Game();
-</script>
+        deckVolSlider.addEventListener('input', (e) => deckGain.gain.value = e.target.value);
+        deckSpeedSlider.addEventListener('input', (e) => deckAudio.playbackRate = e.target.value);
+        
+        deckFilter.type = 'allpass';
+        deckFilter.frequency.value = 20000;
+        deckFilterSlider.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            if (val === 0) deckFilter.type = 'allpass';
+            else if (val < 0) {
+                deckFilter.type = 'lowpass';
+                deckFilter.frequency.value = 20000 * Math.pow(100 + val, 2) / 10000 + 100;
+            } else {
+                deckFilter.type = 'highpass';
+                deckFilter.frequency.value = (val / 100) * 5000;
+            }
+        });
+
+        // --- RECORDING & LOOP GRID LOGIC ---
+        const loopGrid = document.getElementById('loopGrid');
+        const loopers = []; // Store state for each pad
+
+        // Microphone Setup
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let activeRecIndex = -1; // Which pad is currently recording?
+
+        async function setupMic() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                return stream;
+            } catch (err) {
+                alert("Microphone access denied! Check browser settings.");
+                console.error(err);
+                return null;
+            }
+        }
+
+        // Generate 9 Pads
+        for(let i=0; i<9; i++) createPad(i);
+
+        function createPad(index) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'pad-wrapper';
+
+            const pad = document.createElement('div');
+            pad.className = 'loop-pad';
+            pad.id = `pad-${index}`;
+            pad.innerHTML = `<span class="pad-label">Empty</span>`;
+            
+            // Upload Button
+            const loadBtn = document.createElement('div');
+            loadBtn.className = 'pad-ctrl load-btn';
+            loadBtn.innerHTML = '📂';
+            loadBtn.title = "Load File";
+            
+            // Record Button
+            const recBtn = document.createElement('div');
+            recBtn.className = 'pad-ctrl rec-btn';
+            recBtn.id = `rec-btn-${index}`;
+            recBtn.innerHTML = '⏺';
+            recBtn.title = "Record Mic";
+
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = 'audio/*';
+
+            const state = {
+                audio: new Audio(),
+                loaded: false,
+                playing: false,
+                recording: false
+            };
+            state.audio.loop = true;
+            loopers.push(state);
+
+            // --- Handlers ---
+
+            // 1. File Upload
+            loadBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                fileInput.click();
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if(file) {
+                    setAudioForPad(index, URL.createObjectURL(file), "File");
+                }
+            });
+
+            // 2. Recording
+            recBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                // If currently recording THIS pad, stop it
+                if (activeRecIndex === index) {
+                    stopRecording(index);
+                    return;
+                }
+
+                // If recording another pad, ignore or warn (simplification: only 1 rec at a time)
+                if (activeRecIndex !== -1) return;
+
+                // START RECORDING
+                const stream = await setupMic();
+                if (!stream) return;
+
+                activeRecIndex = index;
+                audioChunks = [];
+                mediaRecorder = new MediaRecorder(stream);
+                
+                mediaRecorder.start();
+                
+                // UI Updates
+                pad.classList.add('recording');
+                recBtn.classList.add('is-recording');
+                pad.innerHTML = `<span class="pad-label" style="color:white">RECORDING...</span>`;
+
+                mediaRecorder.addEventListener("dataavailable", event => {
+                    audioChunks.push(event.data);
+                });
+
+                mediaRecorder.addEventListener("stop", () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' }); // webm is standard for browser rec
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    setAudioForPad(index, audioUrl, "Live Loop");
+                    
+                    // Auto Play Loop after recording
+                    togglePadPlay(index); 
+                });
+            });
+
+            // 3. Play/Pause Pad
+            pad.addEventListener('click', () => {
+                // Prevent clicking pad while recording
+                if(activeRecIndex === index) {
+                    stopRecording(index); // Clicking main pad also stops recording
+                    return;
+                }
+                togglePadPlay(index);
+            });
+
+            wrapper.appendChild(pad);
+            wrapper.appendChild(loadBtn);
+            wrapper.appendChild(recBtn);
+            wrapper.appendChild(fileInput);
+            loopGrid.appendChild(wrapper);
+        }
+
+        function stopRecording(index) {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                // Reset UI
+                const pad = document.getElementById(`pad-${index}`);
+                const recBtn = document.getElementById(`rec-btn-${index}`);
+                pad.classList.remove('recording');
+                recBtn.classList.remove('is-recording');
+                activeRecIndex = -1;
+            }
+        }
+
+        function setAudioForPad(index, src, labelText) {
+            loopers[index].audio.src = src;
+            loopers[index].loaded = true;
+            loopers[index].audio.currentTime = 0;
+            const pad = document.getElementById(`pad-${index}`);
+            pad.classList.add('loaded');
+            pad.innerHTML = `<span class="pad-label">${labelText} ${index+1}</span>`;
+        }
+
+        function togglePadPlay(index) {
+            const state = loopers[index];
+            const pad = document.getElementById(`pad-${index}`);
+
+            if(!state.loaded) return;
+
+            if(state.playing) {
+                state.audio.pause();
+                state.audio.currentTime = 0;
+                state.playing = false;
+                pad.classList.remove('playing');
+            } else {
+                state.audio.play();
+                state.playing = true;
+                pad.classList.add('playing');
+            }
+        }
+
+        function stopAllLoops() {
+            loopers.forEach((looper, index) => {
+                if(looper.playing) {
+                    looper.audio.pause();
+                    looper.audio.currentTime = 0;
+                    looper.playing = false;
+                    document.getElementById(`pad-${index}`).classList.remove('playing');
+                }
+            });
+        }
+
+        // --- VISUALIZER ---
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+
+        function drawVisualizer() {
+            requestAnimationFrame(drawVisualizer);
+            analyser.getByteFrequencyData(dataArray);
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            const barWidth = (canvas.width / bufferLength) * 2.5;
+            let barHeight;
+            let x = 0;
+            for(let i = 0; i < bufferLength; i++) {
+                barHeight = dataArray[i] / 2;
+                ctx.fillStyle = `rgb(${barHeight + 100}, 50, 255)`;
+                ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+                x += barWidth + 1;
+            }
+        }
+        drawVisualizer();
+
+        // --- BPM TAPPER ---
+        const tapBtn = document.getElementById('tapBtn');
+        const bpmDisplay = document.getElementById('bpmDisplay');
+        let taps = [];
+        tapBtn.addEventListener('click', () => {
+            const now = Date.now();
+            if (taps.length > 0 && now - taps[taps.length - 1] > 2000) taps = [];
+            taps.push(now);
+            if (taps.length > 4) taps.shift();
+            if (taps.length > 1) {
+                let intervals = [];
+                for(let i=0; i<taps.length-1; i++) intervals.push(taps[i+1] - taps[i]);
+                const avg = intervals.reduce((a,b)=>a+b) / intervals.length;
+                bpmDisplay.innerText = Math.round(60000 / avg);
+            } else bpmDisplay.innerText = "--";
+        });
+    </script>
 </body>
 </html>

@@ -6,18 +6,8 @@
 <title>Salmon — True Audio Flash</title>
 
 <style>
-body {
-  margin: 0;
-  overflow: hidden;
-  background: #000;
-  font-family: sans-serif;
-}
-canvas {
-  display: block;
-  width: 100vw;
-  height: 100vh;
-}
-
+body { margin: 0; overflow: hidden; background: #000; }
+canvas { display: block; }
 #audioPanel {
   position: fixed;
   top: 14px;
@@ -37,9 +27,7 @@ canvas {
   font-weight: 600;
   color: #000;
 }
-#audioPanel input {
-  display: none;
-}
+#audioPanel input { display: none; }
 </style>
 </head>
 
@@ -48,9 +36,6 @@ canvas {
 <div id="audioPanel">
   <button id="toggleAudio">Upload Song</button>
   <input type="file" id="audioFile" accept="audio/*">
-  <div style="font-size:10px; opacity:.7; margin-top:5px;">
-    Mid-band audio drives color strobe
-  </div>
 </div>
 
 <script type="module">
@@ -66,7 +51,6 @@ class Sketch {
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(innerWidth, innerHeight);
-    this.renderer.setPixelRatio(Math.min(2, devicePixelRatio));
     document.body.appendChild(this.renderer.domElement);
 
     this.camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 100);
@@ -80,13 +64,11 @@ class Sketch {
     this.audioCtx = null;
     this.analyser = null;
     this.freqData = null;
-    this.audio = null;
-    this.audioSource = null;
 
     this.initLights();
-    this.initAudioUI();
+    this.initAudio();
     this.loadFish();
-    this.onResize();
+    this.resize();
     this.animate();
   }
 
@@ -97,7 +79,7 @@ class Sketch {
     this.scene.add(d);
   }
 
-  initAudioUI() {
+  initAudio() {
     const btn = document.getElementById("toggleAudio");
     const input = document.getElementById("audioFile");
 
@@ -113,27 +95,19 @@ class Sketch {
       if (this.audioCtx.state === "suspended")
         await this.audioCtx.resume();
 
-      if (!this.analyser) {
-        this.analyser = this.audioCtx.createAnalyser();
-        this.analyser.fftSize = 512;
-        this.analyser.smoothingTimeConstant = 0.7;
-        this.freqData = new Uint8Array(this.analyser.frequencyBinCount);
-        this.analyser.connect(this.audioCtx.destination);
-      }
+      this.analyser = this.audioCtx.createAnalyser();
+      this.analyser.fftSize = 512;
+      this.analyser.smoothingTimeConstant = 0.7;
+      this.freqData = new Uint8Array(this.analyser.frequencyBinCount);
+      this.analyser.connect(this.audioCtx.destination);
 
-      if (this.audio) {
-        this.audio.pause();
-        this.audio.currentTime = 0;
-      }
-      if (this.audioSource) this.audioSource.disconnect();
+      const audio = new Audio(URL.createObjectURL(file));
+      const src = this.audioCtx.createMediaElementSource(audio);
+      src.connect(this.analyser);
+      audio.loop = true;
+      audio.play();
 
-      this.audio = new Audio(URL.createObjectURL(file));
-      this.audio.loop = true;
-      this.audioSource = this.audioCtx.createMediaElementSource(this.audio);
-      this.audioSource.connect(this.analyser);
-
-      await this.audio.play();
-      btn.innerText = "Playing…";
+      btn.textContent = "Playing…";
     };
   }
 
@@ -141,16 +115,14 @@ class Sketch {
     const loader = new GLTFLoader();
     loader.load("https://assets.codepen.io/5946/fish.glb", gltf => {
 
-      const fish = gltf.scene.children[0];
+      const root = gltf.scene;
       const masks = [];
 
-      fish.traverse(c => {
-        if (!c.isMesh) return;
+      root.traverse(m => {
+        if (!m.isMesh) return;
 
-        // Preserve original material
-        c.material = c.material.clone();
+        m.material = m.material.clone();
 
-        // Mask overlay (pure visual)
         const maskMat = new THREE.MeshBasicMaterial({
           color: 0xffffff,
           transparent: true,
@@ -158,20 +130,15 @@ class Sketch {
           depthWrite: false
         });
 
-        const maskMesh = new THREE.Mesh(c.geometry, maskMat);
+        const maskMesh = new THREE.Mesh(m.geometry, maskMat);
         maskMesh.renderOrder = 10;
-        c.add(maskMesh);
+        m.add(maskMesh);
 
         masks.push(maskMat);
       });
 
-      fish.scale.set(0.01, 0.01, 0.01);
-      fish.rotation.x = Math.PI / 2;
-      fish.updateMatrix();
-      fish.geometry.applyMatrix4(fish.matrix);
-      fish.position.set(0, 0, 0);
-      fish.rotation.set(0, 0, 0);
-      fish.scale.set(1, 1, 1);
+      root.scale.setScalar(0.01);
+      root.rotation.x = Math.PI / 2;
 
       const points = [];
       for (let i = 0; i < Math.PI * 2; i += Math.PI / 120) {
@@ -180,37 +147,36 @@ class Sketch {
       }
 
       const curve = new THREE.CatmullRomCurve3(points, true);
-      const flow = new Flow(fish);
+      const flow = new Flow(root);
       flow.updateCurve(0, curve);
       this.scene.add(flow.object3D);
 
-      const avg = (arr, a, b) => {
+      const avg = (a, x, y) => {
         let s = 0;
-        for (let i = a; i < b; i++) s += arr[i];
-        return (s / (b - a)) / 255;
+        for (let i = x; i < y; i++) s += a[i];
+        return (s / (y - x)) / 255;
       };
 
       this.tasks.push(() => {
         flow.moveAlongCurve(0.0015);
-
         if (!this.analyser) return;
-        this.analyser.getByteFrequencyData(this.freqData);
 
+        this.analyser.getByteFrequencyData(this.freqData);
         const mid = avg(this.freqData, 20, 90);
 
-        masks.forEach(mat => {
+        masks.forEach(m => {
           if (mid > 0.12) {
-            mat.color.setHSL(Math.random(), 1, 0.6);
-            mat.opacity = THREE.MathUtils.clamp(mid * 2.5, 0.25, 1);
+            m.color.setHSL(Math.random(), 1, 0.6);
+            m.opacity = THREE.MathUtils.clamp(mid * 2.5, 0.25, 1);
           } else {
-            mat.opacity *= 0.6;
+            m.opacity *= 0.6;
           }
         });
       });
     });
   }
 
-  onResize() {
+  resize() {
     addEventListener("resize", () => {
       this.camera.aspect = innerWidth / innerHeight;
       this.camera.updateProjectionMatrix();

@@ -3,546 +3,405 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Beatbox Loop Station</title>
+    <title>Pro DJ Loop Station</title>
     <style>
         :root {
-            --bg-color: #121212;
-            --panel-color: #1e1e1e;
-            --accent-color: #00e5ff;
+            --bg-color: #0f0f13;
+            --panel-color: #1a1a24;
+            --deck-a: #00e5ff;
+            --deck-b: #ff00ff;
             --active-color: #00ff66;
             --rec-color: #ff3333;
             --text-color: #e0e0e0;
-            --pad-off: #333;
-            --pad-loaded: #555;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', system-ui, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
+            margin: 0; padding: 20px;
+            display: flex; flex-direction: column; align-items: center;
         }
 
-        h1 { margin-bottom: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--accent-color); }
-
-        .station-container {
+        .main-layout {
             display: grid;
-            grid-template-columns: 1fr 350px;
+            grid-template-columns: 1fr 1fr;
             gap: 20px;
+            max-width: 1200px;
             width: 100%;
-            max-width: 1000px;
+        }
+
+        /* Deck Styling */
+        .deck {
             background: var(--panel-color);
             padding: 20px;
-            border-radius: 12px;
+            border-radius: 15px;
+            border-top: 4px solid var(--accent);
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
-
-        /* DJ Deck */
-        .deck-section {
-            border-right: 2px solid #333;
-            padding-right: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
+        .deck-a { --accent: var(--deck-a); }
+        .deck-b { --accent: var(--deck-b); }
 
         .visualizer-box {
-            height: 100px;
-            background: #000;
-            border: 1px solid #333;
-            border-radius: 4px;
-            width: 100%;
+            height: 60px; background: #000; border-radius: 4px; width: 100%; margin: 10px 0;
         }
 
-        .control-group {
-            background: #252525;
-            padding: 15px;
-            border-radius: 8px;
-        }
-        
-        .control-label {
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            color: #888;
-            margin-bottom: 5px;
-            display: block;
-        }
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; }
+        .ctrl-unit { display: flex; flex-direction: column; }
+        label { font-size: 10px; text-transform: uppercase; color: #888; margin-bottom: 4px; }
 
-        input[type=range] { width: 100%; cursor: pointer; accent-color: var(--accent-color); }
-
-        /* Loop Grid */
-        .loop-section {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+        /* Looper Section */
+        .looper-panel {
+            grid-column: 1 / -1;
+            background: #252530;
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 20px;
         }
 
         .loop-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            width: 100%;
-        }
-
-        .pad-wrapper {
-            position: relative;
-            width: 100%;
-            padding-bottom: 100%; 
-        }
-
-        .loop-pad {
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: var(--pad-off);
-            border: 2px solid #444;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.1s;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            user-select: none;
-        }
-
-        .loop-pad:active { transform: scale(0.98); }
-        
-        /* Pad States */
-        .loop-pad.loaded { background: var(--pad-loaded); border-color: #666; }
-        
-        .loop-pad.playing { 
-            background: var(--active-color); 
-            box-shadow: 0 0 15px var(--active-color);
-            border-color: #fff;
-            color: #000;
-            font-weight: bold;
-        }
-
-        .loop-pad.recording {
-            background: var(--rec-color);
-            box-shadow: 0 0 15px var(--rec-color);
-            border-color: #fff;
-            animation: pulse 1s infinite;
-        }
-
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
-
-        .pad-label { font-size: 12px; opacity: 0.7; pointer-events: none; }
-
-        /* Small Buttons on Pad */
-        .pad-ctrl {
-            position: absolute;
-            width: 25px;
-            height: 25px;
-            border-radius: 50%;
-            border: 1px solid #555;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            cursor: pointer;
-            z-index: 10;
-            background: #000;
-            color: #fff;
-        }
-        .pad-ctrl:hover { transform: scale(1.1); }
-
-        .load-btn { top: 5px; right: 5px; }
-        .load-btn:hover { background: var(--accent-color); }
-
-        .rec-btn { top: 5px; left: 5px; color: var(--rec-color); border-color: var(--rec-color); }
-        .rec-btn.is-recording { background: var(--rec-color); color: white; }
-
-        input[type="file"] { display: none; }
-
-        /* Tools */
-        .tools-section {
-            grid-column: 1 / -1;
-            display: flex;
+            grid-template-columns: repeat(4, 1fr);
             gap: 15px;
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid #333;
         }
 
-        .btn {
+        .pad {
+            aspect-ratio: 1/1;
             background: #333;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
+            border-radius: 8px;
+            position: relative;
             cursor: pointer;
-            font-weight: bold;
-            text-transform: uppercase;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            border: 2px solid #444;
+            transition: 0.2s;
         }
-        .btn:hover { background: #444; }
-        .btn-play { background: var(--accent-color); color: #000; }
-        .btn-stop { background: #ff3333; }
+        .pad.ready { border-color: var(--active-color); }
+        .pad.playing { background: var(--active-color); color: #000; box-shadow: 0 0 15px var(--active-color); }
+        .pad.waiting { animation: pulse-wait 0.5s infinite; border-color: gold; }
+        .pad.recording { background: var(--rec-color); animation: pulse-rec 0.5s infinite; }
 
-        .bpm-display {
-            background: #000;
-            color: var(--accent-color);
-            font-family: monospace;
-            font-size: 1.5rem;
-            padding: 5px 15px;
-            border-radius: 4px;
-            border: 1px solid #333;
-            min-width: 60px;
-            text-align: center;
-        }
+        @keyframes pulse-wait { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        @keyframes pulse-rec { 0% { box-shadow: 0 0 0px red; } 100% { box-shadow: 0 0 20px red; } }
 
-        @media (max-width: 768px) {
-            .station-container { grid-template-columns: 1fr; }
+        /* Sync Bar */
+        .sync-bar {
+            grid-column: 1 / -1;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px; background: #000; border-radius: 10px; margin-bottom: 10px;
         }
+        .bpm-val { font-size: 24px; color: var(--deck-a); font-weight: bold; }
+        
+        .metronome-dot {
+            width: 15px; height: 15px; background: #333; border-radius: 50%; display: inline-block;
+        }
+        .metronome-dot.active { background: var(--active-color); box-shadow: 0 0 10px var(--active-color); }
+
+        button {
+            cursor: pointer; padding: 8px 12px; border: none; border-radius: 4px;
+            background: #444; color: white; font-weight: bold;
+        }
+        .btn-main { background: var(--deck-a); color: black; }
+        input[type=range] { accent-color: var(--deck-a); }
+
+        .loop-settings { font-size: 12px; margin-bottom: 10px; display: flex; gap: 20px; }
     </style>
 </head>
 <body>
 
-    <h1>Live Loop Station</h1>
+    <h2 style="margin-top:0;">DUAL-DECK SYNC STATION</h2>
 
-    <div class="station-container">
-        <div class="deck-section">
-            <h3 style="margin:0 0 10px 0;">Backing Track Deck</h3>
+    <div class="main-layout">
+        <div class="sync-bar">
+            <div>
+                <label>Global BPM</label>
+                <div class="bpm-val" id="bpmDisplay">120</div>
+                <button onclick="tapBPM()">TAP TEMPO</button>
+            </div>
             
-            <canvas id="visualizer" class="visualizer-box"></canvas>
-            
-            <div style="display:flex; gap:10px;">
-                <button class="btn" onclick="document.getElementById('deckInput').click()">Load Song</button>
-                <input type="file" id="deckInput" accept="audio/*">
-                <button class="btn btn-play" id="playPauseBtn">Play</button>
-                <div id="trackName" style="align-self:center; font-size:0.8rem; color:#888;">No track loaded</div>
+            <div id="metronome">
+                <div class="metronome-dot"></div>
+                <div class="metronome-dot"></div>
+                <div class="metronome-dot"></div>
+                <div class="metronome-dot"></div>
             </div>
 
-            <div class="control-group">
-                <span class="control-label">Volume</span>
-                <input type="range" id="deckVolume" min="0" max="1" step="0.01" value="0.8">
-            </div>
-
-            <div class="control-group">
-                <span class="control-label">Pitch / Speed</span>
-                <input type="range" id="deckSpeed" min="0.5" max="1.5" step="0.01" value="1">
-            </div>
-
-            <div class="control-group">
-                <span class="control-label">Filter (Low Pass / High Pass)</span>
-                <input type="range" id="deckFilter" min="-100" max="100" step="1" value="0">
+            <div class="loop-settings">
+                <div>
+                    <label>Quantize Loop Length</label><br>
+                    <select id="loopLength">
+                        <option value="1">1 Bar</option>
+                        <option value="2">2 Bars</option>
+                        <option value="4" selected>4 Bars</option>
+                    </select>
+                </div>
             </div>
         </div>
 
-        <div class="loop-section">
-            <div style="display:flex; justify-content:space-between; width:100%; align-items:center; margin-bottom:10px;">
-                <h3 style="margin:0;">Sampler / Looper</h3>
-                <button class="btn btn-stop" style="padding: 5px 10px; font-size:0.7rem;" onclick="stopAllLoops()">Stop All</button>
+        <div class="deck deck-a">
+            <h4 style="margin:0">DECK A</h4>
+            <canvas id="viz-a" class="visualizer-box"></canvas>
+            <input type="file" id="file-a" hidden onchange="loadTrack('a', this)">
+            <button class="btn-main" onclick="document.getElementById('file-a').click()">LOAD</button>
+            <button id="play-a" onclick="toggleDeck('a')">PLAY</button>
+            
+            <div class="controls">
+                <div class="ctrl-unit">
+                    <label>Volume</label>
+                    <input type="range" min="0" max="1" step="0.01" value="0.8" oninput="updateParam('a', 'vol', this.value)">
+                </div>
+                <div class="ctrl-unit">
+                    <label>Pitch</label>
+                    <input type="range" min="0.5" max="1.5" step="0.01" value="1" oninput="updateParam('a', 'rate', this.value)">
+                </div>
+                <div class="ctrl-unit" style="grid-column: span 2;">
+                    <label>Filter</label>
+                    <input type="range" min="40" max="10000" step="1" value="10000" oninput="updateParam('a', 'filter', this.value)">
+                </div>
             </div>
+        </div>
 
+        <div class="deck deck-b">
+            <h4 style="margin:0">DECK B</h4>
+            <canvas id="viz-b" class="visualizer-box"></canvas>
+            <input type="file" id="file-b" hidden onchange="loadTrack('b', this)">
+            <button class="btn-main" onclick="document.getElementById('file-b').click()">LOAD</button>
+            <button id="play-b" onclick="toggleDeck('b')">PLAY</button>
+            
+            <div class="controls">
+                <div class="ctrl-unit">
+                    <label>Volume</label>
+                    <input type="range" min="0" max="1" step="0.01" value="0.8" oninput="updateParam('b', 'vol', this.value)">
+                </div>
+                <div class="ctrl-unit">
+                    <label>Pitch</label>
+                    <input type="range" min="0.5" max="1.5" step="0.01" value="1" oninput="updateParam('b', 'rate', this.value)">
+                </div>
+                <div class="ctrl-unit" style="grid-column: span 2;">
+                    <label>Filter</label>
+                    <input type="range" min="40" max="10000" step="1" value="10000" oninput="updateParam('b', 'filter', this.value)">
+                </div>
+            </div>
+        </div>
+
+        <div class="looper-panel">
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <h4 style="margin:0">QUANTIZED SAMPLER</h4>
+                <button onclick="stopAllLoops()" style="font-size:10px">KILL ALL</button>
+            </div>
             <div class="loop-grid" id="loopGrid">
                 </div>
-            <p style="font-size: 12px; color: #666; margin-top: 5px;">*Click ⏺ to Record, Click again to Loop.</p>
-        </div>
-
-        <div class="tools-section">
-            <div style="display:flex; flex-direction:column; align-items:center;">
-                <span class="control-label">BPM TAPPER</span>
-                <div style="display:flex; gap:10px;">
-                    <button class="btn" id="tapBtn">TAP</button>
-                    <div class="bpm-display" id="bpmDisplay">--</div>
-                </div>
-            </div>
         </div>
     </div>
 
     <script>
-        // --- AUDIO CONTEXT SETUP ---
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        const audioCtx = new AudioContext();
-        
-        // --- MAIN DECK LOGIC (Backing Track) ---
-        const deckAudio = new Audio();
-        deckAudio.loop = false;
-        const deckSource = audioCtx.createMediaElementSource(deckAudio);
-        const deckGain = audioCtx.createGain();
-        const deckFilter = audioCtx.createBiquadFilter();
-        const analyser = audioCtx.createAnalyser();
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let bpm = 120;
+        let beatDuration = 60 / bpm;
+        let currentBeat = 0;
+        let nextBeatTime = 0;
 
-        deckSource.connect(deckFilter);
-        deckFilter.connect(deckGain);
-        deckGain.connect(analyser);
-        deckGain.connect(audioCtx.destination);
-        analyser.fftSize = 256;
+        // --- DECK ENGINE ---
+        const decks = {
+            a: { audio: new Audio(), gain: audioCtx.createGain(), filter: audioCtx.createBiquadFilter(), analyzer: audioCtx.createAnalyser() },
+            b: { audio: new Audio(), gain: audioCtx.createGain(), filter: audioCtx.createBiquadFilter(), analyzer: audioCtx.createAnalyser() }
+        };
 
-        // UI References
-        const deckInput = document.getElementById('deckInput');
-        const playPauseBtn = document.getElementById('playPauseBtn');
-        const deckVolSlider = document.getElementById('deckVolume');
-        const deckSpeedSlider = document.getElementById('deckSpeed');
-        const deckFilterSlider = document.getElementById('deckFilter');
-
-        deckInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if(file){
-                deckAudio.src = URL.createObjectURL(file);
-                document.getElementById('trackName').innerText = file.name.substring(0, 20);
-            }
+        Object.keys(decks).forEach(id => {
+            const d = decks[id];
+            const source = audioCtx.createMediaElementSource(d.audio);
+            d.filter.type = 'lowpass';
+            d.filter.frequency.value = 10000;
+            source.connect(d.filter).connect(d.gain).connect(d.analyzer).connect(audioCtx.destination);
         });
 
-        playPauseBtn.addEventListener('click', () => {
+        function loadTrack(id, input) {
+            const file = input.files[0];
+            if(file) decks[id].audio.src = URL.createObjectURL(file);
+        }
+
+        function toggleDeck(id) {
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            if (deckAudio.paused) {
-                deckAudio.play();
-                playPauseBtn.innerText = "Pause";
-                playPauseBtn.classList.add("btn-stop");
+            const deck = decks[id];
+            const btn = document.getElementById(`play-${id}`);
+            if (deck.audio.paused) {
+                deck.audio.play();
+                btn.innerText = "PAUSE";
             } else {
-                deckAudio.pause();
-                playPauseBtn.innerText = "Play";
-                playPauseBtn.classList.remove("btn-stop");
+                deck.audio.pause();
+                btn.innerText = "PLAY";
             }
-        });
+        }
 
-        deckVolSlider.addEventListener('input', (e) => deckGain.gain.value = e.target.value);
-        deckSpeedSlider.addEventListener('input', (e) => deckAudio.playbackRate = e.target.value);
-        
-        deckFilter.type = 'allpass';
-        deckFilter.frequency.value = 20000;
-        deckFilterSlider.addEventListener('input', (e) => {
-            const val = parseInt(e.target.value);
-            if (val === 0) deckFilter.type = 'allpass';
-            else if (val < 0) {
-                deckFilter.type = 'lowpass';
-                deckFilter.frequency.value = 20000 * Math.pow(100 + val, 2) / 10000 + 100;
-            } else {
-                deckFilter.type = 'highpass';
-                deckFilter.frequency.value = (val / 100) * 5000;
-            }
-        });
+        function updateParam(id, type, val) {
+            if(type === 'vol') decks[id].gain.gain.value = val;
+            if(type === 'rate') decks[id].audio.playbackRate = val;
+            if(type === 'filter') decks[id].filter.frequency.value = val;
+        }
 
-        // --- RECORDING & LOOP GRID LOGIC ---
+        // --- QUANTIZED LOOP ENGINE ---
+        const pads = [];
         const loopGrid = document.getElementById('loopGrid');
-        const loopers = []; // Store state for each pad
 
-        // Microphone Setup
-        let mediaRecorder = null;
+        for(let i=0; i<8; i++) {
+            const padEl = document.createElement('div');
+            padEl.className = 'pad';
+            padEl.innerHTML = `<span style="font-size:10px">PAD ${i+1}</span><div style="font-size:9px; color:#888" id="status-${i}">EMPTY</div>`;
+            padEl.onclick = () => handlePadClick(i);
+            loopGrid.appendChild(padEl);
+            pads.push({ 
+                el: padEl, 
+                statusEl: document.getElementById(`status-${i}`),
+                buffer: null, 
+                source: null, 
+                state: 'empty' // empty, waiting_to_rec, recording, ready, playing
+            });
+        }
+
+        let mediaRecorder;
         let audioChunks = [];
-        let activeRecIndex = -1; // Which pad is currently recording?
+        let activePadIndex = null;
 
-        async function setupMic() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                return stream;
-            } catch (err) {
-                alert("Microphone access denied! Check browser settings.");
-                console.error(err);
-                return null;
+        async function handlePadClick(i) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const pad = pads[i];
+
+            if(pad.state === 'empty') {
+                pad.state = 'waiting_to_rec';
+                pad.el.classList.add('waiting');
+                pad.statusEl.innerText = "WAITING...";
+            } else if(pad.state === 'ready' || pad.state === 'playing') {
+                toggleLoop(i);
             }
         }
 
-        // Generate 9 Pads
-        for(let i=0; i<9; i++) createPad(i);
-
-        function createPad(index) {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'pad-wrapper';
-
-            const pad = document.createElement('div');
-            pad.className = 'loop-pad';
-            pad.id = `pad-${index}`;
-            pad.innerHTML = `<span class="pad-label">Empty</span>`;
-            
-            // Upload Button
-            const loadBtn = document.createElement('div');
-            loadBtn.className = 'pad-ctrl load-btn';
-            loadBtn.innerHTML = '📂';
-            loadBtn.title = "Load File";
-            
-            // Record Button
-            const recBtn = document.createElement('div');
-            recBtn.className = 'pad-ctrl rec-btn';
-            recBtn.id = `rec-btn-${index}`;
-            recBtn.innerHTML = '⏺';
-            recBtn.title = "Record Mic";
-
-            const fileInput = document.createElement('input');
-            fileInput.type = 'file';
-            fileInput.accept = 'audio/*';
-
-            const state = {
-                audio: new Audio(),
-                loaded: false,
-                playing: false,
-                recording: false
-            };
-            state.audio.loop = true;
-            loopers.push(state);
-
-            // --- Handlers ---
-
-            // 1. File Upload
-            loadBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                fileInput.click();
-            });
-
-            fileInput.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if(file) {
-                    setAudioForPad(index, URL.createObjectURL(file), "File");
-                }
-            });
-
-            // 2. Recording
-            recBtn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                if (audioCtx.state === 'suspended') audioCtx.resume();
-
-                // If currently recording THIS pad, stop it
-                if (activeRecIndex === index) {
-                    stopRecording(index);
-                    return;
-                }
-
-                // If recording another pad, ignore or warn (simplification: only 1 rec at a time)
-                if (activeRecIndex !== -1) return;
-
-                // START RECORDING
-                const stream = await setupMic();
-                if (!stream) return;
-
-                activeRecIndex = index;
-                audioChunks = [];
-                mediaRecorder = new MediaRecorder(stream);
-                
-                mediaRecorder.start();
-                
-                // UI Updates
-                pad.classList.add('recording');
-                recBtn.classList.add('is-recording');
-                pad.innerHTML = `<span class="pad-label" style="color:white">RECORDING...</span>`;
-
-                mediaRecorder.addEventListener("dataavailable", event => {
-                    audioChunks.push(event.data);
-                });
-
-                mediaRecorder.addEventListener("stop", () => {
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' }); // webm is standard for browser rec
-                    const audioUrl = URL.createObjectURL(audioBlob);
-                    setAudioForPad(index, audioUrl, "Live Loop");
-                    
-                    // Auto Play Loop after recording
-                    togglePadPlay(index); 
-                });
-            });
-
-            // 3. Play/Pause Pad
-            pad.addEventListener('click', () => {
-                // Prevent clicking pad while recording
-                if(activeRecIndex === index) {
-                    stopRecording(index); // Clicking main pad also stops recording
-                    return;
-                }
-                togglePadPlay(index);
-            });
-
-            wrapper.appendChild(pad);
-            wrapper.appendChild(loadBtn);
-            wrapper.appendChild(recBtn);
-            wrapper.appendChild(fileInput);
-            loopGrid.appendChild(wrapper);
-        }
-
-        function stopRecording(index) {
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                mediaRecorder.stop();
-                // Reset UI
-                const pad = document.getElementById(`pad-${index}`);
-                const recBtn = document.getElementById(`rec-btn-${index}`);
-                pad.classList.remove('recording');
-                recBtn.classList.remove('is-recording');
-                activeRecIndex = -1;
-            }
-        }
-
-        function setAudioForPad(index, src, labelText) {
-            loopers[index].audio.src = src;
-            loopers[index].loaded = true;
-            loopers[index].audio.currentTime = 0;
-            const pad = document.getElementById(`pad-${index}`);
-            pad.classList.add('loaded');
-            pad.innerHTML = `<span class="pad-label">${labelText} ${index+1}</span>`;
-        }
-
-        function togglePadPlay(index) {
-            const state = loopers[index];
-            const pad = document.getElementById(`pad-${index}`);
-
-            if(!state.loaded) return;
-
-            if(state.playing) {
-                state.audio.pause();
-                state.audio.currentTime = 0;
-                state.playing = false;
-                pad.classList.remove('playing');
+        function toggleLoop(i) {
+            const pad = pads[i];
+            if(pad.state === 'playing') {
+                if(pad.source) pad.source.stop();
+                pad.state = 'ready';
+                pad.el.classList.remove('playing');
             } else {
-                state.audio.play();
-                state.playing = true;
-                pad.classList.add('playing');
+                playLoop(i);
+            }
+        }
+
+        function playLoop(i) {
+            const pad = pads[i];
+            const source = audioCtx.createBufferSource();
+            source.buffer = pad.buffer;
+            source.loop = true;
+            source.connect(audioCtx.destination);
+            source.start(0);
+            pad.source = source;
+            pad.state = 'playing';
+            pad.el.classList.add('playing');
+        }
+
+        // --- SCHEDULER & CLOCK ---
+        function scheduler() {
+            while (nextBeatTime < audioCtx.currentTime + 0.1) {
+                processBeat(nextBeatTime);
+                nextBeatTime += beatDuration;
+                currentBeat++;
+            }
+            requestAnimationFrame(scheduler);
+        }
+
+        function processBeat(time) {
+            const beatInBar = currentBeat % 4;
+            
+            // Metronome Visuals
+            const dots = document.querySelectorAll('.metronome-dot');
+            dots.forEach((d, i) => d.classList.toggle('active', i === beatInBar));
+
+            // Start Recording on Bar 1
+            pads.forEach((pad, index) => {
+                if(pad.state === 'waiting_to_rec' && beatInBar === 0) {
+                    startRecording(index);
+                }
+            });
+
+            // Stop Recording after X bars
+            if(activePadIndex !== null && beatInBar === 0) {
+                const barsSelected = parseInt(document.getElementById('loopLength').value);
+                // Simple logic: we stop when we hit the start of the next cycle after duration
+                // (In a pro version, we'd count bars, here we use bar selection)
+            }
+        }
+
+        async function startRecording(index) {
+            activePadIndex = index;
+            const pad = pads[index];
+            pad.state = 'recording';
+            pad.el.className = 'pad recording';
+            pad.statusEl.innerText = "REC...";
+
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+            
+            const barsToRecord = parseInt(document.getElementById('loopLength').value);
+            const durationMs = (barsToRecord * 4) * (beatDuration * 1000);
+
+            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+            mediaRecorder.onstop = async () => {
+                const blob = new Blob(audioChunks, { type: 'audio/ogg; codecs=opus' });
+                const arrayBuffer = await blob.arrayBuffer();
+                pad.buffer = await audioCtx.decodeAudioData(arrayBuffer);
+                pad.state = 'ready';
+                pad.el.className = 'pad ready';
+                pad.statusEl.innerText = "LOADED";
+                activePadIndex = null;
+            };
+
+            mediaRecorder.start();
+            setTimeout(() => { if(mediaRecorder.state === 'recording') mediaRecorder.stop(); }, durationMs - 50); // Buffer for latency
+        }
+
+        // --- BPM TAPPER ---
+        let tapTimes = [];
+        function tapBPM() {
+            const now = performance.now();
+            tapTimes.push(now);
+            if(tapTimes.length > 4) tapTimes.shift();
+            if(tapTimes.length > 1) {
+                const diffs = [];
+                for(let i=1; i<tapTimes.length; i++) diffs.push(tapTimes[i] - tapTimes[i-1]);
+                const avg = diffs.reduce((a,b) => a+b) / diffs.length;
+                bpm = Math.round(60000 / avg);
+                beatDuration = 60 / bpm;
+                document.getElementById('bpmDisplay').innerText = bpm;
             }
         }
 
         function stopAllLoops() {
-            loopers.forEach((looper, index) => {
-                if(looper.playing) {
-                    looper.audio.pause();
-                    looper.audio.currentTime = 0;
-                    looper.playing = false;
-                    document.getElementById(`pad-${index}`).classList.remove('playing');
+            pads.forEach((p, i) => { if(p.state === 'playing') toggleLoop(i); });
+        }
+
+        // --- VISUALIZERS ---
+        function drawViz(id) {
+            const d = decks[id];
+            const canvas = document.getElementById(`viz-${id}`);
+            const ctx = canvas.getContext('2d');
+            const data = new Uint8Array(d.analyzer.frequencyBinCount);
+            
+            function render() {
+                requestAnimationFrame(render);
+                d.analyzer.getByteFrequencyData(data);
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0,0,canvas.width, canvas.height);
+                ctx.fillStyle = id === 'a' ? '#00e5ff' : '#ff00ff';
+                for(let i=0; i<data.length; i++) {
+                    const h = (data[i]/255) * canvas.height;
+                    ctx.fillRect(i * 2, canvas.height - h, 1, h);
                 }
-            });
-        }
-
-        // --- VISUALIZER ---
-        const canvas = document.getElementById('visualizer');
-        const ctx = canvas.getContext('2d');
-        const bufferLength = analyser.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
-
-        function drawVisualizer() {
-            requestAnimationFrame(drawVisualizer);
-            analyser.getByteFrequencyData(dataArray);
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            const barWidth = (canvas.width / bufferLength) * 2.5;
-            let barHeight;
-            let x = 0;
-            for(let i = 0; i < bufferLength; i++) {
-                barHeight = dataArray[i] / 2;
-                ctx.fillStyle = `rgb(${barHeight + 100}, 50, 255)`;
-                ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-                x += barWidth + 1;
             }
+            render();
         }
-        drawVisualizer();
 
-        // --- BPM TAPPER ---
-        const tapBtn = document.getElementById('tapBtn');
-        const bpmDisplay = document.getElementById('bpmDisplay');
-        let taps = [];
-        tapBtn.addEventListener('click', () => {
-            const now = Date.now();
-            if (taps.length > 0 && now - taps[taps.length - 1] > 2000) taps = [];
-            taps.push(now);
-            if (taps.length > 4) taps.shift();
-            if (taps.length > 1) {
-                let intervals = [];
-                for(let i=0; i<taps.length-1; i++) intervals.push(taps[i+1] - taps[i]);
-                const avg = intervals.reduce((a,b)=>a+b) / intervals.length;
-                bpmDisplay.innerText = Math.round(60000 / avg);
-            } else bpmDisplay.innerText = "--";
-        });
+        drawViz('a');
+        drawViz('b');
+        scheduler();
     </script>
 </body>
 </html>

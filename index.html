@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro DJ Loop Station</title>
+    <title>Pro DJ Loop Station v2</title>
     <style>
         :root {
-            --bg-color: #0f0f13;
-            --panel-color: #1a1a24;
+            --bg-color: #0b0b0e;
+            --panel-color: #16161d;
             --deck-a: #00e5ff;
             --deck-b: #ff00ff;
             --active-color: #00ff66;
@@ -27,7 +27,7 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 20px;
-            max-width: 1200px;
+            max-width: 1100px;
             width: 100%;
         }
 
@@ -46,17 +46,33 @@
             height: 60px; background: #000; border-radius: 4px; width: 100%; margin: 10px 0;
         }
 
-        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; }
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 15px; }
         .ctrl-unit { display: flex; flex-direction: column; }
         label { font-size: 10px; text-transform: uppercase; color: #888; margin-bottom: 4px; }
+
+        /* Crossfader Section */
+        .mixer-center {
+            grid-column: 1 / -1;
+            background: #222;
+            padding: 20px;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 10px 0;
+        }
+        .crossfader {
+            width: 60%;
+            height: 40px;
+            accent-color: #fff;
+        }
 
         /* Looper Section */
         .looper-panel {
             grid-column: 1 / -1;
-            background: #252530;
+            background: #1e1e26;
             padding: 20px;
             border-radius: 15px;
-            margin-top: 20px;
         }
 
         .loop-grid {
@@ -66,91 +82,87 @@
         }
 
         .pad {
-            aspect-ratio: 1/1;
-            background: #333;
+            aspect-ratio: 1.2/1;
+            background: #2a2a35;
             border-radius: 8px;
-            position: relative;
             cursor: pointer;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             border: 2px solid #444;
-            transition: 0.2s;
+            transition: 0.1s;
+            text-align: center;
+            user-select: none;
         }
-        .pad.ready { border-color: var(--active-color); }
+        .pad.ready { border-color: var(--active-color); background: #2d3a30; }
         .pad.playing { background: var(--active-color); color: #000; box-shadow: 0 0 15px var(--active-color); }
         .pad.waiting { animation: pulse-wait 0.5s infinite; border-color: gold; }
         .pad.recording { background: var(--rec-color); animation: pulse-rec 0.5s infinite; }
 
-        @keyframes pulse-wait { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        @keyframes pulse-wait { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         @keyframes pulse-rec { 0% { box-shadow: 0 0 0px red; } 100% { box-shadow: 0 0 20px red; } }
 
-        /* Sync Bar */
         .sync-bar {
             grid-column: 1 / -1;
             display: flex; justify-content: space-between; align-items: center;
-            padding: 15px; background: #000; border-radius: 10px; margin-bottom: 10px;
+            padding: 15px; background: #000; border-radius: 10px; margin-bottom: 10px; width: 100%;
+            box-sizing: border-box;
         }
-        .bpm-val { font-size: 24px; color: var(--deck-a); font-weight: bold; }
         
         .metronome-dot {
-            width: 15px; height: 15px; background: #333; border-radius: 50%; display: inline-block;
+            width: 12px; height: 12px; background: #333; border-radius: 50%; display: inline-block; margin: 0 3px;
         }
         .metronome-dot.active { background: var(--active-color); box-shadow: 0 0 10px var(--active-color); }
 
         button {
-            cursor: pointer; padding: 8px 12px; border: none; border-radius: 4px;
-            background: #444; color: white; font-weight: bold;
+            cursor: pointer; padding: 10px 15px; border: none; border-radius: 4px;
+            background: #333; color: white; font-weight: bold; font-size: 11px;
         }
-        .btn-main { background: var(--deck-a); color: black; }
-        input[type=range] { accent-color: var(--deck-a); }
-
-        .loop-settings { font-size: 12px; margin-bottom: 10px; display: flex; gap: 20px; }
+        .btn-main { background: var(--accent); color: black; }
+        input[type=range] { cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <h2 style="margin-top:0;">DUAL-DECK SYNC STATION</h2>
-
-    <div class="main-layout">
-        <div class="sync-bar">
-            <div>
-                <label>Global BPM</label>
-                <div class="bpm-val" id="bpmDisplay">120</div>
-                <button onclick="tapBPM()">TAP TEMPO</button>
-            </div>
-            
-            <div id="metronome">
-                <div class="metronome-dot"></div>
-                <div class="metronome-dot"></div>
-                <div class="metronome-dot"></div>
-                <div class="metronome-dot"></div>
-            </div>
-
-            <div class="loop-settings">
-                <div>
-                    <label>Quantize Loop Length</label><br>
-                    <select id="loopLength">
-                        <option value="1">1 Bar</option>
-                        <option value="2">2 Bars</option>
-                        <option value="4" selected>4 Bars</option>
-                    </select>
-                </div>
-            </div>
+    <div class="sync-bar">
+        <div>
+            <label>Master BPM</label>
+            <div style="font-size: 24px; color: var(--deck-a); font-weight: bold;" id="bpmDisplay">120</div>
+            <button onclick="tapBPM()">TAP TEMPO</button>
+        </div>
+        
+        <div id="metronome">
+            <div class="metronome-dot"></div>
+            <div class="metronome-dot"></div>
+            <div class="metronome-dot"></div>
+            <div class="metronome-dot"></div>
         </div>
 
+        <div>
+            <label>Loop Quantize</label><br>
+            <select id="loopLength" style="background:#333; color:white; border:none; padding:5px;">
+                <option value="1">1 Bar</option>
+                <option value="2">2 Bars</option>
+                <option value="4" selected>4 Bars</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="main-layout">
         <div class="deck deck-a">
-            <h4 style="margin:0">DECK A</h4>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h4 style="margin:0">DECK A</h4>
+                <button class="btn-main" onclick="document.getElementById('file-a').click()">LOAD</button>
+            </div>
             <canvas id="viz-a" class="visualizer-box"></canvas>
             <input type="file" id="file-a" hidden onchange="loadTrack('a', this)">
-            <button class="btn-main" onclick="document.getElementById('file-a').click()">LOAD</button>
-            <button id="play-a" onclick="toggleDeck('a')">PLAY</button>
+            <button id="play-a" style="width:100%" onclick="toggleDeck('a')">PLAY / PAUSE</button>
             
             <div class="controls">
                 <div class="ctrl-unit">
-                    <label>Volume</label>
-                    <input type="range" min="0" max="1" step="0.01" value="0.8" oninput="updateParam('a', 'vol', this.value)">
+                    <label>Gain</label>
+                    <input type="range" id="vol-a" min="0" max="1" step="0.01" value="0.8" oninput="updateParam('a', 'vol', this.value)">
                 </div>
                 <div class="ctrl-unit">
-                    <label>Pitch</label>
+                    <label>Speed/Pitch</label>
                     <input type="range" min="0.5" max="1.5" step="0.01" value="1" oninput="updateParam('a', 'rate', this.value)">
                 </div>
                 <div class="ctrl-unit" style="grid-column: span 2;">
@@ -161,19 +173,21 @@
         </div>
 
         <div class="deck deck-b">
-            <h4 style="margin:0">DECK B</h4>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h4 style="margin:0">DECK B</h4>
+                <button class="btn-main" onclick="document.getElementById('file-b').click()">LOAD</button>
+            </div>
             <canvas id="viz-b" class="visualizer-box"></canvas>
             <input type="file" id="file-b" hidden onchange="loadTrack('b', this)">
-            <button class="btn-main" onclick="document.getElementById('file-b').click()">LOAD</button>
-            <button id="play-b" onclick="toggleDeck('b')">PLAY</button>
+            <button id="play-b" style="width:100%" onclick="toggleDeck('b')">PLAY / PAUSE</button>
             
             <div class="controls">
                 <div class="ctrl-unit">
-                    <label>Volume</label>
-                    <input type="range" min="0" max="1" step="0.01" value="0.8" oninput="updateParam('b', 'vol', this.value)">
+                    <label>Gain</label>
+                    <input type="range" id="vol-b" min="0" max="1" step="0.01" value="0.8" oninput="updateParam('b', 'vol', this.value)">
                 </div>
                 <div class="ctrl-unit">
-                    <label>Pitch</label>
+                    <label>Speed/Pitch</label>
                     <input type="range" min="0.5" max="1.5" step="0.01" value="1" oninput="updateParam('b', 'rate', this.value)">
                 </div>
                 <div class="ctrl-unit" style="grid-column: span 2;">
@@ -183,13 +197,17 @@
             </div>
         </div>
 
+        <div class="mixer-center">
+            <label>Crossfader (A - B)</label>
+            <input type="range" class="crossfader" id="xfader" min="0" max="1" step="0.01" value="0.5" oninput="applyCrossfade(this.value)">
+        </div>
+
         <div class="looper-panel">
             <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                <h4 style="margin:0">QUANTIZED SAMPLER</h4>
-                <button onclick="stopAllLoops()" style="font-size:10px">KILL ALL</button>
+                <h4 style="margin:0">SAMPLER <small style="font-weight:normal; opacity:0.6;">(3-Clicks to Reset)</small></h4>
+                <button onclick="stopAllLoops()" style="background:red">STOP ALL</button>
             </div>
-            <div class="loop-grid" id="loopGrid">
-                </div>
+            <div class="loop-grid" id="loopGrid"></div>
         </div>
     </div>
 
@@ -200,19 +218,25 @@
         let currentBeat = 0;
         let nextBeatTime = 0;
 
-        // --- DECK ENGINE ---
         const decks = {
-            a: { audio: new Audio(), gain: audioCtx.createGain(), filter: audioCtx.createBiquadFilter(), analyzer: audioCtx.createAnalyser() },
-            b: { audio: new Audio(), gain: audioCtx.createGain(), filter: audioCtx.createBiquadFilter(), analyzer: audioCtx.createAnalyser() }
+            a: { audio: new Audio(), gain: audioCtx.createGain(), filter: audioCtx.createBiquadFilter(), analyzer: audioCtx.createAnalyser(), baseVol: 0.8 },
+            b: { audio: new Audio(), gain: audioCtx.createGain(), filter: audioCtx.createBiquadFilter(), analyzer: audioCtx.createAnalyser(), baseVol: 0.8 }
         };
 
+        // Initialize Decks
         Object.keys(decks).forEach(id => {
             const d = decks[id];
             const source = audioCtx.createMediaElementSource(d.audio);
             d.filter.type = 'lowpass';
-            d.filter.frequency.value = 10000;
+            d.gain.gain.value = 0.8;
             source.connect(d.filter).connect(d.gain).connect(d.analyzer).connect(audioCtx.destination);
         });
+
+        function applyCrossfade(val) {
+            // Constant power crossfade
+            decks.a.gain.gain.value = decks.a.baseVol * Math.cos(val * 0.5 * Math.PI);
+            decks.b.gain.gain.value = decks.b.baseVol * Math.sin(val * 0.5 * Math.PI);
+        }
 
         function loadTrack(id, input) {
             const file = input.files[0];
@@ -221,175 +245,151 @@
 
         function toggleDeck(id) {
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            const deck = decks[id];
-            const btn = document.getElementById(`play-${id}`);
-            if (deck.audio.paused) {
-                deck.audio.play();
-                btn.innerText = "PAUSE";
-            } else {
-                deck.audio.pause();
-                btn.innerText = "PLAY";
-            }
+            const d = decks[id].audio;
+            d.paused ? d.play() : d.pause();
         }
 
         function updateParam(id, type, val) {
-            if(type === 'vol') decks[id].gain.gain.value = val;
+            if(type === 'vol') { decks[id].baseVol = val; applyCrossfade(document.getElementById('xfader').value); }
             if(type === 'rate') decks[id].audio.playbackRate = val;
             if(type === 'filter') decks[id].filter.frequency.value = val;
         }
 
-        // --- QUANTIZED LOOP ENGINE ---
+        // --- LOOPER LOGIC ---
         const pads = [];
         const loopGrid = document.getElementById('loopGrid');
 
         for(let i=0; i<8; i++) {
             const padEl = document.createElement('div');
             padEl.className = 'pad';
-            padEl.innerHTML = `<span style="font-size:10px">PAD ${i+1}</span><div style="font-size:9px; color:#888" id="status-${i}">EMPTY</div>`;
-            padEl.onclick = () => handlePadClick(i);
+            padEl.innerHTML = `<b style="font-size:12px">PAD ${i+1}</b><div style="font-size:9px;" id="status-${i}">EMPTY</div>`;
+            
+            // Handle Triple Click
+            let clickCount = 0;
+            let clickTimer;
+            
+            padEl.onclick = () => {
+                clickCount++;
+                clearTimeout(clickTimer);
+                clickTimer = setTimeout(() => {
+                    if (clickCount >= 3) resetPad(i);
+                    else handlePadAction(i);
+                    clickCount = 0;
+                }, 300);
+            };
+
             loopGrid.appendChild(padEl);
-            pads.push({ 
-                el: padEl, 
-                statusEl: document.getElementById(`status-${i}`),
-                buffer: null, 
-                source: null, 
-                state: 'empty' // empty, waiting_to_rec, recording, ready, playing
-            });
+            pads.push({ el: padEl, statusEl: document.getElementById(`status-${i}`), buffer: null, source: null, state: 'empty' });
         }
 
-        let mediaRecorder;
-        let audioChunks = [];
-        let activePadIndex = null;
+        function resetPad(i) {
+            const p = pads[i];
+            if(p.source) p.source.stop();
+            p.buffer = null;
+            p.state = 'empty';
+            p.el.className = 'pad';
+            p.statusEl.innerText = "EMPTY";
+        }
 
-        async function handlePadClick(i) {
+        function handlePadAction(i) {
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            const pad = pads[i];
-
-            if(pad.state === 'empty') {
-                pad.state = 'waiting_to_rec';
-                pad.el.classList.add('waiting');
-                pad.statusEl.innerText = "WAITING...";
-            } else if(pad.state === 'ready' || pad.state === 'playing') {
-                toggleLoop(i);
+            const p = pads[i];
+            if(p.state === 'empty') {
+                p.state = 'waiting_to_rec';
+                p.el.classList.add('waiting');
+                p.statusEl.innerText = "SYNCING...";
+            } else if(p.state === 'ready' || p.state === 'playing') {
+                if(p.state === 'playing') {
+                    p.source.stop();
+                    p.state = 'ready';
+                    p.el.classList.remove('playing');
+                } else {
+                    const source = audioCtx.createBufferSource();
+                    source.buffer = p.buffer;
+                    source.loop = true;
+                    source.connect(audioCtx.destination);
+                    source.start(0);
+                    p.source = source;
+                    p.state = 'playing';
+                    p.el.classList.add('playing');
+                }
             }
         }
 
-        function toggleLoop(i) {
-            const pad = pads[i];
-            if(pad.state === 'playing') {
-                if(pad.source) pad.source.stop();
-                pad.state = 'ready';
-                pad.el.classList.remove('playing');
-            } else {
-                playLoop(i);
-            }
-        }
-
-        function playLoop(i) {
-            const pad = pads[i];
-            const source = audioCtx.createBufferSource();
-            source.buffer = pad.buffer;
-            source.loop = true;
-            source.connect(audioCtx.destination);
-            source.start(0);
-            pad.source = source;
-            pad.state = 'playing';
-            pad.el.classList.add('playing');
-        }
-
-        // --- SCHEDULER & CLOCK ---
+        // --- CLOCK & RECORDING ---
+        let activeRecIdx = null;
         function scheduler() {
             while (nextBeatTime < audioCtx.currentTime + 0.1) {
-                processBeat(nextBeatTime);
+                const beatInBar = currentBeat % 4;
+                const dots = document.querySelectorAll('.metronome-dot');
+                dots.forEach((d, i) => d.classList.toggle('active', i === beatInBar));
+
+                pads.forEach((p, idx) => {
+                    if(p.state === 'waiting_to_rec' && beatInBar === 0) startRec(idx);
+                });
+
                 nextBeatTime += beatDuration;
                 currentBeat++;
             }
             requestAnimationFrame(scheduler);
         }
 
-        function processBeat(time) {
-            const beatInBar = currentBeat % 4;
-            
-            // Metronome Visuals
-            const dots = document.querySelectorAll('.metronome-dot');
-            dots.forEach((d, i) => d.classList.toggle('active', i === beatInBar));
-
-            // Start Recording on Bar 1
-            pads.forEach((pad, index) => {
-                if(pad.state === 'waiting_to_rec' && beatInBar === 0) {
-                    startRecording(index);
-                }
-            });
-
-            // Stop Recording after X bars
-            if(activePadIndex !== null && beatInBar === 0) {
-                const barsSelected = parseInt(document.getElementById('loopLength').value);
-                // Simple logic: we stop when we hit the start of the next cycle after duration
-                // (In a pro version, we'd count bars, here we use bar selection)
-            }
-        }
-
-        async function startRecording(index) {
-            activePadIndex = index;
-            const pad = pads[index];
-            pad.state = 'recording';
-            pad.el.className = 'pad recording';
-            pad.statusEl.innerText = "REC...";
+        async function startRec(idx) {
+            activeRecIdx = idx;
+            const p = pads[idx];
+            p.state = 'recording';
+            p.el.className = 'pad recording';
+            p.statusEl.innerText = "RECORDING";
 
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
-            audioChunks = [];
+            const recorder = new MediaRecorder(stream);
+            let chunks = [];
             
-            const barsToRecord = parseInt(document.getElementById('loopLength').value);
-            const durationMs = (barsToRecord * 4) * (beatDuration * 1000);
+            const bars = parseInt(document.getElementById('loopLength').value);
+            const ms = (bars * 4) * (beatDuration * 1000);
 
-            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-            mediaRecorder.onstop = async () => {
-                const blob = new Blob(audioChunks, { type: 'audio/ogg; codecs=opus' });
+            recorder.ondataavailable = e => chunks.push(e.data);
+            recorder.onstop = async () => {
+                const blob = new Blob(chunks, { type: 'audio/ogg; codecs=opus' });
                 const arrayBuffer = await blob.arrayBuffer();
-                pad.buffer = await audioCtx.decodeAudioData(arrayBuffer);
-                pad.state = 'ready';
-                pad.el.className = 'pad ready';
-                pad.statusEl.innerText = "LOADED";
-                activePadIndex = null;
+                p.buffer = await audioCtx.decodeAudioData(arrayBuffer);
+                p.state = 'ready';
+                p.el.className = 'pad ready';
+                p.statusEl.innerText = "READY";
             };
 
-            mediaRecorder.start();
-            setTimeout(() => { if(mediaRecorder.state === 'recording') mediaRecorder.stop(); }, durationMs - 50); // Buffer for latency
+            recorder.start();
+            setTimeout(() => recorder.stop(), ms - 50);
         }
 
         // --- BPM TAPPER ---
-        let tapTimes = [];
+        let taps = [];
         function tapBPM() {
             const now = performance.now();
-            tapTimes.push(now);
-            if(tapTimes.length > 4) tapTimes.shift();
-            if(tapTimes.length > 1) {
-                const diffs = [];
-                for(let i=1; i<tapTimes.length; i++) diffs.push(tapTimes[i] - tapTimes[i-1]);
-                const avg = diffs.reduce((a,b) => a+b) / diffs.length;
-                bpm = Math.round(60000 / avg);
+            taps.push(now);
+            if(taps.length > 4) taps.shift();
+            if(taps.length > 1) {
+                let sum = 0;
+                for(let i=1; i<taps.length; i++) sum += (taps[i] - taps[i-1]);
+                bpm = Math.round(60000 / (sum / (taps.length - 1)));
                 beatDuration = 60 / bpm;
                 document.getElementById('bpmDisplay').innerText = bpm;
             }
         }
 
         function stopAllLoops() {
-            pads.forEach((p, i) => { if(p.state === 'playing') toggleLoop(i); });
+            pads.forEach((p, i) => { if(p.state === 'playing') handlePadAction(i); });
         }
 
-        // --- VISUALIZERS ---
         function drawViz(id) {
             const d = decks[id];
             const canvas = document.getElementById(`viz-${id}`);
             const ctx = canvas.getContext('2d');
             const data = new Uint8Array(d.analyzer.frequencyBinCount);
-            
             function render() {
                 requestAnimationFrame(render);
                 d.analyzer.getByteFrequencyData(data);
-                ctx.fillStyle = '#000';
-                ctx.fillRect(0,0,canvas.width, canvas.height);
+                ctx.fillStyle = '#000'; ctx.fillRect(0,0,canvas.width, canvas.height);
                 ctx.fillStyle = id === 'a' ? '#00e5ff' : '#ff00ff';
                 for(let i=0; i<data.length; i++) {
                     const h = (data[i]/255) * canvas.height;
@@ -399,8 +399,7 @@
             render();
         }
 
-        drawViz('a');
-        drawViz('b');
+        drawViz('a'); drawViz('b');
         scheduler();
     </script>
 </body>

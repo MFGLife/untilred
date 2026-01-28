@@ -1,324 +1,191 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>arXiv AI Reader</title>
-    <style>
-        :root { --bg: #000000; --accent: #10b981; --text: #ecfdf5; }
-        body {
-            background-color: var(--bg); color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            height: 100vh; margin: 0; display: flex; flex-direction: column;
-            justify-content: center; align-items: center; overflow: hidden;
-        }
-        
-        /* The Big Button */
-        #playBtn {
-            width: 160px; height: 160px; border-radius: 50%;
-            background: transparent; border: 3px solid var(--accent);
-            color: var(--accent); font-size: 4rem; cursor: pointer;
-            display: flex; justify-content: center; align-items: center;
-            transition: all 0.2s ease; box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
-        }
-        #playBtn:active { transform: scale(0.95); background: rgba(16, 185, 129, 0.1); }
-        .loading { animation: pulse 1.5s infinite; border-color: #6ee7b7 !important; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); } 70% { box-shadow: 0 0 0 30px rgba(16, 185, 129, 0); } 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>arXiv AI Reader</title>
 
-        /* Metadata */
-        .info { text-align: center; width: 85%; max-width: 500px; margin-top: 40px; }
-        h1 { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 2px; color: #6ee7b7; margin-bottom: 30px; }
-        #title { font-size: 1.3rem; font-weight: 700; line-height: 1.4; margin-bottom: 10px; min-height: 3em; }
-        #authors { font-size: 0.9rem; color: #9ca3af; font-style: italic; }
-        
-        /* Status Bar */
-        #status { position: absolute; bottom: 30px; font-size: 0.8rem; color: #4b5563; }
-        
-        /* Visualizer Bars (Fake) */
-        .bars { display: flex; gap: 4px; height: 30px; align-items: flex-end; margin-top: 20px; opacity: 0; transition: opacity 0.5s; }
-        .bar { width: 4px; background: var(--accent); animation: bounce 1s infinite ease-in-out; }
-        .playing .bars { opacity: 1; }
-        .bar:nth-child(1) { animation-duration: 0.8s; } .bar:nth-child(2) { animation-duration: 1.1s; } .bar:nth-child(3) { animation-duration: 0.9s; } .bar:nth-child(4) { animation-duration: 1.2s; } .bar:nth-child(5) { animation-duration: 0.7s; }
-        @keyframes bounce { 0%, 100% { height: 5px; } 50% { height: 25px; } }
-    </style>
+<style>
+:root { --bg:#000; --accent:#10b981; --text:#ecfdf5; }
+body {
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    height:100vh; margin:0;
+    display:flex; flex-direction:column;
+    justify-content:center; align-items:center;
+    overflow:hidden;
+}
+#playBtn {
+    width:160px; height:160px; border-radius:50%;
+    background:transparent;
+    border:3px solid var(--accent);
+    color:var(--accent);
+    font-size:4rem; cursor:pointer;
+    display:flex; justify-content:center; align-items:center;
+    box-shadow:0 0 20px rgba(16,185,129,.2);
+}
+.loading { animation:pulse 1.5s infinite; }
+@keyframes pulse {
+    0%{box-shadow:0 0 0 0 rgba(16,185,129,.4)}
+    70%{box-shadow:0 0 0 30px rgba(16,185,129,0)}
+    100%{box-shadow:0 0 0 0 rgba(16,185,129,0)}
+}
+.info { text-align:center; width:85%; max-width:500px; margin-bottom:40px; }
+h1 { font-size:.9rem; letter-spacing:2px; color:#6ee7b7; }
+#title { font-size:1.3rem; font-weight:700; min-height:3em; }
+#authors { font-size:.9rem; color:#9ca3af; font-style:italic; }
+#status { position:absolute; bottom:30px; font-size:.8rem; color:#4b5563; }
+.bars { display:flex; gap:4px; height:30px; margin-top:20px; opacity:0; }
+.playing .bars { opacity:1; }
+.bar { width:4px; background:var(--accent); animation:bounce 1s infinite; }
+@keyframes bounce { 0%,100%{height:5px} 50%{height:25px} }
+</style>
 </head>
+
 <body>
 
-    <audio id="silentKeeper" loop>
-        <source src="https://raw.githubusercontent.com/anars/blank-audio/master/5-seconds-of-silence.mp3" type="audio/mpeg">
-    </audio>
+<audio id="silentKeeper" loop>
+    <source src="https://raw.githubusercontent.com/anars/blank-audio/master/5-seconds-of-silence.mp3">
+</audio>
 
-    <div class="info">
-        <h1>CS.AI // Recent News</h1>
-        <div id="title">Tap button to fetch papers</div>
-        <div id="authors">Voice of the ArXiv</div>
-    </div>
+<div class="info">
+    <h1>CS.AI // Recent News</h1>
+    <div id="title">Tap button to fetch papers</div>
+    <div id="authors">Voice of the ArXiv</div>
+</div>
 
-    <button id="playBtn">▶</button>
+<button id="playBtn">▶</button>
 
-    <div class="bars">
-        <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-    </div>
+<div class="bars">
+    <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+    <div class="bar"></div><div class="bar"></div>
+</div>
 
-    <div id="status">Ready</div>
+<div id="status">Ready</div>
 
-    <script>
-        const btn = document.getElementById('playBtn');
-        const titleEl = document.getElementById('title');
-        const authEl = document.getElementById('authors');
-        const statusEl = document.getElementById('status');
-        const silentAudio = document.getElementById('silentKeeper');
-        const synth = window.speechSynthesis;
-        
-        // Check if speech synthesis is supported
-        if (!synth) {
-            statusEl.innerText = "Speech not supported in this browser";
-            btn.disabled = true;
-        }
-        
-        let papers = [];
-        let isSpeaking = false;
-        let currentUtterance = null;
-        let lastPaperIndex = -1;
-        let shouldContinueSpeaking = true;
+<script>
+const btn = document.getElementById('playBtn');
+const titleEl = document.getElementById('title');
+const authEl = document.getElementById('authors');
+const statusEl = document.getElementById('status');
+const silentAudio = document.getElementById('silentKeeper');
+const synth = window.speechSynthesis;
 
-        // 1. Fetch arXiv Data (CS.AI category, sorted by submitted date)
-        async function fetchPapers() {
-            statusEl.innerText = "Connecting to arXiv...";
-            btn.classList.add('loading');
-            
-            try {
-                // Use HTTPS and try multiple CORS proxies as fallback
-                const arxivUrl = 'https://export.arxiv.org/api/query?search_query=cat:cs.AI&start=0&max_results=50&sortBy=submittedDate&sortOrder=descending';
-                
-                let response;
-                let xmlText;
-                
-                // Try direct fetch first (works if your page is HTTP or has CORS)
-                try {
-                    response = await fetch(arxivUrl);
-                    xmlText = await response.text();
-                } catch (e) {
-                    // Fallback to CORS proxy
-                    console.log('Direct fetch failed, trying proxy...');
-                    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(arxivUrl)}`;
-                    response = await fetch(proxyUrl);
-                    xmlText = await response.text();
-                }
-                
-                // Parse XML
-                const parser = new DOMParser();
-                const xml = parser.parseFromString(xmlText, "text/xml");
-                
-                // Check for parsing errors
-                const parseError = xml.querySelector('parsererror');
-                if (parseError) {
-                    throw new Error('XML parsing failed');
-                }
-                
-                const entries = xml.querySelectorAll('entry');
-                
-                if (entries.length === 0) {
-                    throw new Error('No papers found in response');
-                }
-                
-                papers = Array.from(entries).map(entry => {
-                    const titleNode = entry.querySelector('title');
-                    const summaryNode = entry.querySelector('summary');
-                    const authorNode = entry.querySelector('author name');
-                    
-                    return {
-                        title: titleNode ? titleNode.textContent.replace(/\n/g, ' ').trim() : 'Unknown Title',
-                        summary: summaryNode ? summaryNode.textContent.replace(/\n/g, ' ').trim() : 'No summary available',
-                        author: authorNode ? authorNode.textContent.trim() : 'Unknown Author'
-                    };
-                });
-                
-                statusEl.innerText = `${papers.length} papers loaded ✓`;
-                btn.classList.remove('loading');
-                return true;
-            } catch (e) {
-                console.error('Fetch error:', e);
-                statusEl.innerText = `Error: ${e.message}`;
-                btn.classList.remove('loading');
-                
-                // Load sample data as fallback
-                papers = [
-                    {
-                        title: "Demo Mode: Large Language Models for Code Generation",
-                        summary: "This is a demo paper. The app couldn't connect to arXiv. Please check your internet connection or try again later.",
-                        author: "Sample Author"
-                    }
-                ];
-                statusEl.innerText = "Using demo data (fetch failed)";
-                return true; // Still return true so we can demo
-            }
-        }
+let papers = [];
+let isSpeaking = false;
+let shouldAutoPlay = false;
+let currentPaperIndex = 0;
 
-        // 2. The Speaking Logic
-        function readPaper() {
-            if (papers.length === 0) return;
+/* ---------------- FETCH ---------------- */
 
-            // Pick Random (but different from last one)
-            let randomIndex;
-            do {
-                randomIndex = Math.floor(Math.random() * papers.length);
-            } while (randomIndex === lastPaperIndex && papers.length > 1);
-            
-            lastPaperIndex = randomIndex;
-            const paper = papers[randomIndex];
-            
-            // Update UI
-            titleEl.innerText = paper.title;
-            authEl.innerText = "By " + paper.author;
-            document.body.classList.add('playing');
-            btn.innerText = "⏹";
-            isSpeaking = true;
-            shouldContinueSpeaking = true;
+async function fetchPapers() {
+    statusEl.innerText = "Connecting to arXiv...";
+    btn.classList.add('loading');
 
-            // Prepare Text - Keep full summary
-            const fullText = `New paper. ${paper.title}. Abstract. ${paper.summary}`;
+    try {
+        const url = 'https://export.arxiv.org/api/query?search_query=cat:cs.AI&start=0&max_results=50&sortBy=submittedDate&sortOrder=descending';
+        const res = await fetch(url);
+        const text = await res.text();
 
-            // Split into chunks to avoid the 15-second cutoff bug in some browsers
-            const chunkSize = 200; // characters per chunk
-            const words = fullText.split(' ');
-            const chunks = [];
-            let currentChunk = '';
-            
-            for (const word of words) {
-                if ((currentChunk + ' ' + word).length > chunkSize && currentChunk.length > 0) {
-                    chunks.push(currentChunk.trim());
-                    currentChunk = word;
-                } else {
-                    currentChunk += (currentChunk ? ' ' : '') + word;
-                }
-            }
-            if (currentChunk) chunks.push(currentChunk.trim());
+        const xml = new DOMParser().parseFromString(text, "text/xml");
+        papers = [...xml.querySelectorAll('entry')].map(e => ({
+            title: e.querySelector('title')?.textContent.replace(/\s+/g,' ').trim(),
+            summary: e.querySelector('summary')?.textContent.replace(/\s+/g,' ').trim(),
+            author: e.querySelector('author name')?.textContent.trim()
+        }));
 
-            console.log(`Reading paper in ${chunks.length} chunks`);
+        statusEl.innerText = `${papers.length} papers loaded`;
+    } catch {
+        papers = [{
+            title:"Demo Paper",
+            summary:"Network unavailable. This is demo content.",
+            author:"System"
+        }];
+        statusEl.innerText = "Demo mode";
+    }
 
-            // Cancel any existing speech
-            synth.cancel();
-            
-            // Get voice once
-            const voices = synth.getVoices();
-            const preferredVoice = voices.find(v => v.name.includes("Google US English")) 
-                || voices.find(v => v.lang === 'en-US')
-                || voices.find(v => v.lang.startsWith('en'))
-                || voices[0];
+    btn.classList.remove('loading');
+}
 
-            // Play the silent track to keep the OS media session active
-            silentAudio.play().catch(e => console.log("Audio play failed", e));
+/* ---------------- SPEECH ---------------- */
 
-            // Speak chunks sequentially
-            let chunkIndex = 0;
-            
-            function speakNextChunk() {
-                // Check if we should stop
-                if (!shouldContinueSpeaking) {
-                    console.log('Stopping at user request');
-                    isSpeaking = false;
-                    document.body.classList.remove('playing');
-                    btn.innerText = "▶";
-                    statusEl.innerText = "Stopped.";
-                    silentAudio.pause();
-                    return;
-                }
+function splitText(text, size=700) {
+    const words = text.split(' ');
+    const chunks = [];
+    let chunk = '';
 
-                // Check if we've finished all chunks
-                if (chunkIndex >= chunks.length) {
-                    console.log('Finished all chunks');
-                    isSpeaking = false;
-                    shouldContinueSpeaking = false;
-                    document.body.classList.remove('playing');
-                    btn.innerText = "▶";
-                    statusEl.innerText = "Finished. Tap for next.";
-                    silentAudio.pause();
-                    return;
-                }
+    for (const w of words) {
+        if ((chunk + ' ' + w).length > size) {
+            chunks.push(chunk);
+            chunk = w;
+        } else chunk += (chunk ? ' ' : '') + w;
+    }
+    if (chunk) chunks.push(chunk);
+    return chunks;
+}
 
-                console.log(`Speaking chunk ${chunkIndex + 1}/${chunks.length}`);
-                const utterance = new SpeechSynthesisUtterance(chunks[chunkIndex]);
-                utterance.rate = 0.9;
-                utterance.pitch = 1.0;
-                if (preferredVoice) utterance.voice = preferredVoice;
+function speakPaper(index) {
+    if (!papers[index]) return;
 
-                utterance.onend = () => {
-                    console.log(`Chunk ${chunkIndex + 1} finished`);
-                    chunkIndex++;
-                    // Small delay between chunks to prevent issues
-                    setTimeout(speakNextChunk, 100);
-                };
+    synth.cancel();
 
-                utterance.onerror = (e) => {
-                    console.error('Speech error on chunk', chunkIndex, ':', e);
-                    // Try to continue to next chunk anyway
-                    chunkIndex++;
-                    if (chunkIndex < chunks.length && shouldContinueSpeaking) {
-                        setTimeout(speakNextChunk, 100);
-                    } else {
-                        isSpeaking = false;
-                        shouldContinueSpeaking = false;
-                        document.body.classList.remove('playing');
-                        btn.innerText = "▶";
-                        statusEl.innerText = "Speech error occurred.";
-                        silentAudio.pause();
-                    }
-                };
+    const paper = papers[index];
+    titleEl.innerText = paper.title;
+    authEl.innerText = "By " + paper.author;
+    btn.innerText = "⏹";
+    document.body.classList.add('playing');
+    isSpeaking = true;
 
-                synth.speak(utterance);
-                currentUtterance = utterance;
-            }
+    silentAudio.play().catch(()=>{});
 
-            speakNextChunk();
+    const fullText = `New paper. ${paper.title}. Abstract. ${paper.summary}`;
+    const chunks = splitText(fullText);
 
-            // Set Lock Screen Info (Media Session API)
-            if ('mediaSession' in navigator) {
-                navigator.mediaSession.metadata = new MediaMetadata({
-                    title: paper.title.substring(0, 50) + (paper.title.length > 50 ? "..." : ""),
-                    artist: "arXiv CS.AI",
-                    album: "AI Research Feed"
-                });
-                navigator.mediaSession.setActionHandler('play', () => {
-                    if (synth.paused) synth.resume();
-                });
-                navigator.mediaSession.setActionHandler('pause', () => {
-                    synth.pause();
-                });
-            }
-        }
+    const voice = synth.getVoices().find(v=>v.lang.startsWith('en')) || null;
 
-        // 3. Interaction
-        btn.onclick = async () => {
-            if (isSpeaking) {
-                shouldContinueSpeaking = false;
-                synth.cancel();
-                silentAudio.pause();
-                isSpeaking = false;
-                document.body.classList.remove('playing');
-                btn.innerText = "▶";
-                statusEl.innerText = "Stopped.";
-                return;
-            }
+    chunks.forEach((text, i) => {
+        const u = new SpeechSynthesisUtterance(text);
+        u.rate = 0.9;
+        if (voice) u.voice = voice;
 
-            // First time load
-            if (papers.length === 0) {
-                const success = await fetchPapers();
-                if (success) readPaper();
-            } else {
-                readPaper();
-            }
-        };
-
-        // Pre-load voices (Chrome bug fix)
-        if (window.speechSynthesis) {
-            window.speechSynthesis.onvoiceschanged = () => {
-                window.speechSynthesis.getVoices();
+        if (i === chunks.length - 1) {
+            u.onend = () => {
+                if (shouldAutoPlay) {
+                    currentPaperIndex = (currentPaperIndex + 1) % papers.length;
+                    speakPaper(currentPaperIndex);
+                } else stopPlayback();
             };
-            // Trigger voice loading immediately
-            window.speechSynthesis.getVoices();
         }
 
-    </script>
+        synth.speak(u);
+    });
+}
+
+function stopPlayback() {
+    synth.cancel();
+    silentAudio.pause();
+    isSpeaking = false;
+    shouldAutoPlay = false;
+    btn.innerText = "▶";
+    document.body.classList.remove('playing');
+    statusEl.innerText = "Stopped";
+}
+
+/* ---------------- UI ---------------- */
+
+btn.onclick = async () => {
+    if (isSpeaking) return stopPlayback();
+
+    if (!papers.length) await fetchPapers();
+
+    shouldAutoPlay = true;
+    speakPaper(currentPaperIndex);
+};
+
+/* preload voices */
+speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+speechSynthesis.getVoices();
+</script>
+
 </body>
 </html>

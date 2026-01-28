@@ -2,405 +2,243 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro DJ Loop Station v2</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Zen Scholar</title>
     <style>
         :root {
-            --bg-color: #0b0b0e;
-            --panel-color: #16161d;
-            --deck-a: #00e5ff;
-            --deck-b: #ff00ff;
-            --active-color: #00ff66;
-            --rec-color: #ff3333;
-            --text-color: #e0e0e0;
+            --bg-color: #000000; /* True Black for OLED Battery Saving */
+            --text-color: #e2e8f0;
+            --accent-color: #38bdf8;
+            --error-color: #ef4444;
         }
 
         body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
-            margin: 0; padding: 20px;
-            display: flex; flex-direction: column; align-items: center;
-        }
-
-        .main-layout {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            max-width: 1100px;
-            width: 100%;
-        }
-
-        /* Deck Styling */
-        .deck {
-            background: var(--panel-color);
-            padding: 20px;
-            border-radius: 15px;
-            border-top: 4px solid var(--accent);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-        .deck-a { --accent: var(--deck-a); }
-        .deck-b { --accent: var(--deck-b); }
-
-        .visualizer-box {
-            height: 60px; background: #000; border-radius: 4px; width: 100%; margin: 10px 0;
-        }
-
-        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 15px; }
-        .ctrl-unit { display: flex; flex-direction: column; }
-        label { font-size: 10px; text-transform: uppercase; color: #888; margin-bottom: 4px; }
-
-        /* Crossfader Section */
-        .mixer-center {
-            grid-column: 1 / -1;
-            background: #222;
-            padding: 20px;
-            border-radius: 12px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            height: 100vh;
+            margin: 0;
             display: flex;
             flex-direction: column;
+            justify-content: center;
             align-items: center;
-            margin: 10px 0;
-        }
-        .crossfader {
-            width: 60%;
-            height: 40px;
-            accent-color: #fff;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
         }
 
-        /* Looper Section */
-        .looper-panel {
-            grid-column: 1 / -1;
-            background: #1e1e26;
-            padding: 20px;
-            border-radius: 15px;
-        }
-
-        .loop-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 15px;
-        }
-
-        .pad {
-            aspect-ratio: 1.2/1;
-            background: #2a2a35;
-            border-radius: 8px;
-            cursor: pointer;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            border: 2px solid #444;
-            transition: 0.1s;
-            text-align: center;
-            user-select: none;
-        }
-        .pad.ready { border-color: var(--active-color); background: #2d3a30; }
-        .pad.playing { background: var(--active-color); color: #000; box-shadow: 0 0 15px var(--active-color); }
-        .pad.waiting { animation: pulse-wait 0.5s infinite; border-color: gold; }
-        .pad.recording { background: var(--rec-color); animation: pulse-rec 0.5s infinite; }
-
-        @keyframes pulse-wait { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-        @keyframes pulse-rec { 0% { box-shadow: 0 0 0px red; } 100% { box-shadow: 0 0 20px red; } }
-
-        .sync-bar {
-            grid-column: 1 / -1;
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 15px; background: #000; border-radius: 10px; margin-bottom: 10px; width: 100%;
-            box-sizing: border-box;
-        }
+        /* The Interface */
+        .container { text-align: center; width: 90%; max-width: 400px; }
         
-        .metronome-dot {
-            width: 12px; height: 12px; background: #333; border-radius: 50%; display: inline-block; margin: 0 3px;
-        }
-        .metronome-dot.active { background: var(--active-color); box-shadow: 0 0 10px var(--active-color); }
+        h1 { font-weight: 200; letter-spacing: 2px; margin-bottom: 40px; opacity: 0.8; font-size: 1rem; text-transform: uppercase; }
 
-        button {
-            cursor: pointer; padding: 10px 15px; border: none; border-radius: 4px;
-            background: #333; color: white; font-weight: bold; font-size: 11px;
+        /* The Button */
+        #playBtn {
+            width: 140px; height: 140px;
+            border-radius: 50%;
+            border: 2px solid var(--accent-color);
+            background: transparent;
+            color: var(--accent-color);
+            font-size: 3rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex; justify-content: center; align-items: center;
+            margin: 0 auto;
+            box-shadow: 0 0 0px rgba(56, 189, 248, 0); /* Glow effect start */
         }
-        .btn-main { background: var(--accent); color: black; }
-        input[type=range] { cursor: pointer; }
+
+        #playBtn:active { transform: scale(0.95); }
+        
+        .playing #playBtn {
+            box-shadow: 0 0 30px rgba(56, 189, 248, 0.2);
+            background: rgba(56, 189, 248, 0.1);
+        }
+
+        /* Metadata Text */
+        #trackInfo { margin-top: 40px; min-height: 80px; }
+        #title { font-size: 1.2rem; font-weight: 600; margin-bottom: 8px; line-height: 1.4; }
+        #source { font-size: 0.9rem; color: #94a3b8; font-style: italic; }
+        
+        /* Category Selector */
+        .toggles { margin-top: 30px; display: flex; gap: 10px; justify-content: center; }
+        .chip {
+            padding: 8px 16px; border: 1px solid #334155; border-radius: 20px;
+            font-size: 0.8rem; color: #94a3b8; cursor: pointer; background: transparent;
+        }
+        .chip.active { border-color: var(--accent-color); color: var(--accent-color); }
+
+        /* Loading Animation */
+        .loader { border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid var(--accent-color); border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: none; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
     </style>
 </head>
 <body>
 
-    <div class="sync-bar">
-        <div>
-            <label>Master BPM</label>
-            <div style="font-size: 24px; color: var(--deck-a); font-weight: bold;" id="bpmDisplay">120</div>
-            <button onclick="tapBPM()">TAP TEMPO</button>
-        </div>
+    <div class="container">
+        <h1 id="header">Random Learning</h1>
         
-        <div id="metronome">
-            <div class="metronome-dot"></div>
-            <div class="metronome-dot"></div>
-            <div class="metronome-dot"></div>
-            <div class="metronome-dot"></div>
+        <button id="playBtn" aria-label="Play Random Lesson">
+            <span id="icon">▶</span>
+            <div id="loader" class="loader"></div>
+        </button>
+
+        <div id="trackInfo">
+            <div id="title">Tap to start</div>
+            <div id="source">Science & Legal Archives</div>
         </div>
 
-        <div>
-            <label>Loop Quantize</label><br>
-            <select id="loopLength" style="background:#333; color:white; border:none; padding:5px;">
-                <option value="1">1 Bar</option>
-                <option value="2">2 Bars</option>
-                <option value="4" selected>4 Bars</option>
-            </select>
+        <div class="toggles">
+            <button class="chip active" onclick="setCategory('mix')">Mix</button>
+            <button class="chip" onclick="setCategory('science')">Science</button>
+            <button class="chip" onclick="setCategory('legal')">Legal</button>
         </div>
     </div>
 
-    <div class="main-layout">
-        <div class="deck deck-a">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h4 style="margin:0">DECK A</h4>
-                <button class="btn-main" onclick="document.getElementById('file-a').click()">LOAD</button>
-            </div>
-            <canvas id="viz-a" class="visualizer-box"></canvas>
-            <input type="file" id="file-a" hidden onchange="loadTrack('a', this)">
-            <button id="play-a" style="width:100%" onclick="toggleDeck('a')">PLAY / PAUSE</button>
-            
-            <div class="controls">
-                <div class="ctrl-unit">
-                    <label>Gain</label>
-                    <input type="range" id="vol-a" min="0" max="1" step="0.01" value="0.8" oninput="updateParam('a', 'vol', this.value)">
-                </div>
-                <div class="ctrl-unit">
-                    <label>Speed/Pitch</label>
-                    <input type="range" min="0.5" max="1.5" step="0.01" value="1" oninput="updateParam('a', 'rate', this.value)">
-                </div>
-                <div class="ctrl-unit" style="grid-column: span 2;">
-                    <label>Filter</label>
-                    <input type="range" min="40" max="10000" step="1" value="10000" oninput="updateParam('a', 'filter', this.value)">
-                </div>
-            </div>
-        </div>
-
-        <div class="deck deck-b">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h4 style="margin:0">DECK B</h4>
-                <button class="btn-main" onclick="document.getElementById('file-b').click()">LOAD</button>
-            </div>
-            <canvas id="viz-b" class="visualizer-box"></canvas>
-            <input type="file" id="file-b" hidden onchange="loadTrack('b', this)">
-            <button id="play-b" style="width:100%" onclick="toggleDeck('b')">PLAY / PAUSE</button>
-            
-            <div class="controls">
-                <div class="ctrl-unit">
-                    <label>Gain</label>
-                    <input type="range" id="vol-b" min="0" max="1" step="0.01" value="0.8" oninput="updateParam('b', 'vol', this.value)">
-                </div>
-                <div class="ctrl-unit">
-                    <label>Speed/Pitch</label>
-                    <input type="range" min="0.5" max="1.5" step="0.01" value="1" oninput="updateParam('b', 'rate', this.value)">
-                </div>
-                <div class="ctrl-unit" style="grid-column: span 2;">
-                    <label>Filter</label>
-                    <input type="range" min="40" max="10000" step="1" value="10000" oninput="updateParam('b', 'filter', this.value)">
-                </div>
-            </div>
-        </div>
-
-        <div class="mixer-center">
-            <label>Crossfader (A - B)</label>
-            <input type="range" class="crossfader" id="xfader" min="0" max="1" step="0.01" value="0.5" oninput="applyCrossfade(this.value)">
-        </div>
-
-        <div class="looper-panel">
-            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                <h4 style="margin:0">SAMPLER <small style="font-weight:normal; opacity:0.6;">(3-Clicks to Reset)</small></h4>
-                <button onclick="stopAllLoops()" style="background:red">STOP ALL</button>
-            </div>
-            <div class="loop-grid" id="loopGrid"></div>
-        </div>
-    </div>
+    <audio id="audioPlayer" preload="none" crossorigin="anonymous"></audio>
 
     <script>
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        let bpm = 120;
-        let beatDuration = 60 / bpm;
-        let currentBeat = 0;
-        let nextBeatTime = 0;
-
-        const decks = {
-            a: { audio: new Audio(), gain: audioCtx.createGain(), filter: audioCtx.createBiquadFilter(), analyzer: audioCtx.createAnalyser(), baseVol: 0.8 },
-            b: { audio: new Audio(), gain: audioCtx.createGain(), filter: audioCtx.createBiquadFilter(), analyzer: audioCtx.createAnalyser(), baseVol: 0.8 }
+        // --- 1. The Content Sources (Ad-Free, Direct MP3) ---
+        const feeds = {
+            science: [
+                "https://www.nasa.gov/rss/dyn/Houston-We-Have-a-Podcast.rss", // NASA
+                "https://librivox.org/rss/10328", // Short Nonfiction Collection (Science)
+                "https://librivox.org/rss/2589"   // The Chemical History of a Candle
+            ],
+            legal: [
+                "https://librivox.org/rss/14545", // The US Constitution
+                "https://librivox.org/rss/8254",  // The Federalist Papers
+                "https://librivox.org/rss/14023"  // Great American Documents
+            ]
         };
 
-        // Initialize Decks
-        Object.keys(decks).forEach(id => {
-            const d = decks[id];
-            const source = audioCtx.createMediaElementSource(d.audio);
-            d.filter.type = 'lowpass';
-            d.gain.gain.value = 0.8;
-            source.connect(d.filter).connect(d.gain).connect(d.analyzer).connect(audioCtx.destination);
+        let currentCategory = 'mix';
+        let isPlaying = false;
+        const player = document.getElementById('audioPlayer');
+        const btn = document.getElementById('playBtn');
+        const icon = document.getElementById('icon');
+        const titleEl = document.getElementById('title');
+        const sourceEl = document.getElementById('source');
+        const loader = document.getElementById('loader');
+
+        // --- 2. Core Logic ---
+        function setCategory(cat) {
+            currentCategory = cat;
+            document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        async function fetchRandomEpisode() {
+            // 1. Pick a Feed
+            let pool = [];
+            if (currentCategory === 'mix') pool = [...feeds.science, ...feeds.legal];
+            else pool = feeds[currentCategory];
+            
+            const randomFeedUrl = pool[Math.floor(Math.random() * pool.length)];
+
+            // 2. Fetch via Proxy (Bypasses CORS restrictions)
+            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(randomFeedUrl)}`;
+            
+            try {
+                const response = await fetch(proxyUrl);
+                const data = await response.json();
+                
+                // 3. Parse XML
+                const parser = new DOMParser();
+                const xml = parser.parseFromString(data.contents, "text/xml");
+                const items = xml.querySelectorAll("item");
+                
+                // 4. Pick Random Item
+                if (items.length === 0) throw new Error("No episodes found");
+                const item = items[Math.floor(Math.random() * items.length)];
+                
+                return {
+                    title: item.querySelector("title").textContent,
+                    // Clean up title (remove file extensions etc if needed)
+                    url: item.querySelector("enclosure").getAttribute("url"),
+                    feedTitle: xml.querySelector("channel > title").textContent
+                };
+            } catch (e) {
+                console.error("Fetch failed", e);
+                return null; // Will trigger retry
+            }
+        }
+
+        // --- 3. Playback Controller ---
+        btn.addEventListener('click', async () => {
+            if (isPlaying) {
+                player.pause();
+                isPlaying = false;
+                icon.innerText = "▶";
+                icon.style.display = "block";
+                document.body.classList.remove('playing');
+            } else {
+                // If we have a source, just resume. If not, fetch new.
+                if (player.src && player.currentTime > 0 && !player.ended) {
+                    player.play();
+                    isPlaying = true;
+                    icon.innerText = "⏸";
+                    document.body.classList.add('playing');
+                } else {
+                    await loadNewTrack();
+                }
+            }
         });
 
-        function applyCrossfade(val) {
-            // Constant power crossfade
-            decks.a.gain.gain.value = decks.a.baseVol * Math.cos(val * 0.5 * Math.PI);
-            decks.b.gain.gain.value = decks.b.baseVol * Math.sin(val * 0.5 * Math.PI);
-        }
+        async function loadNewTrack() {
+            icon.style.display = "none";
+            loader.style.display = "block";
+            titleEl.innerText = "Connecting to archives...";
+            sourceEl.innerText = "Searching...";
 
-        function loadTrack(id, input) {
-            const file = input.files[0];
-            if(file) decks[id].audio.src = URL.createObjectURL(file);
-        }
-
-        function toggleDeck(id) {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            const d = decks[id].audio;
-            d.paused ? d.play() : d.pause();
-        }
-
-        function updateParam(id, type, val) {
-            if(type === 'vol') { decks[id].baseVol = val; applyCrossfade(document.getElementById('xfader').value); }
-            if(type === 'rate') decks[id].audio.playbackRate = val;
-            if(type === 'filter') decks[id].filter.frequency.value = val;
-        }
-
-        // --- LOOPER LOGIC ---
-        const pads = [];
-        const loopGrid = document.getElementById('loopGrid');
-
-        for(let i=0; i<8; i++) {
-            const padEl = document.createElement('div');
-            padEl.className = 'pad';
-            padEl.innerHTML = `<b style="font-size:12px">PAD ${i+1}</b><div style="font-size:9px;" id="status-${i}">EMPTY</div>`;
+            let track = null;
+            let attempts = 0;
             
-            // Handle Triple Click
-            let clickCount = 0;
-            let clickTimer;
-            
-            padEl.onclick = () => {
-                clickCount++;
-                clearTimeout(clickTimer);
-                clickTimer = setTimeout(() => {
-                    if (clickCount >= 3) resetPad(i);
-                    else handlePadAction(i);
-                    clickCount = 0;
-                }, 300);
-            };
-
-            loopGrid.appendChild(padEl);
-            pads.push({ el: padEl, statusEl: document.getElementById(`status-${i}`), buffer: null, source: null, state: 'empty' });
-        }
-
-        function resetPad(i) {
-            const p = pads[i];
-            if(p.source) p.source.stop();
-            p.buffer = null;
-            p.state = 'empty';
-            p.el.className = 'pad';
-            p.statusEl.innerText = "EMPTY";
-        }
-
-        function handlePadAction(i) {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            const p = pads[i];
-            if(p.state === 'empty') {
-                p.state = 'waiting_to_rec';
-                p.el.classList.add('waiting');
-                p.statusEl.innerText = "SYNCING...";
-            } else if(p.state === 'ready' || p.state === 'playing') {
-                if(p.state === 'playing') {
-                    p.source.stop();
-                    p.state = 'ready';
-                    p.el.classList.remove('playing');
-                } else {
-                    const source = audioCtx.createBufferSource();
-                    source.buffer = p.buffer;
-                    source.loop = true;
-                    source.connect(audioCtx.destination);
-                    source.start(0);
-                    p.source = source;
-                    p.state = 'playing';
-                    p.el.classList.add('playing');
-                }
+            // Retry logic in case a feed is down
+            while (!track && attempts < 3) {
+                track = await fetchRandomEpisode();
+                attempts++;
             }
-        }
 
-        // --- CLOCK & RECORDING ---
-        let activeRecIdx = null;
-        function scheduler() {
-            while (nextBeatTime < audioCtx.currentTime + 0.1) {
-                const beatInBar = currentBeat % 4;
-                const dots = document.querySelectorAll('.metronome-dot');
-                dots.forEach((d, i) => d.classList.toggle('active', i === beatInBar));
-
-                pads.forEach((p, idx) => {
-                    if(p.state === 'waiting_to_rec' && beatInBar === 0) startRec(idx);
+            if (track) {
+                player.src = track.url;
+                titleEl.innerText = track.title;
+                sourceEl.innerText = track.feedTitle;
+                
+                player.play().then(() => {
+                    isPlaying = true;
+                    icon.innerText = "⏸";
+                    icon.style.display = "block";
+                    loader.style.display = "none";
+                    document.body.classList.add('playing');
+                    
+                    // Lock Screen Controls (Mobile)
+                    if ('mediaSession' in navigator) {
+                        navigator.mediaSession.metadata = new MediaMetadata({
+                            title: track.title,
+                            artist: track.feedTitle,
+                            artwork: [{ src: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/Wikipedia-logo-v2.svg/100px-Wikipedia-logo-v2.svg.png' }]
+                        });
+                        navigator.mediaSession.setActionHandler('play', () => player.play());
+                        navigator.mediaSession.setActionHandler('pause', () => player.pause());
+                        navigator.mediaSession.setActionHandler('nexttrack', loadNewTrack);
+                    }
+                }).catch(e => {
+                    titleEl.innerText = "Playback Error";
+                    loader.style.display = "none";
+                    icon.style.display = "block";
                 });
-
-                nextBeatTime += beatDuration;
-                currentBeat++;
-            }
-            requestAnimationFrame(scheduler);
-        }
-
-        async function startRec(idx) {
-            activeRecIdx = idx;
-            const p = pads[idx];
-            p.state = 'recording';
-            p.el.className = 'pad recording';
-            p.statusEl.innerText = "RECORDING";
-
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const recorder = new MediaRecorder(stream);
-            let chunks = [];
-            
-            const bars = parseInt(document.getElementById('loopLength').value);
-            const ms = (bars * 4) * (beatDuration * 1000);
-
-            recorder.ondataavailable = e => chunks.push(e.data);
-            recorder.onstop = async () => {
-                const blob = new Blob(chunks, { type: 'audio/ogg; codecs=opus' });
-                const arrayBuffer = await blob.arrayBuffer();
-                p.buffer = await audioCtx.decodeAudioData(arrayBuffer);
-                p.state = 'ready';
-                p.el.className = 'pad ready';
-                p.statusEl.innerText = "READY";
-            };
-
-            recorder.start();
-            setTimeout(() => recorder.stop(), ms - 50);
-        }
-
-        // --- BPM TAPPER ---
-        let taps = [];
-        function tapBPM() {
-            const now = performance.now();
-            taps.push(now);
-            if(taps.length > 4) taps.shift();
-            if(taps.length > 1) {
-                let sum = 0;
-                for(let i=1; i<taps.length; i++) sum += (taps[i] - taps[i-1]);
-                bpm = Math.round(60000 / (sum / (taps.length - 1)));
-                beatDuration = 60 / bpm;
-                document.getElementById('bpmDisplay').innerText = bpm;
+            } else {
+                titleEl.innerText = "Connection failed.";
+                loader.style.display = "none";
+                icon.innerText = "↻";
+                icon.style.display = "block";
             }
         }
+        
+        // Auto-play next track when finished
+        player.onended = () => loadNewTrack();
 
-        function stopAllLoops() {
-            pads.forEach((p, i) => { if(p.state === 'playing') handlePadAction(i); });
-        }
-
-        function drawViz(id) {
-            const d = decks[id];
-            const canvas = document.getElementById(`viz-${id}`);
-            const ctx = canvas.getContext('2d');
-            const data = new Uint8Array(d.analyzer.frequencyBinCount);
-            function render() {
-                requestAnimationFrame(render);
-                d.analyzer.getByteFrequencyData(data);
-                ctx.fillStyle = '#000'; ctx.fillRect(0,0,canvas.width, canvas.height);
-                ctx.fillStyle = id === 'a' ? '#00e5ff' : '#ff00ff';
-                for(let i=0; i<data.length; i++) {
-                    const h = (data[i]/255) * canvas.height;
-                    ctx.fillRect(i * 2, canvas.height - h, 1, h);
-                }
-            }
-            render();
-        }
-
-        drawViz('a'); drawViz('b');
-        scheduler();
     </script>
 </body>
 </html>
+

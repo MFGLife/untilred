@@ -80,29 +80,70 @@
             btn.classList.add('loading');
             
             try {
-                // Using allorigins proxy to bypass CORS
-                const url = encodeURIComponent('http://export.arxiv.org/api/query?search_query=cat:cs.AI&start=0&max_results=80&sortBy=submittedDate&sortOrder=descending');
-                const response = await fetch(`https://api.allorigins.win/get?url=${url}`);
-                const data = await response.json();
+                // Use HTTPS and try multiple CORS proxies as fallback
+                const arxivUrl = 'https://export.arxiv.org/api/query?search_query=cat:cs.AI&start=0&max_results=50&sortBy=submittedDate&sortOrder=descending';
                 
-                // Parse XML manually
+                let response;
+                let xmlText;
+                
+                // Try direct fetch first (works if your page is HTTP or has CORS)
+                try {
+                    response = await fetch(arxivUrl);
+                    xmlText = await response.text();
+                } catch (e) {
+                    // Fallback to CORS proxy
+                    console.log('Direct fetch failed, trying proxy...');
+                    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(arxivUrl)}`;
+                    response = await fetch(proxyUrl);
+                    xmlText = await response.text();
+                }
+                
+                // Parse XML
                 const parser = new DOMParser();
-                const xml = parser.parseFromString(data.contents, "text/xml");
+                const xml = parser.parseFromString(xmlText, "text/xml");
+                
+                // Check for parsing errors
+                const parseError = xml.querySelector('parsererror');
+                if (parseError) {
+                    throw new Error('XML parsing failed');
+                }
+                
                 const entries = xml.querySelectorAll('entry');
                 
-                papers = Array.from(entries).map(entry => ({
-                    title: entry.querySelector('title').textContent.replace(/\n/g, ' '),
-                    summary: entry.querySelector('summary').textContent.replace(/\n/g, ' '),
-                    author: entry.querySelector('author > name').textContent
-                }));
+                if (entries.length === 0) {
+                    throw new Error('No papers found in response');
+                }
                 
-                statusEl.innerText = `${papers.length} papers cached.`;
+                papers = Array.from(entries).map(entry => {
+                    const titleNode = entry.querySelector('title');
+                    const summaryNode = entry.querySelector('summary');
+                    const authorNode = entry.querySelector('author name');
+                    
+                    return {
+                        title: titleNode ? titleNode.textContent.replace(/\n/g, ' ').trim() : 'Unknown Title',
+                        summary: summaryNode ? summaryNode.textContent.replace(/\n/g, ' ').trim() : 'No summary available',
+                        author: authorNode ? authorNode.textContent.trim() : 'Unknown Author'
+                    };
+                });
+                
+                statusEl.innerText = `${papers.length} papers loaded ✓`;
                 btn.classList.remove('loading');
                 return true;
             } catch (e) {
-                statusEl.innerText = "Error fetching data.";
+                console.error('Fetch error:', e);
+                statusEl.innerText = `Error: ${e.message}`;
                 btn.classList.remove('loading');
-                return false;
+                
+                // Load sample data as fallback
+                papers = [
+                    {
+                        title: "Demo Mode: Large Language Models for Code Generation",
+                        summary: "This is a demo paper. The app couldn't connect to arXiv. Please check your internet connection or try again later.",
+                        author: "Sample Author"
+                    }
+                ];
+                statusEl.innerText = "Using demo data (fetch failed)";
+                return true; // Still return true so we can demo
             }
         }
 
@@ -120,9 +161,12 @@
             btn.innerText = "⏹";
             isSpeaking = true;
 
-            // Prepare Text
-            // We add pauses using punctuation hacks
-            const textToRead = `New paper. ${paper.title}. ... Abstract. ... ${paper.summary}`;
+            // Prepare Text - truncate summary if too long
+            const truncatedSummary = paper.summary.length > 500 
+                ? paper.summary.substring(0, 500) + "..." 
+                : paper.summary;
+            
+            const textToRead = `New paper. ${paper.title}. ... Abstract. ... ${truncatedSummary}`;
 
             // Configure Voice
             if (currentUtterance) synth.cancel();
@@ -132,7 +176,11 @@
 
             // Try to pick a decent English voice
             const voices = synth.getVoices();
-            const preferredVoice = voices.find(v => v.name.includes("Google US English")) || voices.find(v => v.lang === 'en-US');
+            const preferredVoice = voices.find(v => v.name.includes("Google US English")) 
+                || voices.find(v => v.lang === 'en-US')
+                || voices.find(v => v.lang.startsWith('en'))
+                || voices[0]; // Fallback to first available
+            
             if (preferredVoice) currentUtterance.voice = preferredVoice;
 
             // Events
@@ -141,6 +189,16 @@
                 document.body.classList.remove('playing');
                 btn.innerText = "▶";
                 statusEl.innerText = "Finished. Tap for next.";
+                silentAudio.pause();
+            };
+
+            currentUtterance.onerror = (e) => {
+                console.error('Speech error:', e);
+                isSpeaking = false;
+                document.body.classList.remove('playing');
+                btn.innerText = "▶";
+                statusEl.innerText = "Speech error. Try again.";
+                silentAudio.pause();
             };
 
             // Play the silent track to keep the OS media session active
@@ -152,12 +210,16 @@
             // Set Lock Screen Info (Media Session API)
             if ('mediaSession' in navigator) {
                 navigator.mediaSession.metadata = new MediaMetadata({
-                    title: paper.title.substring(0, 50) + "...",
+                    title: paper.title.substring(0, 50) + (paper.title.length > 50 ? "..." : ""),
                     artist: "arXiv CS.AI",
                     album: "AI Research Feed"
                 });
-                navigator.mediaSession.setActionHandler('play', () => synth.resume());
-                navigator.mediaSession.setActionHandler('pause', () => synth.pause());
+                navigator.mediaSession.setActionHandler('play', () => {
+                    if (synth.paused) synth.resume();
+                });
+                navigator.mediaSession.setActionHandler('pause', () => {
+                    synth.pause();
+                });
             }
         }
 
@@ -169,7 +231,7 @@
                 isSpeaking = false;
                 document.body.classList.remove('playing');
                 btn.innerText = "▶";
-                statusEl.innerText = "Paused.";
+                statusEl.innerText = "Stopped.";
                 return;
             }
 

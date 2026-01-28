@@ -80,6 +80,7 @@
         let isSpeaking = false;
         let currentUtterance = null;
         let lastPaperIndex = -1;
+        let shouldContinueSpeaking = true;
 
         // 1. Fetch arXiv Data (CS.AI category, sorted by submitted date)
         async function fetchPapers() {
@@ -173,8 +174,9 @@
             document.body.classList.add('playing');
             btn.innerText = "⏹";
             isSpeaking = true;
+            shouldContinueSpeaking = true;
 
-            // Prepare Text - Keep full summary, we'll chunk it for speech
+            // Prepare Text - Keep full summary
             const fullText = `New paper. ${paper.title}. Abstract. ${paper.summary}`;
 
             // Split into chunks to avoid the 15-second cutoff bug in some browsers
@@ -193,8 +195,10 @@
             }
             if (currentChunk) chunks.push(currentChunk.trim());
 
+            console.log(`Reading paper in ${chunks.length} chunks`);
+
             // Cancel any existing speech
-            if (currentUtterance) synth.cancel();
+            synth.cancel();
             
             // Get voice once
             const voices = synth.getVoices();
@@ -210,9 +214,22 @@
             let chunkIndex = 0;
             
             function speakNextChunk() {
-                if (chunkIndex >= chunks.length || !isSpeaking) {
-                    // Finished all chunks
+                // Check if we should stop
+                if (!shouldContinueSpeaking) {
+                    console.log('Stopping at user request');
                     isSpeaking = false;
+                    document.body.classList.remove('playing');
+                    btn.innerText = "▶";
+                    statusEl.innerText = "Stopped.";
+                    silentAudio.pause();
+                    return;
+                }
+
+                // Check if we've finished all chunks
+                if (chunkIndex >= chunks.length) {
+                    console.log('Finished all chunks');
+                    isSpeaking = false;
+                    shouldContinueSpeaking = false;
                     document.body.classList.remove('playing');
                     btn.innerText = "▶";
                     statusEl.innerText = "Finished. Tap for next.";
@@ -220,24 +237,33 @@
                     return;
                 }
 
+                console.log(`Speaking chunk ${chunkIndex + 1}/${chunks.length}`);
                 const utterance = new SpeechSynthesisUtterance(chunks[chunkIndex]);
                 utterance.rate = 0.9;
                 utterance.pitch = 1.0;
                 if (preferredVoice) utterance.voice = preferredVoice;
 
                 utterance.onend = () => {
+                    console.log(`Chunk ${chunkIndex + 1} finished`);
                     chunkIndex++;
                     // Small delay between chunks to prevent issues
-                    setTimeout(speakNextChunk, 50);
+                    setTimeout(speakNextChunk, 100);
                 };
 
                 utterance.onerror = (e) => {
-                    console.error('Speech error:', e);
-                    isSpeaking = false;
-                    document.body.classList.remove('playing');
-                    btn.innerText = "▶";
-                    statusEl.innerText = "Speech error. Try again.";
-                    silentAudio.pause();
+                    console.error('Speech error on chunk', chunkIndex, ':', e);
+                    // Try to continue to next chunk anyway
+                    chunkIndex++;
+                    if (chunkIndex < chunks.length && shouldContinueSpeaking) {
+                        setTimeout(speakNextChunk, 100);
+                    } else {
+                        isSpeaking = false;
+                        shouldContinueSpeaking = false;
+                        document.body.classList.remove('playing');
+                        btn.innerText = "▶";
+                        statusEl.innerText = "Speech error occurred.";
+                        silentAudio.pause();
+                    }
                 };
 
                 synth.speak(utterance);
@@ -265,6 +291,7 @@
         // 3. Interaction
         btn.onclick = async () => {
             if (isSpeaking) {
+                shouldContinueSpeaking = false;
                 synth.cancel();
                 silentAudio.pause();
                 isSpeaking = false;

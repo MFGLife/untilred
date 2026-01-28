@@ -70,9 +70,16 @@
         const silentAudio = document.getElementById('silentKeeper');
         const synth = window.speechSynthesis;
         
+        // Check if speech synthesis is supported
+        if (!synth) {
+            statusEl.innerText = "Speech not supported in this browser";
+            btn.disabled = true;
+        }
+        
         let papers = [];
         let isSpeaking = false;
         let currentUtterance = null;
+        let lastPaperIndex = -1;
 
         // 1. Fetch arXiv Data (CS.AI category, sorted by submitted date)
         async function fetchPapers() {
@@ -151,8 +158,14 @@
         function readPaper() {
             if (papers.length === 0) return;
 
-            // Pick Random
-            const paper = papers[Math.floor(Math.random() * papers.length)];
+            // Pick Random (but different from last one)
+            let randomIndex;
+            do {
+                randomIndex = Math.floor(Math.random() * papers.length);
+            } while (randomIndex === lastPaperIndex && papers.length > 1);
+            
+            lastPaperIndex = randomIndex;
+            const paper = papers[randomIndex];
             
             // Update UI
             titleEl.innerText = paper.title;
@@ -161,51 +174,77 @@
             btn.innerText = "⏹";
             isSpeaking = true;
 
-            // Prepare Text - truncate summary if too long
-            const truncatedSummary = paper.summary.length > 500 
-                ? paper.summary.substring(0, 500) + "..." 
-                : paper.summary;
+            // Prepare Text - Keep full summary, we'll chunk it for speech
+            const fullText = `New paper. ${paper.title}. Abstract. ${paper.summary}`;
+
+            // Split into chunks to avoid the 15-second cutoff bug in some browsers
+            const chunkSize = 200; // characters per chunk
+            const words = fullText.split(' ');
+            const chunks = [];
+            let currentChunk = '';
             
-            const textToRead = `New paper. ${paper.title}. ... Abstract. ... ${truncatedSummary}`;
+            for (const word of words) {
+                if ((currentChunk + ' ' + word).length > chunkSize && currentChunk.length > 0) {
+                    chunks.push(currentChunk.trim());
+                    currentChunk = word;
+                } else {
+                    currentChunk += (currentChunk ? ' ' : '') + word;
+                }
+            }
+            if (currentChunk) chunks.push(currentChunk.trim());
 
-            // Configure Voice
+            // Cancel any existing speech
             if (currentUtterance) synth.cancel();
-            currentUtterance = new SpeechSynthesisUtterance(textToRead);
-            currentUtterance.rate = 0.9; // Slightly slower for comprehension
-            currentUtterance.pitch = 1.0;
-
-            // Try to pick a decent English voice
+            
+            // Get voice once
             const voices = synth.getVoices();
             const preferredVoice = voices.find(v => v.name.includes("Google US English")) 
                 || voices.find(v => v.lang === 'en-US')
                 || voices.find(v => v.lang.startsWith('en'))
-                || voices[0]; // Fallback to first available
-            
-            if (preferredVoice) currentUtterance.voice = preferredVoice;
-
-            // Events
-            currentUtterance.onend = () => {
-                isSpeaking = false;
-                document.body.classList.remove('playing');
-                btn.innerText = "▶";
-                statusEl.innerText = "Finished. Tap for next.";
-                silentAudio.pause();
-            };
-
-            currentUtterance.onerror = (e) => {
-                console.error('Speech error:', e);
-                isSpeaking = false;
-                document.body.classList.remove('playing');
-                btn.innerText = "▶";
-                statusEl.innerText = "Speech error. Try again.";
-                silentAudio.pause();
-            };
+                || voices[0];
 
             // Play the silent track to keep the OS media session active
             silentAudio.play().catch(e => console.log("Audio play failed", e));
+
+            // Speak chunks sequentially
+            let chunkIndex = 0;
             
-            // Speak
-            synth.speak(currentUtterance);
+            function speakNextChunk() {
+                if (chunkIndex >= chunks.length || !isSpeaking) {
+                    // Finished all chunks
+                    isSpeaking = false;
+                    document.body.classList.remove('playing');
+                    btn.innerText = "▶";
+                    statusEl.innerText = "Finished. Tap for next.";
+                    silentAudio.pause();
+                    return;
+                }
+
+                const utterance = new SpeechSynthesisUtterance(chunks[chunkIndex]);
+                utterance.rate = 0.9;
+                utterance.pitch = 1.0;
+                if (preferredVoice) utterance.voice = preferredVoice;
+
+                utterance.onend = () => {
+                    chunkIndex++;
+                    // Small delay between chunks to prevent issues
+                    setTimeout(speakNextChunk, 50);
+                };
+
+                utterance.onerror = (e) => {
+                    console.error('Speech error:', e);
+                    isSpeaking = false;
+                    document.body.classList.remove('playing');
+                    btn.innerText = "▶";
+                    statusEl.innerText = "Speech error. Try again.";
+                    silentAudio.pause();
+                };
+
+                synth.speak(utterance);
+                currentUtterance = utterance;
+            }
+
+            speakNextChunk();
 
             // Set Lock Screen Info (Media Session API)
             if ('mediaSession' in navigator) {
@@ -245,9 +284,13 @@
         };
 
         // Pre-load voices (Chrome bug fix)
-        window.speechSynthesis.onvoiceschanged = () => {
-             window.speechSynthesis.getVoices();
-        };
+        if (window.speechSynthesis) {
+            window.speechSynthesis.onvoiceschanged = () => {
+                window.speechSynthesis.getVoices();
+            };
+            // Trigger voice loading immediately
+            window.speechSynthesis.getVoices();
+        }
 
     </script>
 </body>

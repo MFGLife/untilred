@@ -1,243 +1,276 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <title>Lyric Video Animator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a1a;
+            color: #eee;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
 
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lyric Sync Equalizer (9:16)</title>
-  <style>
-    body {
-      margin: 0;
-      background: #05050a;
-      color: #fff;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 12px;
-    }h1 {
-  font-size: 1rem;
-  opacity: 0.85;
-  margin-bottom: 8px;
-}
+        h1 { margin-bottom: 10px; }
 
-.controls {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: center;
-  margin-bottom: 8px;
-}
+        .controls {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 800px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
 
-input[type=file], button {
-  background: #151520;
-  color: #ccc;
-  padding: 6px 10px;
-  border-radius: 8px;
-  border: none;
-}
+        textarea {
+            width: 100%;
+            height: 80px;
+            background: #333;
+            color: white;
+            border: 1px solid #444;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 16px;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+        }
 
-button {
-  background: #7b8cff;
-  color: #fff;
-  cursor: pointer;
-}
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
 
-.stage {
-  position: relative;
-  width: 360px;
-  height: 640px; /* 9:16 */
-  background: black;
-  border-radius: 16px;
-  overflow: hidden;
-}
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
 
-canvas {
-  width: 100%;
-  height: 100%;
-}
+        #btn-record { background-color: #e74c3c; color: white; }
+        #btn-record:hover { background-color: #c0392b; }
+        #btn-record:disabled { background-color: #555; cursor: not-allowed; }
 
-.lyrics {
-  position: absolute;
-  top: 42%;
-  width: 100%;
-  text-align: center;
-  font-size: 1.6rem;
-  font-weight: 600;
-  padding: 0 12px;
-  pointer-events: none;
-  text-shadow: 0 2px 14px rgba(0,0,0,0.85);
-  transition: transform 0.12s ease, opacity 0.12s ease;
-}
+        #btn-stop { background-color: #555; color: white; }
+        #btn-stop.active { background-color: #f39c12; color: black; }
 
-textarea {
-  width: 100%;
-  max-width: 360px;
-  height: 120px;
-  background: #101018;
-  color: #ddd;
-  border-radius: 8px;
-  padding: 8px;
-  font-family: monospace;
-  margin-top: 10px;
-}
+        .status {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #aaa;
+        }
 
-.hint {
-  font-size: 0.75rem;
-  opacity: 0.6;
-  text-align: center;
-  margin-top: 4px;
-}
-
-  </style>
+        /* The Canvas acts as our "Screen" */
+        canvas {
+            background-color: #000;
+            border: 2px solid #444;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
 </head>
-<body><h1>Lyric Visualizer (Beat + AI LRC)</h1><div class="controls">
-  <input type="file" id="audioFile" accept="audio/*" />
-  <button id="playBtn">Play</button>
-  <button id="autoBtn">Auto‑Generate LRC</button>
-</div><div class="stage">
-  <canvas id="eq"></canvas>
-  <div class="lyrics" id="lyrics"></div>
-</div><textarea id="lrcInput" placeholder="LRC will appear here or paste your own..."></textarea><div class="hint">Sentence‑level sync • Beat‑reactive lyrics • Vertical 9:16</div><audio id="audio" crossorigin="anonymous"></audio>
+<body>
 
-<script>
-const audio = document.getElementById('audio');
-const canvas = document.getElementById('eq');
-const ctx = canvas.getContext('2d');
-const lyricsEl = document.getElementById('lyrics');
+    <h1>Lyric Video Generator</h1>
 
-canvas.width = 360;
-canvas.height = 640;
+    <div class="controls">
+        <label>1. Enter your lyrics:</label>
+        <textarea id="lyricInput" placeholder="Type your sentence here...">This is a test sentence for the animation</textarea>
+        
+        <div class="btn-group">
+            <button id="btn-record">2. Start Recording</button>
+            <button id="btn-stop" disabled>3. Stop & Download</button>
+        </div>
+        
+        <div class="status" id="statusText">Ready. Click 'Start Recording', then tap SPACEBAR to advance words.</div>
+    </div>
 
-let audioCtx, analyser, source, freqData, timeData;
-let lyrics = [];
-let lastBeat = 0;
+    <canvas id="videoCanvas" width="1280" height="720"></canvas>
 
-// Load audio
+    <script>
+        const canvas = document.getElementById('videoCanvas');
+        const ctx = canvas.getContext('2d');
+        const lyricInput = document.getElementById('lyricInput');
+        const btnRecord = document.getElementById('btn-record');
+        const btnStop = document.getElementById('btn-stop');
+        const statusText = document.getElementById('statusText');
 
-document.getElementById('audioFile').addEventListener('change', e => {
-  const file = e.target.files[0];
-  if (!file) return;
-  audio.src = URL.createObjectURL(file);
-});
+        let words = [];
+        let currentWordIndex = -1; // -1 means nothing highlighted yet
+        let animationId;
+        let mediaRecorder;
+        let recordedChunks = [];
+        let isRecording = false;
 
-// Play
+        // Visual Settings
+        const fontSize = 60;
+        const lineHeight = 80;
+        const fontFace = "Arial, sans-serif";
+        const normalColor = "#555555"; // Dimmed text
+        const activeColor = "#ffffff"; // Highlighted text
+        const glowColor = "#00e5ff";   // Cyan glow for active word
 
-document.getElementById('playBtn').addEventListener('click', async () => {
-  if (!audioCtx) {
-    audioCtx = new AudioContext();
-    analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 512;
-    freqData = new Uint8Array(analyser.frequencyBinCount);
-    timeData = new Uint8Array(analyser.fftSize);
-    source = audioCtx.createMediaElementSource(audio);
-    source.connect(analyser);
-    analyser.connect(audioCtx.destination);
-  }
+        // -- 1. Drawing Logic --
+        function draw() {
+            // Clear background
+            ctx.fillStyle = "#000000";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  parseLyrics();
-  audio.play();
-  draw();
-});
+            ctx.font = `bold ${fontSize}px ${fontFace}`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
 
-// Parse LRC
+            // Word Wrapping Logic
+            const maxWidth = canvas.width - 100; // Padding
+            let lines = [];
+            let currentLine = [];
+            let currentLineWidth = 0;
 
-function parseLyrics() {
-  const raw = document.getElementById('lrcInput').value;
-  lyrics = raw.split('\n').map(line => {
-    const m = line.match(/(\d+):(\d+\.\d+)(.*)/);
-    if (!m) return null;
-    return {
-      time: parseInt(m[1]) * 60 + parseFloat(m[2]),
-      text: m[3].trim()
-    };
-  }).filter(Boolean);
-}
+            // Map words to objects containing text and highlighting status
+            const mappedWords = words.map((word, index) => ({
+                text: word,
+                isActive: index === currentWordIndex,
+                isPast: index < currentWordIndex
+            }));
 
-// Sentence lyric update
+            // Build lines
+            mappedWords.forEach(wordObj => {
+                const wordWidth = ctx.measureText(wordObj.text + " ").width;
+                if (currentLineWidth + wordWidth < maxWidth) {
+                    currentLine.push(wordObj);
+                    currentLineWidth += wordWidth;
+                } else {
+                    lines.push(currentLine);
+                    currentLine = [wordObj];
+                    currentLineWidth = wordWidth;
+                }
+            });
+            lines.push(currentLine);
 
-function updateLyrics(t) {
-  for (let i = lyrics.length - 1; i >= 0; i--) {
-    if (t >= lyrics[i].time) {
-      lyricsEl.textContent = lyrics[i].text;
-      return;
-    }
-  }
-  lyricsEl.textContent = '';
-}
+            // Calculate vertical centering
+            const totalHeight = lines.length * lineHeight;
+            let startY = (canvas.height - totalHeight) / 2 + (lineHeight / 2);
 
-// Beat detection (energy‑based)
+            // Render text
+            lines.forEach((line) => {
+                let lineWidth = line.reduce((acc, w) => acc + ctx.measureText(w.text + " ").width, 0);
+                let startX = (canvas.width - lineWidth) / 2;
 
-function detectBeat(now) {
-  analyser.getByteTimeDomainData(timeData);
-  let sum = 0;
-  for (let i = 0; i < timeData.length; i++) {
-    const v = (timeData[i] - 128) / 128;
-    sum += v * v;
-  }
-  const energy = sum / timeData.length;
-  if (energy > 0.02 && now - lastBeat > 0.25) {
-    lastBeat = now;
-    return true;
-  }
-  return false;
-}
+                line.forEach((w) => {
+                    const wWidth = ctx.measureText(w.text + " ").width;
+                    
+                    // Styling
+                    ctx.shadowBlur = 0;
+                    if (w.isActive) {
+                        ctx.fillStyle = activeColor;
+                        ctx.shadowColor = glowColor;
+                        ctx.shadowBlur = 20;
+                    } else if (w.isPast) {
+                        ctx.fillStyle = activeColor; // Keep past words lit? Or dim them? Let's keep them lit.
+                    } else {
+                        ctx.fillStyle = normalColor;
+                    }
 
-// Draw loop
+                    ctx.fillText(w.text, startX + (wWidth/2), startY);
+                    startX += wWidth; // Move X cursor
+                });
+                startY += lineHeight; // Move Y cursor
+            });
 
-function draw() {
-  requestAnimationFrame(draw);
+            if(isRecording) {
+                requestAnimationFrame(draw);
+            }
+        }
 
-  analyser.getByteFrequencyData(freqData);
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // -- 2. Recording Logic --
+        function startRecording() {
+            // Prep data
+            const text = lyricInput.value.trim();
+            if(!text) return alert("Please enter some text!");
+            words = text.split(/\s+/);
+            currentWordIndex = -1;
+            
+            // UI Updates
+            isRecording = true;
+            btnRecord.disabled = true;
+            btnStop.disabled = false;
+            btnStop.classList.add('active');
+            statusText.innerText = "🔴 RECORDING! Tap SPACEBAR to highlight words in rhythm.";
+            lyricInput.disabled = true;
 
-  const barCount = 48;
-  const step = Math.floor(freqData.length / barCount);
-  const barWidth = canvas.width / barCount;
+            // Start Canvas Stream
+            const stream = canvas.captureStream(30); // 30 FPS
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
 
-  for (let i = 0; i < barCount; i++) {
-    const v = freqData[i * step] / 255;
-    const h = v * canvas.height * 0.6;
-    ctx.fillStyle = `hsl(${200 + i * 2}, 80%, ${50 + v * 20}%)`;
-    ctx.fillRect(i * barWidth, canvas.height - h, barWidth - 2, h);
-  }
+            recordedChunks = [];
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) recordedChunks.push(e.data);
+            };
 
-  const beat = detectBeat(audio.currentTime);
-  if (beat) {
-    lyricsEl.style.transform = 'scale(1.08)';
-    lyricsEl.style.opacity = '1';
-  } else {
-    lyricsEl.style.transform = 'scale(1)';
-    lyricsEl.style.opacity = '0.9';
-  }
+            mediaRecorder.onstop = exportVideo;
+            mediaRecorder.start();
 
-  updateLyrics(audio.currentTime);
-}
+            // Start Loop
+            draw();
+        }
 
-// AI LRC generation (browser speech recognition)
+        function stopRecording() {
+            isRecording = false;
+            mediaRecorder.stop();
+            
+            // UI Reset
+            btnRecord.disabled = false;
+            btnStop.disabled = true;
+            btnStop.classList.remove('active');
+            lyricInput.disabled = false;
+            statusText.innerText = "Processing download...";
+        }
 
-document.getElementById('autoBtn').addEventListener('click', () => {
-  if (!('webkitSpeechRecognition' in window)) {
-    alert('Speech recognition not supported in this browser');
-    return;
-  }
+        // -- 3. Export Logic --
+        function exportVideo() {
+            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            // Note: Browsers save as .webm by default. 
+            // Most video editors read this, but you can name it .mp4 to try to trick players 
+            // (though proper conversion is better).
+            a.download = 'lyric-video.webm'; 
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            statusText.innerText = "Download started! (Format: WebM - compatible with most editors)";
+        }
 
-  const rec = new webkitSpeechRecognition();
-  rec.continuous = true;
-  rec.interimResults = false;
-  rec.lang = 'en-US';
+        // -- 4. Event Listeners --
+        btnRecord.addEventListener('click', startRecording);
+        btnStop.addEventListener('click', stopRecording);
 
-  let startTime = audio.currentTime;
+        // Spacebar Handler
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && isRecording) {
+                e.preventDefault(); // Stop page scroll
+                currentWordIndex++;
+                // Check if we reached the end
+                if(currentWordIndex >= words.length) {
+                   // Optional: Auto stop? Let's keep recording until user stops manually
+                   // so they can leave a tail on the video.
+                }
+            }
+        });
 
-  rec.onresult = e => {
-    const t = audio.currentTime;
-    const text = e.results[e.results.length - 1][0].transcript.trim();
-    const min = Math.floor(t / 60).toString().padStart(2, '0');
-    const sec = (t % 60).toFixed(2).padStart(5, '0');
-    document.getElementById('lrcInput').value += `\n[${min}:${sec}] ${text}`;
-  };
-
-  audio.play();
-  rec.start();
-});
-</script></body>
+        // Initial Draw
+        words = lyricInput.value.split(" ");
+        draw(); // Draw static frame first
+    </script>
+</body>
 </html>

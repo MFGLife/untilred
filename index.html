@@ -1,442 +1,242 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>arXiv AI Reader</title>
-
-<style>
-:root { 
-    --bg: #000; 
-    --accent: #10b981; 
-    --text: #ecfdf5; 
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lyric Sync Equalizer (9:16)</title>
+  <style>
+    body {
+      margin: 0;
+      background: #05050a;
+      color: #fff;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 12px;
+    }h1 {
+  font-size: 1rem;
+  opacity: 0.85;
+  margin-bottom: 8px;
 }
 
-body {
-    background: var(--bg); 
-    color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    height: 100vh; 
-    margin: 0;
-    display: flex; 
-    flex-direction: column;
-    justify-content: center; 
-    align-items: center;
-    overflow: hidden;
+.controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 8px;
 }
 
-#playBtn {
-    width: 160px; 
-    height: 160px; 
-    border-radius: 50%;
-    background: transparent;
-    border: 3px solid var(--accent);
-    color: var(--accent);
-    font-size: 4rem; 
-    cursor: pointer;
-    display: flex; 
-    justify-content: center; 
-    align-items: center;
-    transition: all 0.2s ease;
-    box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+input[type=file], button {
+  background: #151520;
+  color: #ccc;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: none;
 }
 
-#playBtn:active { 
-    transform: scale(0.95); 
-    background: rgba(16, 185, 129, 0.1); 
+button {
+  background: #7b8cff;
+  color: #fff;
+  cursor: pointer;
 }
 
-.loading { 
-    animation: pulse 1.5s infinite; 
-    border-color: #6ee7b7 !important;
+.stage {
+  position: relative;
+  width: 360px;
+  height: 640px; /* 9:16 */
+  background: black;
+  border-radius: 16px;
+  overflow: hidden;
 }
 
-@keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
-    70% { box-shadow: 0 0 0 30px rgba(16, 185, 129, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+canvas {
+  width: 100%;
+  height: 100%;
 }
 
-.info { 
-    text-align: center; 
-    width: 85%; 
-    max-width: 500px; 
-    margin-bottom: 40px; 
+.lyrics {
+  position: absolute;
+  top: 42%;
+  width: 100%;
+  text-align: center;
+  font-size: 1.6rem;
+  font-weight: 600;
+  padding: 0 12px;
+  pointer-events: none;
+  text-shadow: 0 2px 14px rgba(0,0,0,0.85);
+  transition: transform 0.12s ease, opacity 0.12s ease;
 }
 
-h1 { 
-    font-size: 0.9rem; 
-    text-transform: uppercase;
-    letter-spacing: 2px; 
-    color: #6ee7b7; 
-    margin-bottom: 20px;
+textarea {
+  width: 100%;
+  max-width: 360px;
+  height: 120px;
+  background: #101018;
+  color: #ddd;
+  border-radius: 8px;
+  padding: 8px;
+  font-family: monospace;
+  margin-top: 10px;
 }
 
-#title { 
-    font-size: 1.3rem; 
-    font-weight: 700; 
-    line-height: 1.4;
-    margin-bottom: 10px;
-    min-height: 3em; 
+.hint {
+  font-size: 0.75rem;
+  opacity: 0.6;
+  text-align: center;
+  margin-top: 4px;
 }
 
-#authors { 
-    font-size: 0.9rem; 
-    color: #9ca3af; 
-    font-style: italic; 
-}
-
-#status { 
-    position: absolute; 
-    bottom: 30px; 
-    font-size: 0.8rem; 
-    color: #4b5563; 
-}
-
-.bars { 
-    display: flex; 
-    gap: 4px; 
-    height: 30px; 
-    align-items: flex-end;
-    margin-top: 20px; 
-    opacity: 0;
-    transition: opacity 0.5s;
-}
-
-.playing .bars { 
-    opacity: 1; 
-}
-
-.bar { 
-    width: 4px; 
-    background: var(--accent); 
-    animation: bounce 1s infinite ease-in-out; 
-}
-
-.bar:nth-child(1) { animation-duration: 0.8s; }
-.bar:nth-child(2) { animation-duration: 1.1s; }
-.bar:nth-child(3) { animation-duration: 0.9s; }
-.bar:nth-child(4) { animation-duration: 1.2s; }
-.bar:nth-child(5) { animation-duration: 0.7s; }
-
-@keyframes bounce { 
-    0%, 100% { height: 5px; } 
-    50% { height: 25px; } 
-}
-</style>
+  </style>
 </head>
-
-<body>
-
-<audio id="silentKeeper" loop>
-    <source src="https://raw.githubusercontent.com/anars/blank-audio/master/5-seconds-of-silence.mp3" type="audio/mpeg">
-</audio>
-
-<div class="info">
-    <h1>CS.AI // Recent News</h1>
-    <div id="title">Tap button to fetch papers</div>
-    <div id="authors">Voice of the ArXiv</div>
-</div>
-
-<button id="playBtn">▶</button>
-
-<div class="bars">
-    <div class="bar"></div>
-    <div class="bar"></div>
-    <div class="bar"></div>
-    <div class="bar"></div>
-    <div class="bar"></div>
-</div>
-
-<div id="status">Ready</div>
+<body><h1>Lyric Visualizer (Beat + AI LRC)</h1><div class="controls">
+  <input type="file" id="audioFile" accept="audio/*" />
+  <button id="playBtn">Play</button>
+  <button id="autoBtn">Auto‑Generate LRC</button>
+</div><div class="stage">
+  <canvas id="eq"></canvas>
+  <div class="lyrics" id="lyrics"></div>
+</div><textarea id="lrcInput" placeholder="LRC will appear here or paste your own..."></textarea><div class="hint">Sentence‑level sync • Beat‑reactive lyrics • Vertical 9:16</div><audio id="audio" crossorigin="anonymous"></audio>
 
 <script>
-// ==================== DOM ELEMENTS ====================
-const btn = document.getElementById('playBtn');
-const titleEl = document.getElementById('title');
-const authEl = document.getElementById('authors');
-const statusEl = document.getElementById('status');
-const silentAudio = document.getElementById('silentKeeper');
-const synth = window.speechSynthesis;
+const audio = document.getElementById('audio');
+const canvas = document.getElementById('eq');
+const ctx = canvas.getContext('2d');
+const lyricsEl = document.getElementById('lyrics');
 
-// ==================== STATE ====================
-let papers = [];
-let isSpeaking = false;
-let shouldAutoPlay = false;
-let currentPaperIndex = 0;
+canvas.width = 360;
+canvas.height = 640;
 
-// ==================== NETWORK FETCHING ====================
-async function fetchPapers() {
-    statusEl.innerText = "Connecting to arXiv...";
-    btn.classList.add('loading');
+let audioCtx, analyser, source, freqData, timeData;
+let lyrics = [];
+let lastBeat = 0;
 
-    const arxivUrl = 'https://export.arxiv.org/api/query?search_query=cat:cs.AI&start=0&max_results=50&sortBy=submittedDate&sortOrder=descending';
-    
-    try {
-        // Try direct fetch first
-        let xmlText;
-        
-        try {
-            console.log('Attempting direct fetch...');
-            const response = await fetch(arxivUrl);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-            
-            xmlText = await response.text();
-            console.log('Direct fetch successful');
-        } catch (directError) {
-            console.log('Direct fetch failed:', directError.message);
-            console.log('Trying CORS proxy...');
-            
-            // Fallback to CORS proxy
-            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(arxivUrl)}`;
-            const proxyResponse = await fetch(proxyUrl);
-            
-            if (!proxyResponse.ok) {
-                throw new Error(`Proxy HTTP ${proxyResponse.status}`);
-            }
-            
-            xmlText = await proxyResponse.text();
-            console.log('Proxy fetch successful');
-        }
+// Load audio
 
-        // Parse XML
-        const parser = new DOMParser();
-        const xml = parser.parseFromString(xmlText, "text/xml");
-        
-        // Check for parse errors
-        const parseError = xml.querySelector('parsererror');
-        if (parseError) {
-            throw new Error('XML parsing failed');
-        }
+document.getElementById('audioFile').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  audio.src = URL.createObjectURL(file);
+});
 
-        const entries = xml.querySelectorAll('entry');
-        
-        if (entries.length === 0) {
-            throw new Error('No papers found in response');
-        }
+// Play
 
-        // Extract paper data
-        papers = Array.from(entries).map(entry => {
-            const titleNode = entry.querySelector('title');
-            const summaryNode = entry.querySelector('summary');
-            const authorNode = entry.querySelector('author name');
-            
-            return {
-                title: titleNode ? titleNode.textContent.replace(/\s+/g, ' ').trim() : 'Unknown Title',
-                summary: summaryNode ? summaryNode.textContent.replace(/\s+/g, ' ').trim() : 'No summary available',
-                author: authorNode ? authorNode.textContent.trim() : 'Unknown Author'
-            };
-        });
+document.getElementById('playBtn').addEventListener('click', async () => {
+  if (!audioCtx) {
+    audioCtx = new AudioContext();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 512;
+    freqData = new Uint8Array(analyser.frequencyBinCount);
+    timeData = new Uint8Array(analyser.fftSize);
+    source = audioCtx.createMediaElementSource(audio);
+    source.connect(analyser);
+    analyser.connect(audioCtx.destination);
+  }
 
-        console.log(`Successfully loaded ${papers.length} papers`);
-        statusEl.innerText = `${papers.length} papers loaded ✓`;
-        btn.classList.remove('loading');
-        return true;
+  parseLyrics();
+  audio.play();
+  draw();
+});
 
-    } catch (error) {
-        console.error('All fetch attempts failed:', error);
-        
-        // Load demo data as fallback
-        papers = [
-            {
-                title: "Attention Is All You Need",
-                summary: "The dominant sequence transduction models are based on complex recurrent or convolutional neural networks. We propose a new simple network architecture, the Transformer, based solely on attention mechanisms.",
-                author: "Vaswani et al."
-            },
-            {
-                title: "BERT: Pre-training of Deep Bidirectional Transformers",
-                summary: "We introduce a new language representation model called BERT, which stands for Bidirectional Encoder Representations from Transformers. This is demo content - network fetch failed.",
-                author: "Devlin et al."
-            },
-            {
-                title: "GPT-4 Technical Report",
-                summary: "We report the development of GPT-4, a large-scale, multimodal model which can accept image and text inputs and produce text outputs. This is demo content - network unavailable.",
-                author: "OpenAI"
-            }
-        ];
-        
-        statusEl.innerText = "Network error - using demo papers";
-        btn.classList.remove('loading');
-        return true;
-    }
-}
+// Parse LRC
 
-// ==================== TEXT CHUNKING ====================
-function splitText(text, maxSize = 700) {
-    const words = text.split(' ');
-    const chunks = [];
-    let currentChunk = '';
-
-    for (const word of words) {
-        const testChunk = currentChunk ? `${currentChunk} ${word}` : word;
-        
-        if (testChunk.length > maxSize && currentChunk) {
-            chunks.push(currentChunk);
-            currentChunk = word;
-        } else {
-            currentChunk = testChunk;
-        }
-    }
-    
-    if (currentChunk) {
-        chunks.push(currentChunk);
-    }
-
-    return chunks;
-}
-
-// ==================== SPEECH SYNTHESIS ====================
-function speakPaper(index) {
-    if (!papers[index]) {
-        console.error('Invalid paper index:', index);
-        return;
-    }
-
-    // Cancel any ongoing speech
-    synth.cancel();
-
-    const paper = papers[index];
-    
-    // Update UI
-    titleEl.innerText = paper.title;
-    authEl.innerText = `By ${paper.author}`;
-    btn.innerText = "⏹";
-    document.body.classList.add('playing');
-    isSpeaking = true;
-
-    // Keep audio context alive (for iOS)
-    silentAudio.play().catch(err => console.log('Silent audio play failed:', err));
-
-    // Prepare text
-    const fullText = `New paper. ${paper.title}. Abstract. ${paper.summary}`;
-    const chunks = splitText(fullText, 700);
-    
-    console.log(`Speaking paper ${index + 1}/${papers.length} in ${chunks.length} chunks`);
-
-    // Get best available voice
-    const voices = synth.getVoices();
-    const voice = voices.find(v => v.name.includes('Google US English'))
-        || voices.find(v => v.lang === 'en-US')
-        || voices.find(v => v.lang.startsWith('en'))
-        || voices[0]
-        || null;
-
-    if (voice) {
-        console.log('Using voice:', voice.name);
-    }
-
-    // Queue all chunks (browser handles sequential playback)
-    chunks.forEach((chunkText, i) => {
-        const utterance = new SpeechSynthesisUtterance(chunkText);
-        utterance.rate = 0.9;
-        utterance.pitch = 1.0;
-        
-        if (voice) {
-            utterance.voice = voice;
-        }
-
-        // Only attach handler to the last chunk
-        if (i === chunks.length - 1) {
-            utterance.onend = () => {
-                console.log('Finished speaking paper');
-                
-                if (shouldAutoPlay && papers.length > 0) {
-                    // Move to next paper
-                    currentPaperIndex = (currentPaperIndex + 1) % papers.length;
-                    console.log('Auto-playing next paper:', currentPaperIndex);
-                    
-                    // Small delay before next paper
-                    setTimeout(() => speakPaper(currentPaperIndex), 500);
-                } else {
-                    stopPlayback();
-                }
-            };
-
-            utterance.onerror = (event) => {
-                console.error('Speech error:', event);
-                stopPlayback();
-            };
-        }
-
-        synth.speak(utterance);
-    });
-
-    // Set lock screen metadata (Media Session API)
-    if ('mediaSession' in navigator) {
-        navigator.mediaSession.metadata = new MediaMetadata({
-            title: paper.title.substring(0, 60) + (paper.title.length > 60 ? '...' : ''),
-            artist: 'arXiv CS.AI',
-            album: 'AI Research Feed'
-        });
-
-        navigator.mediaSession.setActionHandler('play', () => {
-            if (synth.paused) synth.resume();
-        });
-
-        navigator.mediaSession.setActionHandler('pause', () => {
-            synth.pause();
-        });
-
-        navigator.mediaSession.setActionHandler('stop', () => {
-            stopPlayback();
-        });
-    }
-}
-
-// ==================== PLAYBACK CONTROL ====================
-function stopPlayback() {
-    console.log('Stopping playback');
-    synth.cancel();
-    silentAudio.pause();
-    isSpeaking = false;
-    shouldAutoPlay = false;
-    btn.innerText = "▶";
-    document.body.classList.remove('playing');
-    statusEl.innerText = "Stopped. Tap to continue.";
-}
-
-// ==================== USER INTERACTION ====================
-btn.onclick = async () => {
-    // Stop if already playing
-    if (isSpeaking) {
-        stopPlayback();
-        return;
-    }
-
-    // Fetch papers on first run
-    if (papers.length === 0) {
-        const success = await fetchPapers();
-        if (!success) {
-            statusEl.innerText = "Failed to load papers";
-            return;
-        }
-    }
-
-    // Start auto-play
-    shouldAutoPlay = true;
-    speakPaper(currentPaperIndex);
-};
-
-// ==================== INITIALIZATION ====================
-// Pre-load voices (fixes Chrome bug where voices load asynchronously)
-if (synth) {
-    synth.onvoiceschanged = () => {
-        const voices = synth.getVoices();
-        console.log(`${voices.length} voices loaded`);
+function parseLyrics() {
+  const raw = document.getElementById('lrcInput').value;
+  lyrics = raw.split('\n').map(line => {
+    const m = line.match(/(\d+):(\d+\.\d+)(.*)/);
+    if (!m) return null;
+    return {
+      time: parseInt(m[1]) * 60 + parseFloat(m[2]),
+      text: m[3].trim()
     };
-    
-    // Trigger initial voice load
-    synth.getVoices();
-} else {
-    statusEl.innerText = "Speech synthesis not supported";
-    btn.disabled = true;
+  }).filter(Boolean);
 }
 
-console.log('arXiv AI Reader initialized');
-</script>
+// Sentence lyric update
 
-</body>
+function updateLyrics(t) {
+  for (let i = lyrics.length - 1; i >= 0; i--) {
+    if (t >= lyrics[i].time) {
+      lyricsEl.textContent = lyrics[i].text;
+      return;
+    }
+  }
+  lyricsEl.textContent = '';
+}
+
+// Beat detection (energy‑based)
+
+function detectBeat(now) {
+  analyser.getByteTimeDomainData(timeData);
+  let sum = 0;
+  for (let i = 0; i < timeData.length; i++) {
+    const v = (timeData[i] - 128) / 128;
+    sum += v * v;
+  }
+  const energy = sum / timeData.length;
+  if (energy > 0.02 && now - lastBeat > 0.25) {
+    lastBeat = now;
+    return true;
+  }
+  return false;
+}
+
+// Draw loop
+
+function draw() {
+  requestAnimationFrame(draw);
+
+  analyser.getByteFrequencyData(freqData);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const barCount = 48;
+  const step = Math.floor(freqData.length / barCount);
+  const barWidth = canvas.width / barCount;
+
+  for (let i = 0; i < barCount; i++) {
+    const v = freqData[i * step] / 255;
+    const h = v * canvas.height * 0.6;
+    ctx.fillStyle = `hsl(${200 + i * 2}, 80%, ${50 + v * 20}%)`;
+    ctx.fillRect(i * barWidth, canvas.height - h, barWidth - 2, h);
+  }
+
+  const beat = detectBeat(audio.currentTime);
+  if (beat) {
+    lyricsEl.style.transform = 'scale(1.08)';
+    lyricsEl.style.opacity = '1';
+  } else {
+    lyricsEl.style.transform = 'scale(1)';
+    lyricsEl.style.opacity = '0.9';
+  }
+
+  updateLyrics(audio.currentTime);
+}
+
+// AI LRC generation (browser speech recognition)
+
+document.getElementById('autoBtn').addEventListener('click', () => {
+  if (!('webkitSpeechRecognition' in window)) {
+    alert('Speech recognition not supported in this browser');
+    return;
+  }
+
+  const rec = new webkitSpeechRecognition();
+  rec.continuous = true;
+  rec.interimResults = false;
+  rec.lang = 'en-US';
+
+  let startTime = audio.currentTime;
+
+  rec.onresult = e => {
+    const t = audio.currentTime;
+    const text = e.results[e.results.length - 1][0].transcript.trim();
+    const min = Math.floor(t / 60).toString().padStart(2, '0');
+    const sec = (t % 60).toFixed(2).padStart(5, '0');
+    document.getElementById('lrcInput').value += `\n[${min}:${sec}] ${text}`;
+  };
+
+  audio.play();
+  rec.start();
+});
+</script></body>
 </html>

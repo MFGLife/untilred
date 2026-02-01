@@ -32,7 +32,7 @@
 // CONFIG
 // ============================================================
 const PARTICLES_PER_LANDMARK = 4; // each landmark spawns this many cloud particles
-const CLOUD_SPREAD = 0.008;       // max random offset around each landmark
+const CLOUD_RADIUS = 0.038;       // radius of the sphere shell around each landmark
 const INTERP_EDGES = 2;           // extra points interpolated along each mesh edge
 
 // Key face-mesh edges we interpolate along (pairs of landmark indices).
@@ -154,12 +154,36 @@ const geometry = new THREE.BufferGeometry();
 const positions = new Float32Array(totalParticles * 3);
 geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
-// Per-particle random offsets (baked once, reused every frame)
+// Per-particle offsets baked via Fibonacci sphere sampling.
+// Fibonacci sphere places N points on a unit sphere with maximum
+// angular separation — no clustering, no randomness bias.
+// Math:
+//   golden angle increment = PI * (3 - sqrt(5))  ≈ 2.39996 rad
+//   For point i out of N:
+//     y  = 1 - (2i+1)/N          → evenly spaced latitude slices
+//     r  = sqrt(1 - y²)          → radius of latitude circle (trig identity)
+//     phi = goldenAngle * i      → longitude that never repeats closely
+//     x  = r * cos(phi)
+//     z  = r * sin(phi)
+// Each landmark group of PARTICLES_PER_LANDMARK gets its own fresh
+// Fibonacci sequence starting at index 0, so every group is identical
+// in shape but that's fine — the landmarks themselves differ.
+const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5)); // ≈ 2.39996 radians
+
 const offsets = new Float32Array(totalParticles * 3);
-for (let i = 0; i < totalParticles; i++) {
-    offsets[i * 3]     = (Math.random() - 0.5) * 2 * CLOUD_SPREAD;
-    offsets[i * 3 + 1] = (Math.random() - 0.5) * 2 * CLOUD_SPREAD;
-    offsets[i * 3 + 2] = (Math.random() - 0.5) * 2 * CLOUD_SPREAD;
+for (let i = 0; i < totalLandmarks; i++) {
+    for (let p = 0; p < PARTICLES_PER_LANDMARK; p++) {
+        const pi = i * PARTICLES_PER_LANDMARK + p;
+
+        // Fibonacci sphere for this sub-index within the group
+        const y   = 1 - (2 * p + 1) / PARTICLES_PER_LANDMARK; // latitude: -1 → 1
+        const r   = Math.sqrt(1 - y * y);                      // circle radius at this latitude
+        const phi = GOLDEN_ANGLE * p;                           // longitude via golden angle
+
+        offsets[pi * 3]     =  r * Math.cos(phi) * CLOUD_RADIUS;
+        offsets[pi * 3 + 1] =  y                  * CLOUD_RADIUS;
+        offsets[pi * 3 + 2] =  r * Math.sin(phi) * CLOUD_RADIUS;
+    }
 }
 
 const material = new THREE.PointsMaterial({

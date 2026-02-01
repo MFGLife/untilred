@@ -28,66 +28,84 @@
     <canvas id="output_canvas"></canvas>
 
 <script>
-    // --- 1. SETUP THREE.JS (THE RENDERING ENGINE) ---
+    
+    // --- CONFIG ---
+    const LANDMARKS = 468;
+    const PARTICLE_MULTIPLIER = 4; // 4x particles
+    const TOTAL_PARTICLES = LANDMARKS * PARTICLE_MULTIPLIER;
+
+    // --- THREE.JS SETUP ---
     const canvas = document.getElementById('output_canvas');
     const scene = new THREE.Scene();
-    
-    // Create a camera
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.z = 2; // Move camera back slightly
-    camera.position.y = 0; 
 
-    const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true });
+    const camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+    );
+    camera.position.z = 2.2;
+
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
 
-    // Create the Particle System
-    // MediaPipe Face Mesh detects 468 landmarks
-    const landmarkCount = 468;
+    // --- PARTICLES ---
     const geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(landmarkCount * 3); // x, y, z for each point
+    const positions = new Float32Array(TOTAL_PARTICLES * 3);
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
-    // Create the material (The look of the particles)
     const material = new THREE.PointsMaterial({
-        color: 0xffffff, // White particles
-        size: 0.02,      // Particle size
+        color: 0xffffff,
+        size: 0.018,
         sizeAttenuation: true
     });
 
     const particles = new THREE.Points(geometry, material);
     scene.add(particles);
 
-    // --- 2. SETUP MEDIAPIPE FACE MESH (THE TRACKER) ---
+    // --- MEDIAPIPE ---
     const videoElement = document.getElementById('input_video');
     const loadingMsg = document.getElementById('loading');
 
     function onResults(results) {
         loadingMsg.style.display = 'none';
 
-        if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-            const landmarks = results.multiFaceLandmarks[0];
+        if (!results.multiFaceLandmarks?.length) return;
 
-            // Update Three.js particle positions based on MediaPipe landmarks
-            const positions = particles.geometry.attributes.position.array;
+        const landmarks = results.multiFaceLandmarks[0];
+        const pos = particles.geometry.attributes.position.array;
 
-            for (let i = 0; i < landmarks.length; i++) {
-                const x = (0.5 - landmarks[i].x) * 3; // Scale and center X
-                const y = (0.5 - landmarks[i].y) * 2; // Scale and center Y (invert)
-                const z = -landmarks[i].z;            // Z depth
+        let p = 0;
 
-                positions[i * 3] = x;
-                positions[i * 3 + 1] = y;
-                positions[i * 3 + 2] = z;
+        for (let i = 0; i < landmarks.length; i++) {
+            const lm = landmarks[i];
+
+            // Base face point
+            const baseX = (0.5 - lm.x) * 3.0;
+            const baseY = (0.5 - lm.y) * 3.2; // FIX vertical squash
+            const baseZ = -lm.z * 1.8;
+
+            // Head expansion factor
+            const radial = Math.sqrt(baseX * baseX + baseY * baseY);
+            const headExpand = 1 + radial * 0.15;
+
+            for (let j = 0; j < PARTICLE_MULTIPLIER; j++) {
+                // Soft volumetric jitter
+                const jitter = 0.03;
+
+                pos[p++] = baseX * headExpand + (Math.random() - 0.5) * jitter;
+                pos[p++] = baseY * headExpand + (Math.random() - 0.5) * jitter;
+                pos[p++] = baseZ - radial * 0.25 + (Math.random() - 0.5) * jitter;
             }
-            
-            // Tell Three.js the positions have changed
-            particles.geometry.attributes.position.needsUpdate = true;
         }
+
+        particles.geometry.attributes.position.needsUpdate = true;
     }
 
-    const faceMesh = new FaceMesh({locateFile: (file) => {
-        return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
-    }});
+    const faceMesh = new FaceMesh({
+        locateFile: file =>
+            `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+    });
 
     faceMesh.setOptions({
         maxNumFaces: 1,
@@ -98,10 +116,10 @@
 
     faceMesh.onResults(onResults);
 
-    // --- 3. CAMERA STARTUP ---
+    // --- CAMERA FEED ---
     const cameraFeed = new Camera(videoElement, {
         onFrame: async () => {
-            await faceMesh.send({image: videoElement});
+            await faceMesh.send({ image: videoElement });
         },
         width: 1280,
         height: 720
@@ -109,23 +127,20 @@
 
     cameraFeed.start();
 
-    // --- 4. ANIMATION LOOP ---
+    // --- RENDER LOOP ---
     function animate() {
         requestAnimationFrame(animate);
-        
-        // Optional: Add some subtle idle rotation if no face is detected
-        // particles.rotation.y += 0.001; 
-
         renderer.render(scene, camera);
     }
     animate();
 
-    // Handle Window Resize
+    // --- RESIZE ---
     window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
     });
+
 </script>
 </body>
 </html>

@@ -5,16 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Particle Face Tracking</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; }
-        /* Hide the raw video feed, we only want the particles */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; background: #000; }
         #input_video { display: none; }
-        /* Canvas covers the screen */
         #output_canvas { display: block; width: 100vw; height: 100vh; }
         #loading {
-            position: absolute; top: 50%; left: 50%; 
-            transform: translate(-50%, -50%); 
-            color: white; font-family: monospace; font-size: 24px;
-            pointer-events: none;
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff; font-family: 'Courier New', monospace; font-size: 22px;
+            pointer-events: none; letter-spacing: 2px;
+            text-shadow: 0 0 12px rgba(180,220,255,0.7);
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -23,143 +23,235 @@
 </head>
 <body>
 
-    <div id="loading">Initialize Camera...</div>
-    <video id="input_video" playsinline></video>
-    <canvas id="output_canvas"></canvas>
+<div id="loading">Initializing Camera...</div>
+<video id="input_video" playsinline></video>
+<canvas id="output_canvas"></canvas>
 
 <script>
-/* ================= CONFIG ================= */
-const FACE_SCALE_X = 3.0;
-const FACE_SCALE_Y = 3.6; // fix vertical squash
-const FACE_SCALE_Z = 2.0;
+// ============================================================
+// CONFIG
+// ============================================================
+const PARTICLES_PER_LANDMARK = 4; // each landmark spawns this many cloud particles
+const CLOUD_SPREAD = 0.008;       // max random offset around each landmark
+const INTERP_EDGES = 2;           // extra points interpolated along each mesh edge
 
-const INTERPOLATION_STEPS = 2; // adds points BETWEEN landmarks
-const HEAD_PARTICLES = 320;    // procedural skull
-const TRAIL_DAMPING = 0.85;
-const SWARM_STRENGTH = 0.002;
+// Key face-mesh edges we interpolate along (pairs of landmark indices).
+// These cover: face outline, eyebrows, eyes, nose, lips, and cheek/jaw structure.
+const FACE_EDGES = [
+    // ---- Face outline (jawline + temples) ----
+    [0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[9,10],
+    [10,11],[11,12],[12,13],[13,14],[14,15],[15,16],[16,17],[17,18],[18,19],
+    [19,20],[20,21],[21,22],[22,23],[23,24],[24,25],[25,26],[26,27],
+    // ---- Left eyebrow ----
+    [66,67],[67,68],[68,69],[69,70],[70,71],[71,72],[72,73],[73,74],[74,75],[75,76],[76,77],
+    // ---- Right eyebrow ----
+    [78,79],[79,80],[80,81],[81,82],[82,83],[83,84],[84,85],[85,86],[86,87],[87,88],
+    // ---- Left eye ----
+    [161,246],[246,35],[35,31],[31,32],[32,33],[33,34],[34,35],
+    [36,37],[37,38],[38,39],[39,40],[40,41],[41,36],
+    [160,161],[161,162],[162,163],[163,164],
+    // ---- Right eye ----
+    [389,387],[387,366],[366,368],[368,369],[369,370],[370,371],
+    [374,375],[375,376],[376,377],[377,378],[378,379],[379,374],
+    [388,389],[389,390],[390,391],[391,392],
+    // ---- Nose bridge & tip ----
+    [6,195],[195,5],[5,4],[4,69],[69,131],[131,51],[51,52],[52,53],[53,54],
+    [55,56],[56,57],[57,58],[58,59],[59,60],[60,61],
+    [54,55],[55,59],[59,60],[60,48],[48,49],[49,50],[50,51],
+    [54,68],[68,67],[67,66],[66,59],
+    // ---- Outer lips ----
+    [84,54],[54,37],[37,36],[36,84],
+    [0,37],[37,38],[38,267],[267,0],
+    [61,88],[88,89],[89,90],[90,91],[91,92],[92,63],[63,62],[62,61],
+    [48,178],[178,87],[87,86],[86,85],[85,84],[84,13],[13,14],[14,88],
+    // ---- Inner lips ----
+    [78,95],[95,96],[96,97],[97,98],[98,99],[99,100],[100,101],[101,102],
+    [78,79],[79,80],[80,81],[81,82],[82,83],[83,84],[84,85],
+    // ---- Chin & cheeks ----
+    [28,29],[29,30],[30,31],[31,32],
+    [103,104],[104,105],[105,106],[106,107],[107,108],[108,109],[109,110],
+    [333,334],[334,335],[335,336],[336,337],[337,338],[338,339],[339,340],
+    // ---- Forehead center line ----
+    [151,8],[8,195],[195,200],
+    // ---- Cheek fill diagonals ----
+    [36,118],[118,117],[117,116],[116,35],
+    [266,347],[347,348],[348,349],[349,366],
+    // ---- Under-eye / cheekbone ----
+    [119,120],[120,121],[121,122],[122,123],
+    [348,349],[349,350],[350,351],[351,352],
+    // ---- Brow-to-temple ----
+    [70,71],[71,72],[72,73],[73,155],
+    [301,302],[302,303],[303,304],[304,383],
+    // ---- Nose side walls ----
+    [220,221],[221,222],[222,131],
+    [449,450],[450,451],[451,360],
+    // ---- Lip corner detail ----
+    [61,146],[146,147],[147,148],[148,149],[149,150],[150,35],
+    [291,376],[376,377],[377,378],[378,379],[379,380],[380,266],
+    // ---- Forehead sides ----
+    [101,100],[100,99],[99,98],[98,97],[97,96],[96,95],
+    [329,328],[328,327],[327,326],[326,325],[325,324],[324,323],
+    // ---- Mid-face connectors ----
+    [198,199],[199,200],[200,201],[201,202],
+    [427,428],[428,429],[429,430],[430,431],
+    // ---- Orbital fill ----
+    [35,189],[189,190],[190,191],[191,192],
+    [266,418],[418,419],[419,420],[420,421],
+    // ---- Lower cheek to jaw ----
+    [176,177],[177,178],[178,179],[179,180],
+    [405,406],[406,407],[407,408],[408,409],
+    // ---- Ear region approximation ----
+    [127,234],[234,93],[93,132],[132,58],
+    [356,463],[463,322],[322,361],[361,287],
+    // ---- Extra forehead fill ----
+    [10,109],[109,108],[108,107],[107,106],
+    [247,339],[339,338],[338,337],[337,336],
+    // ---- Nose to cheek bridges ----
+    [131,118],[118,119],[119,120],
+    [360,347],[347,348],[348,349],
+    // ---- Crown / top head ----
+    [234,247],[247,246],
+    [7,9],[9,11],[11,14],[14,20]
+];
 
-/* ================= THREE ================= */
-const canvas = document.getElementById("output_canvas");
+// ============================================================
+// Deduplicate edges and precompute interpolated landmark sets
+// ============================================================
+function dedupEdges(edges, max) {
+    const seen = new Set();
+    const out = [];
+    for (const [a, b] of edges) {
+        if (a < 0 || a >= max || b < 0 || b >= max) continue;
+        const key = Math.min(a,b) + '_' + Math.max(a,b);
+        if (!seen.has(key)) { seen.add(key); out.push([a, b]); }
+    }
+    return out;
+}
+const DEDUPED_EDGES = dedupEdges(FACE_EDGES, 468);
+
+// Total particle count:
+//   base 468 landmarks × PARTICLES_PER_LANDMARK
+// + interpolated edge points × PARTICLES_PER_LANDMARK
+const interpCount = DEDUPED_EDGES.length * INTERP_EDGES;
+const totalLandmarks = 468 + interpCount;
+const totalParticles = totalLandmarks * PARTICLES_PER_LANDMARK;
+
+// ============================================================
+// THREE.JS SETUP
+// ============================================================
+const canvas = document.getElementById('output_canvas');
 const scene = new THREE.Scene();
 
-const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 1000);
-camera.position.z = 2.5;
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.z = 2;
 
-const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
-renderer.setSize(innerWidth, innerHeight);
+const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
 
-/* ================= STORAGE ================= */
-let targetPositions = [];
-let currentPositions = [];
-
-/* ================= GEOMETRY ================= */
+// Geometry for all particles
 const geometry = new THREE.BufferGeometry();
+const positions = new Float32Array(totalParticles * 3);
+geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+// Per-particle random offsets (baked once, reused every frame)
+const offsets = new Float32Array(totalParticles * 3);
+for (let i = 0; i < totalParticles; i++) {
+    offsets[i * 3]     = (Math.random() - 0.5) * 2 * CLOUD_SPREAD;
+    offsets[i * 3 + 1] = (Math.random() - 0.5) * 2 * CLOUD_SPREAD;
+    offsets[i * 3 + 2] = (Math.random() - 0.5) * 2 * CLOUD_SPREAD;
+}
+
 const material = new THREE.PointsMaterial({
-    color: 0xffffff,
-    size: 0.016,
+    color: 0xb8deff,
+    size: 0.015,
+    sizeAttenuation: true,
     transparent: true,
-    opacity: 0.9
+    opacity: 0.85
 });
 
-const particles = new THREE.Points(geometry, material);
-scene.add(particles);
+const particleSystem = new THREE.Points(geometry, material);
+scene.add(particleSystem);
 
-/* ================= MEDIAPIPE ================= */
-const video = document.getElementById("input_video");
-const loading = document.getElementById("loading");
+// ============================================================
+// MEDIAPIPE FACE MESH
+// ============================================================
+const videoElement = document.getElementById('input_video');
+const loadingMsg   = document.getElementById('loading');
 
-function interpolate(a, b, t) {
-    return {
-        x: a.x + (b.x - a.x) * t,
-        y: a.y + (b.y - a.y) * t,
-        z: a.z + (b.z - a.z) * t
-    };
+// Uniform scale factor – use the LARGER dimension so the face fills
+// the viewport without squishing regardless of aspect ratio.
+function getScale() {
+    const aspect = window.innerWidth / window.innerHeight;
+    // We want the mapped face to span roughly 2.8 units in its larger axis.
+    // MediaPipe coords are 0-1, so multiply by scaleFactor to get world units,
+    // then subtract half to centre.
+    const baseScale = 2.8;
+    return { sx: baseScale * Math.max(1, aspect), sy: baseScale * Math.max(1, 1 / aspect) };
 }
 
 function onResults(results) {
-    if (!results.multiFaceLandmarks?.length) return;
-    loading.style.display = "none";
+    loadingMsg.style.display = 'none';
 
-    const lm = results.multiFaceLandmarks[0];
-    targetPositions = [];
+    if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
 
-    /* ---- FACE DENSIFICATION ---- */
-    for (let i = 0; i < lm.length - 1; i++) {
-        const a = lm[i];
-        const b = lm[i + 1];
+    const lm   = results.multiFaceLandmarks[0]; // 468 raw landmarks
+    const pos  = particleSystem.geometry.attributes.position.array;
+    const { sx, sy } = getScale();
 
-        for (let s = 0; s <= INTERPOLATION_STEPS; s++) {
-            const p = interpolate(a, b, s / (INTERPOLATION_STEPS + 1));
+    // Helper: convert one MediaPipe landmark to world coords
+    function lmToWorld(idx) {
+        return {
+            x:  (0.5 - lm[idx].x) * sx,
+            y:  (0.5 - lm[idx].y) * sy,
+            z: -lm[idx].z * 1.5
+        };
+    }
 
-            targetPositions.push(
-                (0.5 - p.x) * FACE_SCALE_X,
-                (0.5 - p.y) * FACE_SCALE_Y,
-                -p.z * FACE_SCALE_Z
-            );
+    // --- Step 1: build the full landmark array (base + interpolated) ---
+    // We store them flat for speed.
+    const allLM = new Float32Array(totalLandmarks * 3);
+
+    // Base 468 landmarks
+    for (let i = 0; i < 468; i++) {
+        const w = lmToWorld(i);
+        allLM[i * 3]     = w.x;
+        allLM[i * 3 + 1] = w.y;
+        allLM[i * 3 + 2] = w.z;
+    }
+
+    // Interpolated edge landmarks
+    let idx = 468;
+    for (let e = 0; e < DEDUPED_EDGES.length; e++) {
+        const [a, b] = DEDUPED_EDGES[e];
+        const ax = allLM[a*3], ay = allLM[a*3+1], az = allLM[a*3+2];
+        const bx = allLM[b*3], by = allLM[b*3+1], bz = allLM[b*3+2];
+        for (let k = 1; k <= INTERP_EDGES; k++) {
+            const t = k / (INTERP_EDGES + 1);
+            allLM[idx * 3]     = ax + (bx - ax) * t;
+            allLM[idx * 3 + 1] = ay + (by - ay) * t;
+            allLM[idx * 3 + 2] = az + (bz - az) * t;
+            idx++;
         }
     }
 
-    /* ---- PROCEDURAL HEAD (ELLIPSOID SKULL) ---- */
-    for (let i = 0; i < HEAD_PARTICLES; i++) {
-        const theta = Math.random() * Math.PI * 2;
-        const phi = Math.random() * Math.PI;
-
-        const rx = 0.75;
-        const ry = 0.95;
-        const rz = 0.85;
-
-        targetPositions.push(
-            Math.cos(theta) * Math.sin(phi) * rx,
-            Math.cos(phi) * ry + 0.15,
-            Math.sin(theta) * Math.sin(phi) * rz - 0.35
-        );
+    // --- Step 2: scatter PARTICLES_PER_LANDMARK particles around each landmark ---
+    for (let i = 0; i < totalLandmarks; i++) {
+        const lx = allLM[i * 3],     ly = allLM[i * 3 + 1], lz = allLM[i * 3 + 2];
+        for (let p = 0; p < PARTICLES_PER_LANDMARK; p++) {
+            const pi = (i * PARTICLES_PER_LANDMARK + p);
+            pos[pi * 3]     = lx + offsets[pi * 3];
+            pos[pi * 3 + 1] = ly + offsets[pi * 3 + 1];
+            pos[pi * 3 + 2] = lz + offsets[pi * 3 + 2];
+        }
     }
 
-    /* ---- INIT BUFFERS ---- */
-    if (currentPositions.length !== targetPositions.length) {
-        currentPositions = [...targetPositions];
-        geometry.setAttribute(
-            "position",
-            new THREE.BufferAttribute(new Float32Array(currentPositions), 3)
-        );
-    }
+    particleSystem.geometry.attributes.position.needsUpdate = true;
 }
 
-/* ================= FISH SWARM ================= */
-function applySwarm() {
-    for (let i = 0; i < currentPositions.length; i += 3) {
-        currentPositions[i]     += (Math.random() - 0.5) * SWARM_STRENGTH;
-        currentPositions[i + 1] += (Math.random() - 0.5) * SWARM_STRENGTH;
-        currentPositions[i + 2] += (Math.random() - 0.5) * SWARM_STRENGTH;
-    }
-}
-
-/* ================= TRAILS ================= */
-function updateTrails() {
-    for (let i = 0; i < currentPositions.length; i++) {
-        currentPositions[i] =
-            currentPositions[i] * TRAIL_DAMPING +
-            targetPositions[i] * (1 - TRAIL_DAMPING);
-    }
-
-    geometry.attributes.position.needsUpdate = true;
-}
-
-/* ================= LOOP ================= */
-function animate() {
-    requestAnimationFrame(animate);
-    if (targetPositions.length) {
-        applySwarm();
-        updateTrails();
-    }
-    renderer.render(scene, camera);
-}
-animate();
-
-/* ================= MEDIAPIPE INIT ================= */
-const faceMesh = new FaceMesh({
-    locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`
-});
+const faceMesh = new FaceMesh({ locateFile: (file) => {
+    return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+}});
 
 faceMesh.setOptions({
     maxNumFaces: 1,
@@ -170,17 +262,32 @@ faceMesh.setOptions({
 
 faceMesh.onResults(onResults);
 
-new Camera(video, {
-    onFrame: async () => await faceMesh.send({ image: video }),
+// ============================================================
+// CAMERA
+// ============================================================
+const cameraFeed = new Camera(videoElement, {
+    onFrame: async () => { await faceMesh.send({ image: videoElement }); },
     width: 1280,
     height: 720
-}).start();
+});
+cameraFeed.start();
 
-/* ================= RESIZE ================= */
-addEventListener("resize", () => {
-    camera.aspect = innerWidth / innerHeight;
+// ============================================================
+// ANIMATION LOOP
+// ============================================================
+function animate() {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+}
+animate();
+
+// ============================================================
+// RESIZE
+// ============================================================
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
-    renderer.setSize(innerWidth, innerHeight);
+    renderer.setSize(window.innerWidth, window.innerHeight);
 });
 </script>
 </body>

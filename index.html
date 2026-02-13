@@ -2,591 +2,1022 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RPM Face Tracking</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Voice Journal & Calendar Sync</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { overflow: hidden; background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%); }
-        #input_video { display: none; }
-        #output_canvas { display: block; width: 100vw; height: 100vh; }
-        #loading {
-            position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            color: #fff; font-family: 'Inter', sans-serif; font-size: 18px;
-            pointer-events: none; letter-spacing: 3px;
-            text-transform: uppercase;
-            text-shadow: 0 0 30px rgba(0, 255, 255, 0.8);
-            z-index: 100;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        #ui {
-            position: absolute; bottom: 30px; left: 50%;
-            transform: translateX(-50%);
-            display: flex; gap: 15px;
-            z-index: 10;
-            background: rgba(0,0,0,0.3);
-            padding: 15px;
-            border-radius: 30px;
-            backdrop-filter: blur(10px);
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #ec4899;
+            --accent: #8b5cf6;
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --surface-light: #334155;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
         }
-        button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-            color: #fff;
-            padding: 12px 24px;
-            cursor: pointer;
-            font-family: 'Inter', sans-serif;
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            border-radius: 20px;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+            line-height: 1.6;
         }
-        button:hover {
+
+        /* Animated Background */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .bg-animation::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 20% 80%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 20%, rgba(236, 72, 153, 0.15) 0%, transparent 50%),
+                        radial-gradient(circle at 40% 40%, rgba(139, 92, 246, 0.1) 0%, transparent 40%);
+            animation: rotate 30s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        h1 {
+            font-size: clamp(2rem, 5vw, 3rem);
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: fadeInUp 0.8s ease-out;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6);
         }
-        #debug {
-            position: absolute; top: 20px; left: 20px;
-            color: rgba(255,255,255,0.6);
-            font-family: monospace;
-            font-size: 12px;
-            z-index: 10;
+
+        .input-group {
+            margin-bottom: 1.5rem;
         }
-    </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-</head>
-<body>
 
-<div id="loading">Loading Avatar...</div>
-<video id="input_video" playsinline></video>
-<canvas id="output_canvas"></canvas>
-<div id="debug">Tracking: Active</div>
-<div id="ui">
-    <button onclick="toggleExpressionDebug()">Debug Vis</button>
-    <button onclick="calibrate()">Calibrate</button>
-    <button onclick="resetView()">Reset</button>
-</div>
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
 
-<script>
-// ============================================================
-// READYPLAYERME OPTIMIZED CONFIG
-// ============================================================
-const CONFIG = {
-    modelUrl: 'https://models.readyplayer.me/65a1acf7c941dcc8caf44e6c.glb?morphTargets=ARKit&textureAtlas=1024',
-    
-    // RPM uses ARKit blendshapes - these are the standard names
-    blendShapes: {
-        // Eyes
-        eyeBlinkLeft: 'eyeBlinkLeft',
-        eyeBlinkRight: 'eyeBlinkRight',
-        eyeWideLeft: 'eyeWideLeft',
-        eyeWideRight: 'eyeWideRight',
-        eyeSquintLeft: 'eyeSquintLeft',
-        eyeSquintRight: 'eyeSquintRight',
-        
-        // Brows
-        browInnerUp: 'browInnerUp',
-        browOuterUpLeft: 'browOuterUpLeft',
-        browOuterUpRight: 'browOuterUpRight',
-        browDownLeft: 'browDownLeft',
-        browDownRight: 'browDownRight',
-        
-        // Nose
-        noseSneerLeft: 'noseSneerLeft',
-        noseSneerRight: 'noseSneerRight',
-        
-        // Mouth
-        mouthOpen: 'jawOpen', // RPM uses jawOpen for mouth
-        mouthSmileLeft: 'mouthSmileLeft',
-        mouthSmileRight: 'mouthSmileRight',
-        mouthFrownLeft: 'mouthFrownLeft',
-        mouthFrownRight: 'mouthFrownRight',
-        mouthShrugUpper: 'mouthShrugUpper',
-        mouthShrugLower: 'mouthShrugLower',
-        mouthRollUpper: 'mouthRollUpper',
-        mouthRollLower: 'mouthRollLower',
-        mouthPucker: 'mouthPucker',
-        mouthFunnel: 'mouthFunnel',
-        
-        // Jaw
-        jawOpen: 'jawOpen',
-        jawLeft: 'jawLeft',
-        jawRight: 'jawRight',
-        jawForward: 'jawForward',
-        
-        // Cheeks
-        cheekPuff: 'cheekPuff',
-        cheekSquintLeft: 'cheekSquintLeft',
-        cheekSquintRight: 'cheekSquintRight'
-    },
-    
-    smoothing: 0.15,
-    headScale: 2.2,
-    positionSmoothing: 0.1
-};
+        input[type="email"],
+        textarea {
+            width: 100%;
+            padding: 1rem 1.25rem;
+            background: rgba(15, 23, 42, 0.6);
+            border: 2px solid var(--surface-light);
+            border-radius: 12px;
+            color: var(--text);
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
 
-// ============================================================
-// THREE.JS SETUP
-// ============================================================
-const canvas = document.getElementById('output_canvas');
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0f0c29);
-scene.fog = new THREE.FogExp2(0x0f0c29, 0.02);
+        input[type="email"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
 
-const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 100);
-camera.position.set(0, 0.1, 2.8);
+        textarea {
+            min-height: 200px;
+            resize: vertical;
+            line-height: 1.6;
+        }
 
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.2;
+        .mic-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            margin: 2rem 0;
+        }
 
-// Anime-style lighting
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
-scene.add(ambientLight);
+        .mic-button {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px -5px rgba(99, 102, 241, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
 
-const keyLight = new THREE.DirectionalLight(0xfff0dd, 1.0);
-keyLight.position.set(2, 3, 2);
-keyLight.castShadow = true;
-keyLight.shadow.mapSize.set(2048, 2048);
-keyLight.shadow.bias = -0.0001;
-scene.add(keyLight);
+        .mic-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 15px 40px -5px rgba(99, 102, 241, 0.6);
+        }
 
-const rimLight = new THREE.SpotLight(0x00ffff, 2.0);
-rimLight.position.set(-3, 2, -3);
-rimLight.lookAt(0, 0, 0);
-scene.add(rimLight);
+        .mic-button:active {
+            transform: scale(0.95);
+        }
 
-const fillLight = new THREE.PointLight(0xff69b4, 0.4);
-fillLight.position.set(2, -1, 2);
-scene.add(fillLight);
+        .mic-button.listening {
+            background: linear-gradient(135deg, var(--error) 0%, var(--secondary) 100%);
+            animation: pulse 1.5s infinite;
+        }
 
-// ============================================================
-// RPM AVATAR SYSTEM
-// ============================================================
-let avatar = null;
-let morphMeshes = [];
-let bones = {};
-let targetHeadRot = new THREE.Euler(0, 0, 0);
-let currentHeadRot = new THREE.Euler(0, 0, 0);
-let targetHeadPos = new THREE.Vector3(0, 0, 0);
-let currentHeadPos = new THREE.Vector3(0, 0, 0);
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            50% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
+        }
 
-// Expression calibration baseline
-let calibration = {
-    eyeOpenness: 1,
-    mouthNeutral: 0,
-    browNeutral: 0
-};
+        .mic-status {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
 
-function loadAvatar() {
-    const loader = new THREE.GLTFLoader();
-    
-    loader.load(CONFIG.modelUrl, (gltf) => {
-        avatar = gltf.scene;
-        
-        // RPM optimization: Center and scale properly
-        const box = new THREE.Box3().setFromObject(avatar);
-        const center = box.getCenter(new THREE.Vector3());
-        const size = box.getSize(new THREE.Vector3());
-        
-        // RPM avatars are typically ~1.8m tall, scale to fit view
-        const scale = CONFIG.headScale / size.y;
-        avatar.scale.setScalar(scale);
-        avatar.position.sub(center.multiplyScalar(scale));
-        avatar.position.y += 0.1; // Slight offset for framing
-        
-        // Collect all morph target meshes
-        avatar.traverse((node) => {
-            if (node.isMesh && node.morphTargetDictionary) {
-                morphMeshes.push({
-                    mesh: node,
-                    dictionary: node.morphTargetDictionary,
-                    influences: node.morphTargetInfluences
-                });
-                
-                // Optimize materials for anime look
-                if (node.material) {
-                    node.material.roughness = 0.4;
-                    node.material.metalness = 0.1;
-                    if (node.material.map) {
-                        node.material.map.encoding = THREE.sRGBEncoding;
-                    }
-                }
+        .mic-status.recording {
+            color: var(--error);
+            font-weight: 600;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+
+        button {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        button:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--surface-light);
+            color: var(--text);
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.1);
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .events-section {
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            display: none;
+        }
+
+        .events-section.active {
+            display: block;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .events-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .events-count {
+            background: var(--primary);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .event-item {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .event-item:hover {
+            background: rgba(15, 23, 42, 0.8);
+            transform: translateX(5px);
+            border-color: var(--primary);
+        }
+
+        .event-info h4 {
+            color: var(--text);
+            margin-bottom: 0.25rem;
+            font-size: 1rem;
+        }
+
+        .event-info p {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            margin: 0;
+        }
+
+        .event-date {
+            background: var(--surface-light);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            color: var(--primary);
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--text-muted);
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--surface);
+            color: var(--text);
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            z-index: 1000;
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .toast.success {
+            border-left: 4px solid var(--success);
+        }
+
+        .toast.error {
+            border-left: 4px solid var(--error);
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .privacy-note {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            margin-top: 2rem;
+            padding: 1rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: 12px;
+        }
+
+        .privacy-note strong {
+            color: var(--primary);
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 1rem;
             }
             
-            // Store bones by name for animation
-            if (node.isBone) {
-                bones[node.name] = node;
+            .card {
+                padding: 1.5rem;
+            }
+            
+            .controls {
+                flex-direction: column;
+                width: 100%;
+            }
+            
+            button {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        /* Audio visualizer bars */
+        .visualizer {
+            display: flex;
+            gap: 4px;
+            height: 30px;
+            align-items: flex-end;
+            justify-content: center;
+            margin-top: 1rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .visualizer.active {
+            opacity: 1;
+        }
+
+        .bar {
+            width: 4px;
+            background: linear-gradient(to top, var(--primary), var(--secondary));
+            border-radius: 2px;
+            animation: wave 1s ease-in-out infinite;
+        }
+
+        .bar:nth-child(1) { animation-delay: 0s; height: 20%; }
+        .bar:nth-child(2) { animation-delay: 0.1s; height: 40%; }
+        .bar:nth-child(3) { animation-delay: 0.2s; height: 60%; }
+        .bar:nth-child(4) { animation-delay: 0.3s; height: 40%; }
+        .bar:nth-child(5) { animation-delay: 0.4s; height: 20%; }
+
+        @keyframes wave {
+            0%, 100% { transform: scaleY(0.5); }
+            50% { transform: scaleY(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-animation"></div>
+    
+    <div class="container">
+        <header>
+            <h1>Voice Journal</h1>
+            <p class="subtitle">Talk about your day, extract events, and sync to your calendar automatically</p>
+        </header>
+
+        <div class="card">
+            <div class="input-group">
+                <label for="email">Your Email Address</label>
+                <input type="email" id="email" placeholder="you@example.com" required>
+            </div>
+
+            <div class="mic-container">
+                <button class="mic-button" id="micBtn" aria-label="Start voice recording">
+                    🎤
+                </button>
+                <div class="visualizer" id="visualizer">
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                </div>
+                <span class="mic-status" id="micStatus">Tap microphone to start recording</span>
+            </div>
+
+            <div class="input-group">
+                <label for="journal">Your Journal Entry</label>
+                <textarea id="journal" placeholder="Start speaking or type your day here... Example: 'I have a meeting with Sarah tomorrow at 3pm and dinner with mom on Friday at 7pm'"></textarea>
+            </div>
+
+            <div class="controls">
+                <button class="btn-secondary" onclick="clearAll()">
+                    <span>🗑️</span> Clear
+                </button>
+                <button class="btn-primary" onclick="analyzeText()">
+                    <span>🔍</span> Extract Events
+                </button>
+                <button class="btn-success" onclick="sendEmail()" id="sendBtn">
+                    <span>📧</span> Send to Email
+                </button>
+            </div>
+
+            <div class="events-section" id="eventsSection">
+                <div class="events-header">
+                    <label>Detected Events</label>
+                    <span class="events-count" id="eventsCount">0 found</span>
+                </div>
+                <div id="eventsList"></div>
+                <div style="margin-top: 1rem; text-align: right;">
+                    <button class="btn-secondary" onclick="downloadICS()" style="font-size: 0.875rem;">
+                        <span>📅</span> Download Calendar File (.ics)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="privacy-note">
+            <strong>🔒 Privacy First:</strong> All processing happens in your browser. 
+            No data is sent to any server except your own email client when you choose to send.
+        </div>
+    </div>
+
+    <div class="toast" id="toast">
+        <span id="toastIcon">✓</span>
+        <span id="toastMessage">Message</span>
+    </div>
+
+    <script>
+        // Speech Recognition Setup
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition;
+        let isRecording = false;
+        let extractedEvents = [];
+
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = () => {
+                isRecording = true;
+                updateMicUI(true);
+                showToast('Recording started... Speak now', 'success');
+            };
+
+            recognition.onend = () => {
+                isRecording = false;
+                updateMicUI(false);
+            };
+
+            recognition.onresult = (event) => {
+                const textarea = document.getElementById('journal');
+                let finalTranscript = '';
+                let interimTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript + ' ';
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+
+                if (finalTranscript) {
+                    textarea.value += finalTranscript;
+                    analyzeText();
+                }
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error', event.error);
+                showToast('Error: ' + event.error, 'error');
+                isRecording = false;
+                updateMicUI(false);
+            };
+        }
+
+        // UI Functions
+        function updateMicUI(recording) {
+            const btn = document.getElementById('micBtn');
+            const status = document.getElementById('micStatus');
+            const visualizer = document.getElementById('visualizer');
+            
+            if (recording) {
+                btn.classList.add('listening');
+                status.textContent = 'Recording... Click to stop';
+                status.classList.add('recording');
+                visualizer.classList.add('active');
+            } else {
+                btn.classList.remove('listening');
+                status.textContent = 'Tap microphone to start recording';
+                status.classList.remove('recording');
+                visualizer.classList.remove('active');
+            }
+        }
+
+        document.getElementById('micBtn').addEventListener('click', () => {
+            if (!SpeechRecognition) {
+                showToast('Speech recognition not supported in this browser', 'error');
+                return;
+            }
+            
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                recognition.start();
             }
         });
-        
-        scene.add(avatar);
-        document.getElementById('loading').style.display = 'none';
-        
-        console.log('Available morphs:', morphMeshes[0]?.dictionary);
-        console.log('Available bones:', Object.keys(bones));
-        
-    }, undefined, (error) => {
-        console.error('Failed to load RPM avatar:', error);
-        document.getElementById('loading').textContent = 'Error Loading Avatar';
-    });
-}
 
-loadAvatar();
+        // Smart Date Parsing
+        function parseDateFromText(text) {
+            const events = [];
+            const today = new Date();
+            
+            // Common patterns
+            const patterns = [
+                // "tomorrow at 3pm" or "tomorrow at 3:30 pm"
+                {
+                    regex: /(tomorrow|today|next\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday))\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/gi,
+                    handler: (match, day, hour, minute, meridian) => {
+                        const date = new Date(today);
+                        const dayLower = day.toLowerCase();
+                        
+                        if (dayLower === 'tomorrow') {
+                            date.setDate(date.getDate() + 1);
+                        } else if (dayLower === 'today') {
+                            // keep today
+                        } else if (dayLower.includes('next')) {
+                            const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                            const targetDay = days.indexOf(dayLower.replace('next ', ''));
+                            const currentDay = date.getDay();
+                            const daysUntil = (targetDay + 7 - currentDay) % 7 || 7;
+                            date.setDate(date.getDate() + daysUntil);
+                        }
+                        
+                        let h = parseInt(hour);
+                        const m = minute ? parseInt(minute) : 0;
+                        
+                        if (meridian) {
+                            if (meridian.toLowerCase() === 'pm' && h !== 12) h += 12;
+                            if (meridian.toLowerCase() === 'am' && h === 12) h = 0;
+                        } else if (h < 8) {
+                            h += 12; // Assume afternoon for times < 8 if no am/pm
+                        }
+                        
+                        date.setHours(h, m, 0, 0);
+                        return date;
+                    }
+                },
+                // "on Friday at 7pm"
+                {
+                    regex: /on\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/gi,
+                    handler: (match, dayName, hour, minute, meridian) => {
+                        const date = new Date(today);
+                        const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                        const targetDay = days.indexOf(dayName.toLowerCase());
+                        const currentDay = date.getDay();
+                        let daysUntil = targetDay - currentDay;
+                        if (daysUntil <= 0) daysUntil += 7;
+                        date.setDate(date.getDate() + daysUntil);
+                        
+                        let h = parseInt(hour);
+                        const m = minute ? parseInt(minute) : 0;
+                        
+                        if (meridian) {
+                            if (meridian.toLowerCase() === 'pm' && h !== 12) h += 12;
+                            if (meridian.toLowerCase() === 'am' && h === 12) h = 0;
+                        }
+                        
+                        date.setHours(h, m, 0, 0);
+                        return date;
+                    }
+                },
+                // "next week" or "in 2 days"
+                {
+                    regex: /(in\s+(\d+)\s+days?|next\s+week)/gi,
+                    handler: (match, full, days) => {
+                        const date = new Date(today);
+                        if (days) {
+                            date.setDate(date.getDate() + parseInt(days));
+                        } else {
+                            date.setDate(date.getDate() + 7);
+                        }
+                        date.setHours(9, 0, 0, 0); // Default to 9am
+                        return date;
+                    }
+                }
+            ];
 
-// ============================================================
-// BLENDSHAPE CONTROL
-// ============================================================
-function setBlendShape(name, value) {
-    // Clamp value 0-1
-    value = Math.max(0, Math.min(1, value));
-    
-    morphMeshes.forEach(({ mesh, dictionary, influences }) => {
-        const index = dictionary[name];
-        if (index !== undefined) {
-            // Smooth interpolation
-            influences[index] = THREE.MathUtils.lerp(influences[index] || 0, value, CONFIG.smoothing);
+            // Look for event indicators
+            const eventIndicators = [
+                'meeting', 'call', 'appointment', 'lunch', 'dinner', 'breakfast',
+                'interview', 'deadline', 'due', 'party', 'event', 'conference',
+                'doctor', 'dentist', 'flight', 'trip', 'visit', 'session'
+            ];
+
+            // Split by common separators
+            const sentences = text.split(/[.!?]+|and then|also|, but|,/);
+            
+            sentences.forEach(sentence => {
+                const lowerSentence = sentence.toLowerCase();
+                
+                // Check if sentence contains event keywords
+                const hasEvent = eventIndicators.some(indicator => 
+                    lowerSentence.includes(indicator)
+                );
+                
+                if (hasEvent) {
+                    // Try to extract event title
+                    let title = sentence.trim();
+                    // Clean up the title
+                    title = title.replace(/^(I have|There's|I need to|Don't forget|Remember to)/i, '').trim();
+                    title = title.charAt(0).toUpperCase() + title.slice(1);
+                    
+                    // Try to find date/time
+                    let eventDate = null;
+                    
+                    for (const pattern of patterns) {
+                        pattern.regex.lastIndex = 0; // Reset regex
+                        const match = pattern.regex.exec(sentence);
+                        if (match) {
+                            eventDate = pattern.handler(match, match[1], match[2], match[3], match[4]);
+                            break;
+                        }
+                    }
+                    
+                    // If no specific time found but has "tomorrow" or day name
+                    if (!eventDate) {
+                        const tomorrowMatch = sentence.match(/tomorrow/i);
+                        const dayMatch = sentence.match(/on\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i);
+                        
+                        if (tomorrowMatch) {
+                            eventDate = new Date(today);
+                            eventDate.setDate(eventDate.getDate() + 1);
+                            eventDate.setHours(9, 0, 0, 0);
+                        } else if (dayMatch) {
+                            const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                            const targetDay = days.indexOf(dayMatch[1].toLowerCase());
+                            const currentDay = today.getDay();
+                            let daysUntil = targetDay - currentDay;
+                            if (daysUntil <= 0) daysUntil += 7;
+                            eventDate = new Date(today);
+                            eventDate.setDate(eventDate.getDate() + daysUntil);
+                            eventDate.setHours(9, 0, 0, 0);
+                        }
+                    }
+                    
+                    if (eventDate) {
+                        events.push({
+                            title: title.length > 50 ? title.substring(0, 50) + '...' : title,
+                            date: eventDate,
+                            originalText: sentence.trim()
+                        });
+                    }
+                }
+            });
+            
+            return events;
         }
-    });
-}
 
-function resetBlendShapes() {
-    morphMeshes.forEach(({ influences }) => {
-        for (let i = 0; i < influences.length; i++) {
-            influences[i] = THREE.MathUtils.lerp(influences[i], 0, 0.1);
+        function analyzeText() {
+            const text = document.getElementById('journal').value;
+            if (!text.trim()) {
+                document.getElementById('eventsSection').classList.remove('active');
+                return;
+            }
+            
+            extractedEvents = parseDateFromText(text);
+            displayEvents();
         }
-    });
-}
 
-// ============================================================
-// MEDIAPIPE LANDMARK MAPPING
-// ============================================================
-const FACE = {
-    // Key points
-    noseTip: 1,
-    noseBridge: 6,
-    forehead: 10,
-    chin: 152,
-    leftEyeOuter: 33,
-    leftEyeInner: 133,
-    leftEyeTop: 159,
-    leftEyeBottom: 145,
-    rightEyeOuter: 362,
-    rightEyeInner: 263,
-    rightEyeTop: 386,
-    rightEyeBottom: 374,
-    leftBrowInner: 105,
-    leftBrowOuter: 52,
-    rightBrowInner: 334,
-    rightBrowOuter: 282,
-    mouthLeft: 61,
-    mouthRight: 291,
-    mouthTop: 0,
-    mouthBottom: 17,
-    upperLipTop: 13,
-    lowerLipBottom: 14,
-    jawLeft: 234,
-    jawRight: 454
-};
-
-function getDistance(a, b) {
-    return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
-}
-
-function getEyeOpenness(landmarks, side) {
-    const top = landmarks[side === 'left' ? FACE.leftEyeTop : FACE.rightEyeTop];
-    const bottom = landmarks[side === 'left' ? FACE.leftEyeBottom : FACE.rightEyeBottom];
-    const outer = landmarks[side === 'left' ? FACE.leftEyeOuter : FACE.rightEyeOuter];
-    const inner = landmarks[side === 'left' ? FACE.leftEyeInner : FACE.rightEyeInner];
-    
-    const eyeHeight = getDistance(top, bottom);
-    const eyeWidth = getDistance(outer, inner);
-    
-    // Normalize: open eye is roughly 0.3-0.4 of width
-    const ratio = eyeHeight / eyeWidth;
-    const openness = (ratio - 0.1) / 0.3; // Normalize to 0-1
-    
-    return Math.max(0, Math.min(1, openness));
-}
-
-function getBrowRaise(landmarks, side) {
-    const brow = landmarks[side === 'left' ? FACE.leftBrowInner : FACE.rightBrowInner];
-    const eye = landmarks[side === 'left' ? FACE.leftEyeTop : FACE.rightEyeTop];
-    
-    // Vertical distance (Y increases downward in screen space)
-    const distance = eye.y - brow.y;
-    
-    // Calibrated neutral position
-    const neutral = side === 'left' ? calibration.browNeutral : calibration.browNeutral;
-    
-    return (distance - neutral) * 8; // Scale factor
-}
-
-function getMouthMetrics(landmarks) {
-    const top = landmarks[FACE.mouthTop];
-    const bottom = landmarks[FACE.mouthBottom];
-    const left = landmarks[FACE.mouthLeft];
-    const right = landmarks[FACE.mouthRight];
-    
-    const height = getDistance(top, bottom);
-    const width = getDistance(left, right);
-    
-    // Mouth open amount
-    const openRatio = height / width;
-    const openness = (openRatio - 0.1) / 0.4;
-    
-    // Smile/frown detection using lip corners vs center
-    const centerY = (top.y + bottom.y) / 2;
-    const cornerY = (left.y + right.y) / 2;
-    const smileFactor = (centerY - cornerY) * 10; // Positive = smile
-    
-    return {
-        open: Math.max(0, Math.min(1, openness)),
-        smile: Math.max(-1, Math.min(1, smileFactor))
-    };
-}
-
-function getHeadRotation(landmarks) {
-    const nose = landmarks[FACE.noseTip];
-    const leftEye = landmarks[FACE.leftEyeOuter];
-    const rightEye = landmarks[FACE.rightEyeOuter];
-    const chin = landmarks[FACE.chin];
-    const forehead = landmarks[FACE.forehead];
-    
-    // Calculate rotation from face geometry
-    const eyeLine = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
-    const roll = -eyeLine;
-    
-    // Yaw from nose position relative to face center
-    const faceCenterX = (leftEye.x + rightEye.x) / 2;
-    const yaw = (nose.x - faceCenterX) * 2.5;
-    
-    // Pitch from nose Z depth (landmarks have Z in camera space)
-    // Also use chin-forehead relationship
-    const faceHeight = getDistance(forehead, chin);
-    const noseHeightRatio = (nose.y - forehead.y) / faceHeight;
-    const pitch = (noseHeightRatio - 0.5) * 1.5 - nose.z * 2;
-    
-    return { x: pitch, y: yaw, z: roll };
-}
-
-function getJawMovement(landmarks) {
-    const jawLeft = landmarks[FACE.jawLeft];
-    const jawRight = landmarks[FACE.jawRight];
-    const chin = landmarks[FACE.chin];
-    
-    // Jaw shift left/right
-    const jawCenterX = (jawLeft.x + jawRight.x) / 2;
-    const chinOffsetX = chin.x - jawCenterX;
-    
-    // Jaw forward/back (using Z if available, else proxy from width)
-    const jawWidth = getDistance(jawLeft, jawRight);
-    
-    return {
-        leftRight: chinOffsetX * 4,
-        forward: 0 // Would need depth estimation
-    };
-}
-
-// ============================================================
-// MAIN TRACKING LOOP
-// ============================================================
-function onResults(results) {
-    if (!results.multiFaceLandmarks || !results.multiFaceLandmarks.length || !avatar) return;
-    
-    const lm = results.multiFaceLandmarks[0];
-    
-    // Reset all first (decay)
-    resetBlendShapes();
-    
-    // Eye tracking
-    const leftEyeOpen = getEyeOpenness(lm, 'left');
-    const rightEyeOpen = getEyeOpenness(lm, 'right');
-    
-    // Blink detection with symmetry
-    const avgEyeOpen = (leftEyeOpen + rightEyeOpen) / 2;
-    const isBlinking = avgEyeOpen < 0.2;
-    
-    if (isBlinking) {
-        setBlendShape(CONFIG.blendShapes.eyeBlinkLeft, 1 - avgEyeOpen);
-        setBlendShape(CONFIG.blendShapes.eyeBlinkRight, 1 - avgEyeOpen);
-    } else {
-        // Individual eye control
-        if (leftEyeOpen < 0.3) setBlendShape(CONFIG.blendShapes.eyeBlinkLeft, 1 - leftEyeOpen * 3);
-        if (rightEyeOpen < 0.3) setBlendShape(CONFIG.blendShapes.eyeBlinkRight, 1 - rightEyeOpen * 3);
-        
-        // Wide eyes
-        if (leftEyeOpen > 0.8) setBlendShape(CONFIG.blendShapes.eyeWideLeft, (leftEyeOpen - 0.8) * 2);
-        if (rightEyeOpen > 0.8) setBlendShape(CONFIG.blendShapes.eyeWideRight, (rightEyeOpen - 0.8) * 2);
-    }
-    
-    // Eyebrow tracking
-    const leftBrow = getBrowRaise(lm, 'left');
-    const rightBrow = getBrowRaise(lm, 'right');
-    
-    if (leftBrow > 0.1) setBlendShape(CONFIG.blendShapes.browOuterUpLeft, Math.min(leftBrow, 1));
-    if (rightBrow > 0.1) setBlendShape(CONFIG.blendShapes.browOuterUpRight, Math.min(rightBrow, 1));
-    
-    // Inner brow raise (surprise/worry)
-    const innerBrowRaise = Math.min(leftBrow, rightBrow);
-    if (innerBrowRaise > 0.2) {
-        setBlendShape(CONFIG.blendShapes.browInnerUp, Math.min(innerBrowRaise, 1));
-    }
-    
-    // Mouth tracking
-    const mouth = getMouthMetrics(lm);
-    
-    // Jaw open for mouth opening
-    setBlendShape(CONFIG.blendShapes.jawOpen, mouth.open);
-    setBlendShape(CONFIG.blendShapes.mouthOpen, mouth.open);
-    
-    // Smile / Frown
-    if (mouth.smile > 0.2) {
-        setBlendShape(CONFIG.blendShapes.mouthSmileLeft, Math.min(mouth.smile, 1));
-        setBlendShape(CONFIG.blendShapes.mouthSmileRight, Math.min(mouth.smile, 1));
-    } else if (mouth.smile < -0.2) {
-        setBlendShape(CONFIG.blendShapes.mouthFrownLeft, Math.min(-mouth.smile, 1));
-        setBlendShape(CONFIG.blendShapes.mouthFrownRight, Math.min(-mouth.smile, 1));
-    }
-    
-    // Head rotation
-    const rot = getHeadRotation(lm);
-    targetHeadRot.set(rot.x, rot.y, rot.z);
-    
-    // Jaw movement
-    const jaw = getJawMovement(lm);
-    if (Math.abs(jaw.leftRight) > 0.1) {
-        if (jaw.leftRight > 0) {
-            setBlendShape(CONFIG.blendShapes.jawRight, Math.min(jaw.leftRight, 1));
-        } else {
-            setBlendShape(CONFIG.blendShapes.jawLeft, Math.min(-jaw.leftRight, 1));
+        function displayEvents() {
+            const section = document.getElementById('eventsSection');
+            const list = document.getElementById('eventsList');
+            const count = document.getElementById('eventsCount');
+            
+            if (extractedEvents.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🔍</div>
+                        <p>No events detected yet. Try mentioning specific times like "meeting tomorrow at 3pm"</p>
+                    </div>
+                `;
+                section.classList.add('active');
+                count.textContent = '0 found';
+                return;
+            }
+            
+            count.textContent = `${extractedEvents.length} found`;
+            list.innerHTML = extractedEvents.map((event, index) => `
+                <div class="event-item">
+                    <div class="event-info">
+                        <h4>${escapeHtml(event.title)}</h4>
+                        <p>${formatDate(event.date)}</p>
+                    </div>
+                    <div class="event-date">
+                        ${event.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        <br>
+                        <small>${event.date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</small>
+                    </div>
+                </div>
+            `).join('');
+            
+            section.classList.add('active');
         }
-    }
-    
-    // Update debug
-    updateDebug({
-        leftEye: leftEyeOpen.toFixed(2),
-        rightEye: rightEyeOpen.toFixed(2),
-        mouth: mouth.open.toFixed(2),
-        smile: mouth.smile.toFixed(2),
-        head: `${rot.x.toFixed(2)}, ${rot.y.toFixed(2)}`
-    });
-}
 
-// ============================================================
-// ANIMATION LOOP
-// ============================================================
-function animate() {
-    requestAnimationFrame(animate);
-    
-    if (avatar) {
-        // Smooth head rotation
-        currentHeadRot.x = THREE.MathUtils.lerp(currentHeadRot.x, targetHeadRot.x, CONFIG.smoothing);
-        currentHeadRot.y = THREE.MathUtils.lerp(currentHeadRot.y, targetHeadRot.y, CONFIG.smoothing);
-        currentHeadRot.z = THREE.MathUtils.lerp(currentHeadRot.z, targetHeadRot.z, CONFIG.smoothing);
-        
-        // Apply to head bone if exists, else whole avatar
-        if (bones.Head) {
-            bones.Head.rotation.x = currentHeadRot.x;
-            bones.Head.rotation.y = currentHeadRot.y;
-            bones.Head.rotation.z = currentHeadRot.z;
-        } else if (bones.head) {
-            bones.head.rotation.x = currentHeadRot.x;
-            bones.head.rotation.y = currentHeadRot.y;
-            bones.head.rotation.z = currentHeadRot.z;
-        } else {
-            avatar.rotation.x = currentHeadRot.x * 0.5;
-            avatar.rotation.y = currentHeadRot.y * 0.5;
+        function formatDate(date) {
+            const options = { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' };
+            return date.toLocaleDateString('en-US', options);
         }
-        
-        // Subtle idle breathing
-        const time = Date.now() * 0.001;
-        if (bones.Spine) {
-            bones.Spine.rotation.x = Math.sin(time * 0.5) * 0.02;
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
-        if (bones.Chest) {
-            bones.Chest.rotation.x = Math.sin(time * 0.5 + 0.5) * 0.03;
+
+        function generateICS() {
+            if (extractedEvents.length === 0) return null;
+            
+            const now = new Date();
+            const timestamp = now.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+            
+            let icsContent = [
+                'BEGIN:VCALENDAR',
+                'VERSION:2.0',
+                'PRODID:-//Voice Journal//EN',
+                'CALSCALE:GREGORIAN',
+                'METHOD:PUBLISH',
+            ];
+            
+            extractedEvents.forEach((event, index) => {
+                const start = event.date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+                const end = new Date(event.date.getTime() + 60 * 60 * 1000); // 1 hour duration
+                const endStr = end.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+                const uid = `event-${index}-${Date.now()}@voicejournal`;
+                
+                icsContent = icsContent.concat([
+                    'BEGIN:VEVENT',
+                    `UID:${uid}`,
+                    `DTSTAMP:${timestamp}`,
+                    `DTSTART:${start}`,
+                    `DTEND:${endStr}`,
+                    `SUMMARY:${event.title}`,
+                    `DESCRIPTION:Extracted from Voice Journal\\n\\nOriginal text: ${event.originalText}`,
+                    'STATUS:CONFIRMED',
+                    'BEGIN:VALARM',
+                    'ACTION:DISPLAY',
+                    'DESCRIPTION:Reminder',
+                    'TRIGGER:-PT15M',
+                    'END:VALARM',
+                    'END:VEVENT'
+                ]);
+            });
+            
+            icsContent.push('END:VCALENDAR');
+            return icsContent.join('\r\n');
         }
-    }
-    
-    renderer.render(scene, camera);
-}
-animate();
 
-// ============================================================
-// MEDIAPIPE SETUP
-// ============================================================
-const faceMesh = new FaceMesh({
-    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-});
+        function downloadICS() {
+            const ics = generateICS();
+            if (!ics) {
+                showToast('No events to download', 'error');
+                return;
+            }
+            
+            const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `voice-journal-events-${new Date().toISOString().split('T')[0]}.ics`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+            
+            showToast('Calendar file downloaded!', 'success');
+        }
 
-faceMesh.setOptions({
-    maxNumFaces: 1,
-    refineLandmarks: true,
-    minDetectionConfidence: 0.5,
-    minTrackingConfidence: 0.5
-});
+        function sendEmail() {
+            const email = document.getElementById('email').value;
+            const journal = document.getElementById('journal').value;
+            
+            if (!email) {
+                showToast('Please enter your email address', 'error');
+                document.getElementById('email').focus();
+                return;
+            }
+            
+            if (!journal.trim()) {
+                showToast('Please enter some text first', 'error');
+                return;
+            }
+            
+            // Generate email content
+            let body = 'Voice Journal Entry\n\n';
+            body += journal + '\n\n';
+            
+            if (extractedEvents.length > 0) {
+                body += '--- EXTRACTED EVENTS ---\n\n';
+                extractedEvents.forEach(event => {
+                    body += `📅 ${event.title}\n`;
+                    body += `   When: ${formatDate(event.date)}\n\n`;
+                });
+                body += '\nICS calendar file attached (if supported by your email client).\n';
+            }
+            
+            body += '\n---\nSent via Voice Journal';
+            
+            // Create mailto link
+            const subject = `Voice Journal - ${new Date().toLocaleDateString()}`;
+            const mailtoLink = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            
+            // Also download ICS file automatically so they can attach it
+            if (extractedEvents.length > 0) {
+                downloadICS();
+                setTimeout(() => {
+                    window.location.href = mailtoLink;
+                }, 500);
+            } else {
+                window.location.href = mailtoLink;
+            }
+            
+            showToast('Opening your email client...', 'success');
+        }
 
-faceMesh.onResults(onResults);
+        function clearAll() {
+            if (confirm('Clear all text and events?')) {
+                document.getElementById('journal').value = '';
+                document.getElementById('email').value = '';
+                extractedEvents = [];
+                document.getElementById('eventsSection').classList.remove('active');
+                showToast('Cleared!', 'success');
+            }
+        }
 
-const cameraFeed = new Camera(document.getElementById('input_video'), {
-    onFrame: async () => { await faceMesh.send({ image: document.getElementById('input_video') }); },
-    width: 1280,
-    height: 720
-});
-cameraFeed.start();
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toastIcon');
+            const msg = document.getElementById('toastMessage');
+            
+            msg.textContent = message;
+            icon.textContent = type === 'success' ? '✓' : '⚠';
+            toast.className = `toast ${type} show`;
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
 
-// ============================================================
-// UI CONTROLS
-// ============================================================
-let debugMode = false;
-function toggleExpressionDebug() {
-    debugMode = !debugMode;
-    if (debugMode) {
-        // Visualize blendshape weights
-        morphMeshes.forEach(({ mesh }) => {
-            mesh.material.wireframe = true;
+        // Auto-analyze as user types (debounced)
+        let debounceTimer;
+        document.getElementById('journal').addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(analyzeText, 1000);
         });
-    } else {
-        morphMeshes.forEach(({ mesh }) => {
-            mesh.material.wireframe = false;
+
+        // Check for speech API support on load
+        window.addEventListener('load', () => {
+            if (!SpeechRecognition) {
+                document.getElementById('micStatus').textContent = 'Voice input not supported in this browser. Please type or use Chrome/Safari.';
+                document.getElementById('micBtn').style.opacity = '0.5';
+                document.getElementById('micBtn').style.cursor = 'not-allowed';
+            }
         });
-    }
-}
-
-function calibrate() {
-    // Set current expression as neutral
-    alert('Look neutral and click OK to calibrate');
-    // In real implementation, capture current landmark state as baseline
-}
-
-function resetView() {
-    camera.position.set(0, 0.1, 2.8);
-    targetHeadRot.set(0, 0, 0);
-}
-
-function updateDebug(data) {
-    if (!debugMode) return;
-    document.getElementById('debug').innerHTML = Object.entries(data)
-        .map(([k, v]) => `${k}: ${v}`).join('<br>');
-}
-
-// ============================================================
-// RESIZE
-// ============================================================
-window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-});
-</script>
+    </script>
 </body>
 </html>

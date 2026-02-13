@@ -3,75 +3,130 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anime GLB Face Tracking</title>
+    <title>RPM Face Tracking</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { overflow: hidden; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); }
+        body { overflow: hidden; background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%); }
         #input_video { display: none; }
         #output_canvas { display: block; width: 100vw; height: 100vh; }
         #loading {
             position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            color: #fff; font-family: 'Courier New', monospace; font-size: 22px;
-            pointer-events: none; letter-spacing: 2px;
-            text-shadow: 0 0 20px rgba(255, 100, 200, 0.8);
+            color: #fff; font-family: 'Inter', sans-serif; font-size: 18px;
+            pointer-events: none; letter-spacing: 3px;
+            text-transform: uppercase;
+            text-shadow: 0 0 30px rgba(0, 255, 255, 0.8);
             z-index: 100;
         }
-        #controls {
-            position: absolute; bottom: 20px; left: 50%;
+        #ui {
+            position: absolute; bottom: 30px; left: 50%;
             transform: translateX(-50%);
-            display: flex; gap: 10px;
+            display: flex; gap: 15px;
             z-index: 10;
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 30px;
+            backdrop-filter: blur(10px);
         }
         button {
-            background: rgba(255, 100, 200, 0.2);
-            border: 1px solid rgba(255, 100, 200, 0.5);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
             color: #fff;
-            padding: 10px 20px;
+            padding: 12px 24px;
             cursor: pointer;
-            font-family: 'Courier New', monospace;
-            transition: all 0.3s;
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-radius: 20px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
         }
         button:hover {
-            background: rgba(255, 100, 200, 0.4);
-            box-shadow: 0 0 15px rgba(255, 100, 200, 0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+        #debug {
+            position: absolute; top: 20px; left: 20px;
+            color: rgba(255,255,255,0.6);
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 10;
         }
     </style>
-    <!-- Three.js and GLTF Loader -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-    <!-- MediaPipe -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 </head>
 <body>
 
-<div id="loading">Loading Anime Avatar...</div>
+<div id="loading">Loading Avatar...</div>
 <video id="input_video" playsinline></video>
 <canvas id="output_canvas"></canvas>
-<div id="controls">
-    <button onclick="toggleWireframe()">Wireframe</button>
-    <button onclick="resetCamera()">Reset View</button>
+<div id="debug">Tracking: Active</div>
+<div id="ui">
+    <button onclick="toggleExpressionDebug()">Debug Vis</button>
+    <button onclick="calibrate()">Calibrate</button>
+    <button onclick="resetView()">Reset</button>
 </div>
 
 <script>
 // ============================================================
-// CONFIGURATION
+// READYPLAYERME OPTIMIZED CONFIG
 // ============================================================
 const CONFIG = {
-    modelUrl: 'https://models.readyplayer.me/6398a5d2b4f5f6c0d8c9e7f3.glb',
+    modelUrl: 'https://models.readyplayer.me/65a1acf7c941dcc8caf44e6c.glb?morphTargets=ARKit&textureAtlas=1024',
     
-    scale: 1.5,
-    smoothing: 0.3, // 0-1, higher = smoother but more latency
+    // RPM uses ARKit blendshapes - these are the standard names
+    blendShapes: {
+        // Eyes
+        eyeBlinkLeft: 'eyeBlinkLeft',
+        eyeBlinkRight: 'eyeBlinkRight',
+        eyeWideLeft: 'eyeWideLeft',
+        eyeWideRight: 'eyeWideRight',
+        eyeSquintLeft: 'eyeSquintLeft',
+        eyeSquintRight: 'eyeSquintRight',
+        
+        // Brows
+        browInnerUp: 'browInnerUp',
+        browOuterUpLeft: 'browOuterUpLeft',
+        browOuterUpRight: 'browOuterUpRight',
+        browDownLeft: 'browDownLeft',
+        browDownRight: 'browDownRight',
+        
+        // Nose
+        noseSneerLeft: 'noseSneerLeft',
+        noseSneerRight: 'noseSneerRight',
+        
+        // Mouth
+        mouthOpen: 'jawOpen', // RPM uses jawOpen for mouth
+        mouthSmileLeft: 'mouthSmileLeft',
+        mouthSmileRight: 'mouthSmileRight',
+        mouthFrownLeft: 'mouthFrownLeft',
+        mouthFrownRight: 'mouthFrownRight',
+        mouthShrugUpper: 'mouthShrugUpper',
+        mouthShrugLower: 'mouthShrugLower',
+        mouthRollUpper: 'mouthRollUpper',
+        mouthRollLower: 'mouthRollLower',
+        mouthPucker: 'mouthPucker',
+        mouthFunnel: 'mouthFunnel',
+        
+        // Jaw
+        jawOpen: 'jawOpen',
+        jawLeft: 'jawLeft',
+        jawRight: 'jawRight',
+        jawForward: 'jawForward',
+        
+        // Cheeks
+        cheekPuff: 'cheekPuff',
+        cheekSquintLeft: 'cheekSquintLeft',
+        cheekSquintRight: 'cheekSquintRight'
+    },
     
-    // Landmark to bone/blendshape mapping weights
-    influenceStrength: {
-        brow: 1.0,
-        eye: 1.2,
-        mouth: 1.0,
-        jaw: 0.8,
-        headRotation: 1.0
-    }
+    smoothing: 0.15,
+    headScale: 2.2,
+    positionSmoothing: 0.1
 };
 
 // ============================================================
@@ -79,335 +134,351 @@ const CONFIG = {
 // ============================================================
 const canvas = document.getElementById('output_canvas');
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1a1a2e);
-scene.fog = new THREE.Fog(0x1a1a2e, 5, 20);
+scene.background = new THREE.Color(0x0f0c29);
+scene.fog = new THREE.FogExp2(0x0f0c29, 0.02);
 
-const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 0, 3.5);
+const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(0, 0.1, 2.8);
 
-const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-renderer.setPixelRatio(window.devicePixelRatio);
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
 
-// Lighting setup for anime style
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+// Anime-style lighting
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
 scene.add(ambientLight);
 
-const mainLight = new THREE.DirectionalLight(0xffd1dc, 1.2);
-mainLight.position.set(2, 3, 2);
-mainLight.castShadow = true;
-mainLight.shadow.mapSize.width = 2048;
-mainLight.shadow.mapSize.height = 2048;
-scene.add(mainLight);
+const keyLight = new THREE.DirectionalLight(0xfff0dd, 1.0);
+keyLight.position.set(2, 3, 2);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(2048, 2048);
+keyLight.shadow.bias = -0.0001;
+scene.add(keyLight);
 
-const rimLight = new THREE.SpotLight(0x00ffff, 0.8);
-rimLight.position.set(-3, 2, -2);
+const rimLight = new THREE.SpotLight(0x00ffff, 2.0);
+rimLight.position.set(-3, 2, -3);
 rimLight.lookAt(0, 0, 0);
 scene.add(rimLight);
 
-const fillLight = new THREE.PointLight(0xff69b4, 0.5);
-fillLight.position.set(0, -1, 2);
+const fillLight = new THREE.PointLight(0xff69b4, 0.4);
+fillLight.position.set(2, -1, 2);
 scene.add(fillLight);
 
 // ============================================================
-// GLB MODEL LOADING
+// RPM AVATAR SYSTEM
 // ============================================================
 let avatar = null;
-let morphTargets = {};
+let morphMeshes = [];
 let bones = {};
-let mixer = null;
-let targetRotations = { x: 0, y: 0, z: 0 };
-let currentRotations = { x: 0, y: 0, z: 0 };
+let targetHeadRot = new THREE.Euler(0, 0, 0);
+let currentHeadRot = new THREE.Euler(0, 0, 0);
+let targetHeadPos = new THREE.Vector3(0, 0, 0);
+let currentHeadPos = new THREE.Vector3(0, 0, 0);
 
-// Create a default anime-style head geometry if no GLB loads
-function createDefaultAnimeHead() {
-    const group = new THREE.Group();
-    
-    // Head sphere (stylized)
-    const headGeo = new THREE.SphereGeometry(0.6, 32, 32);
-    // Flatten slightly for anime look
-    headGeo.scale(0.85, 1, 0.9);
-    const headMat = new THREE.MeshToonMaterial({ 
-        color: 0xffe0bd,
-        gradientMap: null
-    });
-    const head = new THREE.Mesh(headGeo, headMat);
-    head.castShadow = true;
-    head.receiveShadow = true;
-    group.add(head);
-    
-    // Eyes (large anime style)
-    const eyeGeo = new THREE.SphereGeometry(0.12, 16, 16);
-    eyeGeo.scale(1, 1.3, 0.5);
-    const eyeMat = new THREE.MeshToonMaterial({ color: 0x3366cc, emissive: 0x112244 });
-    
-    const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
-    leftEye.position.set(-0.18, 0.05, 0.45);
-    group.add(leftEye);
-    
-    const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
-    rightEye.position.set(0.18, 0.05, 0.45);
-    group.add(rightEye);
-    
-    // Eye highlights
-    const highlightGeo = new THREE.SphereGeometry(0.04, 8, 8);
-    const highlightMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    
-    const leftHighlight = new THREE.Mesh(highlightGeo, highlightMat);
-    leftHighlight.position.set(-0.15, 0.1, 0.52);
-    group.add(leftHighlight);
-    
-    const rightHighlight = new THREE.Mesh(highlightGeo, highlightMat);
-    rightHighlight.position.set(0.21, 0.1, 0.52);
-    group.add(rightHighlight);
-    
-    // Hair (simplified anime style)
-    const hairGeo = new THREE.SphereGeometry(0.65, 32, 32, 0, Math.PI * 2, 0, Math.PI * 0.45);
-    const hairMat = new THREE.MeshToonMaterial({ color: 0x2a2a4a });
-    const hair = new THREE.Mesh(hairGeo, hairMat);
-    hair.position.y = 0.05;
-    hair.rotation.x = Math.PI;
-    hair.castShadow = true;
-    group.add(hair);
-    
-    // Bangs
-    for (let i = 0; i < 5; i++) {
-        const bangGeo = new THREE.ConeGeometry(0.08, 0.4, 4);
-        const bang = new THREE.Mesh(bangGeo, hairMat);
-        bang.position.set((i - 2) * 0.15, 0.5, 0.45);
-        bang.rotation.x = -0.3;
-        bang.rotation.z = (i - 2) * 0.1;
-        group.add(bang);
-    }
-    
-    return group;
-}
-
-function loadModel() {
-    const loader = new THREE.GLTFLoader();
-    
-    loader.load(CONFIG.modelUrl, 
-        (gltf) => {
-            avatar = gltf.scene;
-            
-            // Center and scale
-            const box = new THREE.Box3().setFromObject(avatar);
-            const center = box.getCenter(new THREE.Vector3());
-            const size = box.getSize(new THREE.Vector3());
-            const maxDim = Math.max(size.x, size.y, size.z);
-            const scale = CONFIG.scale / maxDim;
-            
-            avatar.scale.setScalar(scale);
-            avatar.position.sub(center.multiplyScalar(scale));
-            
-            // Setup morph targets and bones
-            avatar.traverse((child) => {
-                if (child.isMesh) {
-                    child.castShadow = true;
-                    child.receiveShadow = true;
-                    
-                    // Store morph targets if they exist
-                    if (child.morphTargetDictionary) {
-                        Object.keys(child.morphTargetDictionary).forEach(key => {
-                            morphTargets[key] = {
-                                mesh: child,
-                                index: child.morphTargetDictionary[key]
-                            };
-                        });
-                    }
-                }
-                
-                if (child.isBone) {
-                    bones[child.name] = child;
-                }
-            });
-            
-            scene.add(avatar);
-            document.getElementById('loading').style.display = 'none';
-            
-            // Setup animation mixer if animations exist
-            if (gltf.animations && gltf.animations.length) {
-                mixer = new THREE.AnimationMixer(avatar);
-            }
-        },
-        (progress) => {
-            console.log('Loading:', (progress.loaded / progress.total * 100) + '%');
-        },
-        (error) => {
-            console.warn('GLB load failed, using default anime head:', error);
-            avatar = createDefaultAnimeHead();
-            scene.add(avatar);
-            document.getElementById('loading').style.display = 'none';
-        }
-    );
-}
-
-loadModel();
-
-// ============================================================
-// MEDIAPIPE FACE TRACKING
-// ============================================================
-const videoElement = document.getElementById('input_video');
-
-// Key landmark indices for facial features
-const LANDMARKS = {
-    // Face bounds for head rotation calculation
-    leftEye: [33, 133, 157, 158, 159, 160, 161, 173, 246],
-    rightEye: [362, 263, 384, 385, 386, 387, 388, 398, 466],
-    leftEyebrow: [70, 63, 105, 66, 107, 55, 65, 52, 53, 46],
-    rightEyebrow: [336, 296, 334, 293, 300, 285, 295, 282, 283, 276],
-    nose: [1, 2, 3, 4, 5, 6, 168, 197, 195, 5, 4],
-    upperLip: [61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291],
-    lowerLip: [146, 91, 181, 84, 17, 314, 405, 321, 375, 291],
-    jaw: [10, 152, 234, 454, 323, 93, 132, 361, 172, 136, 150, 149, 176, 148, 152],
-    faceOval: [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109]
+// Expression calibration baseline
+let calibration = {
+    eyeOpenness: 1,
+    mouthNeutral: 0,
+    browNeutral: 0
 };
 
-function getLandmarkCenter(landmarks, indices) {
-    let x = 0, y = 0, z = 0;
-    indices.forEach(idx => {
-        x += landmarks[idx].x;
-        y += landmarks[idx].y;
-        z += landmarks[idx].z;
+function loadAvatar() {
+    const loader = new THREE.GLTFLoader();
+    
+    loader.load(CONFIG.modelUrl, (gltf) => {
+        avatar = gltf.scene;
+        
+        // RPM optimization: Center and scale properly
+        const box = new THREE.Box3().setFromObject(avatar);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+        
+        // RPM avatars are typically ~1.8m tall, scale to fit view
+        const scale = CONFIG.headScale / size.y;
+        avatar.scale.setScalar(scale);
+        avatar.position.sub(center.multiplyScalar(scale));
+        avatar.position.y += 0.1; // Slight offset for framing
+        
+        // Collect all morph target meshes
+        avatar.traverse((node) => {
+            if (node.isMesh && node.morphTargetDictionary) {
+                morphMeshes.push({
+                    mesh: node,
+                    dictionary: node.morphTargetDictionary,
+                    influences: node.morphTargetInfluences
+                });
+                
+                // Optimize materials for anime look
+                if (node.material) {
+                    node.material.roughness = 0.4;
+                    node.material.metalness = 0.1;
+                    if (node.material.map) {
+                        node.material.map.encoding = THREE.sRGBEncoding;
+                    }
+                }
+            }
+            
+            // Store bones by name for animation
+            if (node.isBone) {
+                bones[node.name] = node;
+            }
+        });
+        
+        scene.add(avatar);
+        document.getElementById('loading').style.display = 'none';
+        
+        console.log('Available morphs:', morphMeshes[0]?.dictionary);
+        console.log('Available bones:', Object.keys(bones));
+        
+    }, undefined, (error) => {
+        console.error('Failed to load RPM avatar:', error);
+        document.getElementById('loading').textContent = 'Error Loading Avatar';
     });
+}
+
+loadAvatar();
+
+// ============================================================
+// BLENDSHAPE CONTROL
+// ============================================================
+function setBlendShape(name, value) {
+    // Clamp value 0-1
+    value = Math.max(0, Math.min(1, value));
+    
+    morphMeshes.forEach(({ mesh, dictionary, influences }) => {
+        const index = dictionary[name];
+        if (index !== undefined) {
+            // Smooth interpolation
+            influences[index] = THREE.MathUtils.lerp(influences[index] || 0, value, CONFIG.smoothing);
+        }
+    });
+}
+
+function resetBlendShapes() {
+    morphMeshes.forEach(({ influences }) => {
+        for (let i = 0; i < influences.length; i++) {
+            influences[i] = THREE.MathUtils.lerp(influences[i], 0, 0.1);
+        }
+    });
+}
+
+// ============================================================
+// MEDIAPIPE LANDMARK MAPPING
+// ============================================================
+const FACE = {
+    // Key points
+    noseTip: 1,
+    noseBridge: 6,
+    forehead: 10,
+    chin: 152,
+    leftEyeOuter: 33,
+    leftEyeInner: 133,
+    leftEyeTop: 159,
+    leftEyeBottom: 145,
+    rightEyeOuter: 362,
+    rightEyeInner: 263,
+    rightEyeTop: 386,
+    rightEyeBottom: 374,
+    leftBrowInner: 105,
+    leftBrowOuter: 52,
+    rightBrowInner: 334,
+    rightBrowOuter: 282,
+    mouthLeft: 61,
+    mouthRight: 291,
+    mouthTop: 0,
+    mouthBottom: 17,
+    upperLipTop: 13,
+    lowerLipBottom: 14,
+    jawLeft: 234,
+    jawRight: 454
+};
+
+function getDistance(a, b) {
+    return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
+}
+
+function getEyeOpenness(landmarks, side) {
+    const top = landmarks[side === 'left' ? FACE.leftEyeTop : FACE.rightEyeTop];
+    const bottom = landmarks[side === 'left' ? FACE.leftEyeBottom : FACE.rightEyeBottom];
+    const outer = landmarks[side === 'left' ? FACE.leftEyeOuter : FACE.rightEyeOuter];
+    const inner = landmarks[side === 'left' ? FACE.leftEyeInner : FACE.rightEyeInner];
+    
+    const eyeHeight = getDistance(top, bottom);
+    const eyeWidth = getDistance(outer, inner);
+    
+    // Normalize: open eye is roughly 0.3-0.4 of width
+    const ratio = eyeHeight / eyeWidth;
+    const openness = (ratio - 0.1) / 0.3; // Normalize to 0-1
+    
+    return Math.max(0, Math.min(1, openness));
+}
+
+function getBrowRaise(landmarks, side) {
+    const brow = landmarks[side === 'left' ? FACE.leftBrowInner : FACE.rightBrowInner];
+    const eye = landmarks[side === 'left' ? FACE.leftEyeTop : FACE.rightEyeTop];
+    
+    // Vertical distance (Y increases downward in screen space)
+    const distance = eye.y - brow.y;
+    
+    // Calibrated neutral position
+    const neutral = side === 'left' ? calibration.browNeutral : calibration.browNeutral;
+    
+    return (distance - neutral) * 8; // Scale factor
+}
+
+function getMouthMetrics(landmarks) {
+    const top = landmarks[FACE.mouthTop];
+    const bottom = landmarks[FACE.mouthBottom];
+    const left = landmarks[FACE.mouthLeft];
+    const right = landmarks[FACE.mouthRight];
+    
+    const height = getDistance(top, bottom);
+    const width = getDistance(left, right);
+    
+    // Mouth open amount
+    const openRatio = height / width;
+    const openness = (openRatio - 0.1) / 0.4;
+    
+    // Smile/frown detection using lip corners vs center
+    const centerY = (top.y + bottom.y) / 2;
+    const cornerY = (left.y + right.y) / 2;
+    const smileFactor = (centerY - cornerY) * 10; // Positive = smile
+    
     return {
-        x: x / indices.length,
-        y: y / indices.length,
-        z: z / indices.length
+        open: Math.max(0, Math.min(1, openness)),
+        smile: Math.max(-1, Math.min(1, smileFactor))
     };
 }
 
-function getEyeOpenness(landmarks, eyeIndices) {
-    // Calculate eye height vs width ratio
-    const top = landmarks[eyeIndices[2]]; // upper eyelid
-    const bottom = landmarks[eyeIndices[4]]; // lower eyelid
-    const left = landmarks[eyeIndices[0]];
-    const right = landmarks[eyeIndices[1]];
+function getHeadRotation(landmarks) {
+    const nose = landmarks[FACE.noseTip];
+    const leftEye = landmarks[FACE.leftEyeOuter];
+    const rightEye = landmarks[FACE.rightEyeOuter];
+    const chin = landmarks[FACE.chin];
+    const forehead = landmarks[FACE.forehead];
     
-    const height = Math.sqrt(
-        Math.pow(top.x - bottom.x, 2) + 
-        Math.pow(top.y - bottom.y, 2)
-    );
-    const width = Math.sqrt(
-        Math.pow(left.x - right.x, 2) + 
-        Math.pow(left.y - right.y, 2)
-    );
+    // Calculate rotation from face geometry
+    const eyeLine = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
+    const roll = -eyeLine;
     
-    return Math.min(height / width * 3, 1); // Normalize
+    // Yaw from nose position relative to face center
+    const faceCenterX = (leftEye.x + rightEye.x) / 2;
+    const yaw = (nose.x - faceCenterX) * 2.5;
+    
+    // Pitch from nose Z depth (landmarks have Z in camera space)
+    // Also use chin-forehead relationship
+    const faceHeight = getDistance(forehead, chin);
+    const noseHeightRatio = (nose.y - forehead.y) / faceHeight;
+    const pitch = (noseHeightRatio - 0.5) * 1.5 - nose.z * 2;
+    
+    return { x: pitch, y: yaw, z: roll };
 }
 
-function getMouthOpenness(landmarks) {
-    const upperLip = getLandmarkCenter(landmarks, LANDMARKS.upperLip);
-    const lowerLip = getLandmarkCenter(landmarks, LANDMARKS.lowerLip);
+function getJawMovement(landmarks) {
+    const jawLeft = landmarks[FACE.jawLeft];
+    const jawRight = landmarks[FACE.jawRight];
+    const chin = landmarks[FACE.chin];
     
-    const mouthHeight = Math.sqrt(
-        Math.pow(upperLip.x - lowerLip.x, 2) +
-        Math.pow(upperLip.y - lowerLip.y, 2)
-    );
+    // Jaw shift left/right
+    const jawCenterX = (jawLeft.x + jawRight.x) / 2;
+    const chinOffsetX = chin.x - jawCenterX;
     
-    // Normalize based on face size
-    const faceWidth = Math.sqrt(
-        Math.pow(landmarks[234].x - landmarks[454].x, 2) +
-        Math.pow(landmarks[234].y - landmarks[454].y, 2)
-    );
+    // Jaw forward/back (using Z if available, else proxy from width)
+    const jawWidth = getDistance(jawLeft, jawRight);
     
-    return Math.min(mouthHeight / faceWidth * 4, 1.2);
+    return {
+        leftRight: chinOffsetX * 4,
+        forward: 0 // Would need depth estimation
+    };
 }
 
-function getEyebrowRaise(landmarks, isLeft) {
-    const browIndices = isLeft ? LANDMARKS.leftEyebrow : LANDMARKS.rightEyebrow;
-    const brow = getLandmarkCenter(landmarks, browIndices);
-    const eye = getLandmarkCenter(landmarks, isLeft ? LANDMARKS.leftEye : LANDMARKS.rightEye);
-    
-    // Distance between eyebrow and eye
-    return (brow.y - eye.y) * 10; // Scale factor
-}
-
+// ============================================================
+// MAIN TRACKING LOOP
+// ============================================================
 function onResults(results) {
-    if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0 || !avatar) return;
+    if (!results.multiFaceLandmarks || !results.multiFaceLandmarks.length || !avatar) return;
     
     const lm = results.multiFaceLandmarks[0];
     
-    // Calculate head rotation from face orientation
-    const nose = getLandmarkCenter(lm, LANDMARKS.nose);
-    const leftEye = getLandmarkCenter(lm, LANDMARKS.leftEye);
-    const rightEye = getLandmarkCenter(lm, LANDMARKS.rightEye);
-    const chin = lm[152];
-    const forehead = lm[10];
+    // Reset all first (decay)
+    resetBlendShapes();
     
-    // Calculate rotation angles
-    const eyeLine = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
-    const headTilt = -eyeLine; // Roll
+    // Eye tracking
+    const leftEyeOpen = getEyeOpenness(lm, 'left');
+    const rightEyeOpen = getEyeOpenness(lm, 'right');
     
-    const faceDepth = Math.atan2(nose.z - (leftEye.z + rightEye.z) / 2, 
-                                Math.abs(rightEye.x - leftEye.x));
-    const headYaw = (nose.x - 0.5) * 2; // Left/right turn
-    const headPitch = (nose.y - 0.5) * 2; // Up/down
+    // Blink detection with symmetry
+    const avgEyeOpen = (leftEyeOpen + rightEyeOpen) / 2;
+    const isBlinking = avgEyeOpen < 0.2;
     
-    // Apply smoothing
-    targetRotations = {
-        x: headPitch * CONFIG.influenceStrength.headRotation,
-        y: headYaw * CONFIG.influenceStrength.headRotation,
-        z: headTilt * CONFIG.influenceStrength.headRotation
-    };
-    
-    // Apply facial expressions
-    const leftEyeOpen = getEyeOpenness(lm, [33, 133, 157, 158, 159, 160, 161]);
-    const rightEyeOpen = getEyeOpenness(lm, [362, 263, 384, 385, 386, 387, 388]);
-    const mouthOpen = getMouthOpenness(lm);
-    const leftBrowRaise = getEyebrowRaise(lm, true);
-    const rightBrowRaise = getEyebrowRaise(lm, false);
-    
-    // Apply to morph targets if they exist
-    Object.keys(morphTargets).forEach(key => {
-        const target = morphTargets[key];
-        const name = key.toLowerCase();
+    if (isBlinking) {
+        setBlendShape(CONFIG.blendShapes.eyeBlinkLeft, 1 - avgEyeOpen);
+        setBlendShape(CONFIG.blendShapes.eyeBlinkRight, 1 - avgEyeOpen);
+    } else {
+        // Individual eye control
+        if (leftEyeOpen < 0.3) setBlendShape(CONFIG.blendShapes.eyeBlinkLeft, 1 - leftEyeOpen * 3);
+        if (rightEyeOpen < 0.3) setBlendShape(CONFIG.blendShapes.eyeBlinkRight, 1 - rightEyeOpen * 3);
         
-        let value = 0;
-        
-        // Map morph targets to expressions
-        if (name.includes('eye') && name.includes('blink')) {
-            value = 1 - ((leftEyeOpen + rightEyeOpen) / 2);
-        } else if (name.includes('eye') && name.includes('wide')) {
-            value = Math.max(leftBrowRaise, rightBrowRaise) * 0.5;
-        } else if (name.includes('mouth') && name.includes('open')) {
-            value = mouthOpen;
-        } else if (name.includes('brow') && name.includes('up')) {
-            value = (leftBrowRaise + rightBrowRaise) / 2;
-        } else if (name.includes('jaw') && name.includes('open')) {
-            value = mouthOpen * 0.7;
-        }
-        
-        target.mesh.morphTargetInfluences[target.index] = THREE.MathUtils.lerp(
-            target.mesh.morphTargetInfluences[target.index] || 0,
-            value,
-            CONFIG.smoothing
-        );
-    });
-    
-    // Animate default head parts if no morph targets
-    if (Object.keys(morphTargets).length === 0) {
-        animateDefaultHead(leftEyeOpen, rightEyeOpen, mouthOpen, leftBrowRaise, rightBrowRaise);
+        // Wide eyes
+        if (leftEyeOpen > 0.8) setBlendShape(CONFIG.blendShapes.eyeWideLeft, (leftEyeOpen - 0.8) * 2);
+        if (rightEyeOpen > 0.8) setBlendShape(CONFIG.blendShapes.eyeWideRight, (rightEyeOpen - 0.8) * 2);
     }
-}
-
-function animateDefaultHead(leftEye, rightEye, mouth, leftBrow, rightBrow) {
-    // Find and animate eye meshes
-    avatar.children.forEach(child => {
-        if (child.geometry && child.geometry.type === 'SphereGeometry') {
-            // Scale eyes based on openness
-            if (child.position.x < 0) { // Left eye
-                child.scale.y = 1.3 * leftEye;
-            } else if (child.position.x > 0) { // Right eye
-                child.scale.y = 1.3 * rightEye;
-            }
-        }
-    });
     
-    // Mouth animation (if we had a mouth mesh)
-    // For now, head rotation is the main animation
+    // Eyebrow tracking
+    const leftBrow = getBrowRaise(lm, 'left');
+    const rightBrow = getBrowRaise(lm, 'right');
+    
+    if (leftBrow > 0.1) setBlendShape(CONFIG.blendShapes.browOuterUpLeft, Math.min(leftBrow, 1));
+    if (rightBrow > 0.1) setBlendShape(CONFIG.blendShapes.browOuterUpRight, Math.min(rightBrow, 1));
+    
+    // Inner brow raise (surprise/worry)
+    const innerBrowRaise = Math.min(leftBrow, rightBrow);
+    if (innerBrowRaise > 0.2) {
+        setBlendShape(CONFIG.blendShapes.browInnerUp, Math.min(innerBrowRaise, 1));
+    }
+    
+    // Mouth tracking
+    const mouth = getMouthMetrics(lm);
+    
+    // Jaw open for mouth opening
+    setBlendShape(CONFIG.blendShapes.jawOpen, mouth.open);
+    setBlendShape(CONFIG.blendShapes.mouthOpen, mouth.open);
+    
+    // Smile / Frown
+    if (mouth.smile > 0.2) {
+        setBlendShape(CONFIG.blendShapes.mouthSmileLeft, Math.min(mouth.smile, 1));
+        setBlendShape(CONFIG.blendShapes.mouthSmileRight, Math.min(mouth.smile, 1));
+    } else if (mouth.smile < -0.2) {
+        setBlendShape(CONFIG.blendShapes.mouthFrownLeft, Math.min(-mouth.smile, 1));
+        setBlendShape(CONFIG.blendShapes.mouthFrownRight, Math.min(-mouth.smile, 1));
+    }
+    
+    // Head rotation
+    const rot = getHeadRotation(lm);
+    targetHeadRot.set(rot.x, rot.y, rot.z);
+    
+    // Jaw movement
+    const jaw = getJawMovement(lm);
+    if (Math.abs(jaw.leftRight) > 0.1) {
+        if (jaw.leftRight > 0) {
+            setBlendShape(CONFIG.blendShapes.jawRight, Math.min(jaw.leftRight, 1));
+        } else {
+            setBlendShape(CONFIG.blendShapes.jawLeft, Math.min(-jaw.leftRight, 1));
+        }
+    }
+    
+    // Update debug
+    updateDebug({
+        leftEye: leftEyeOpen.toFixed(2),
+        rightEye: rightEyeOpen.toFixed(2),
+        mouth: mouth.open.toFixed(2),
+        smile: mouth.smile.toFixed(2),
+        head: `${rot.x.toFixed(2)}, ${rot.y.toFixed(2)}`
+    });
 }
 
 // ============================================================
@@ -416,22 +487,35 @@ function animateDefaultHead(leftEye, rightEye, mouth, leftBrow, rightBrow) {
 function animate() {
     requestAnimationFrame(animate);
     
-    // Smooth rotation interpolation
-    currentRotations.x = THREE.MathUtils.lerp(currentRotations.x, targetRotations.x, CONFIG.smoothing);
-    currentRotations.y = THREE.MathUtils.lerp(currentRotations.y, targetRotations.y, CONFIG.smoothing);
-    currentRotations.z = THREE.MathUtils.lerp(currentRotations.z, targetRotations.z, CONFIG.smoothing);
-    
     if (avatar) {
-        avatar.rotation.x = currentRotations.x;
-        avatar.rotation.y = currentRotations.y;
-        avatar.rotation.z = currentRotations.z;
+        // Smooth head rotation
+        currentHeadRot.x = THREE.MathUtils.lerp(currentHeadRot.x, targetHeadRot.x, CONFIG.smoothing);
+        currentHeadRot.y = THREE.MathUtils.lerp(currentHeadRot.y, targetHeadRot.y, CONFIG.smoothing);
+        currentHeadRot.z = THREE.MathUtils.lerp(currentHeadRot.z, targetHeadRot.z, CONFIG.smoothing);
         
-        // Add subtle idle animation
+        // Apply to head bone if exists, else whole avatar
+        if (bones.Head) {
+            bones.Head.rotation.x = currentHeadRot.x;
+            bones.Head.rotation.y = currentHeadRot.y;
+            bones.Head.rotation.z = currentHeadRot.z;
+        } else if (bones.head) {
+            bones.head.rotation.x = currentHeadRot.x;
+            bones.head.rotation.y = currentHeadRot.y;
+            bones.head.rotation.z = currentHeadRot.z;
+        } else {
+            avatar.rotation.x = currentHeadRot.x * 0.5;
+            avatar.rotation.y = currentHeadRot.y * 0.5;
+        }
+        
+        // Subtle idle breathing
         const time = Date.now() * 0.001;
-        avatar.position.y = Math.sin(time) * 0.02;
+        if (bones.Spine) {
+            bones.Spine.rotation.x = Math.sin(time * 0.5) * 0.02;
+        }
+        if (bones.Chest) {
+            bones.Chest.rotation.x = Math.sin(time * 0.5 + 0.5) * 0.03;
+        }
     }
-    
-    if (mixer) mixer.update(0.016);
     
     renderer.render(scene, camera);
 }
@@ -440,7 +524,7 @@ animate();
 // ============================================================
 // MEDIAPIPE SETUP
 // ============================================================
-const faceMesh = new FaceMesh({ 
+const faceMesh = new FaceMesh({
     locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
 });
 
@@ -453,31 +537,46 @@ faceMesh.setOptions({
 
 faceMesh.onResults(onResults);
 
-const cameraFeed = new Camera(videoElement, {
-    onFrame: async () => { await faceMesh.send({ image: videoElement }); },
+const cameraFeed = new Camera(document.getElementById('input_video'), {
+    onFrame: async () => { await faceMesh.send({ image: document.getElementById('input_video') }); },
     width: 1280,
     height: 720
 });
 cameraFeed.start();
 
 // ============================================================
-// CONTROLS
+// UI CONTROLS
 // ============================================================
-let wireframe = false;
-function toggleWireframe() {
-    wireframe = !wireframe;
-    if (avatar) {
-        avatar.traverse((child) => {
-            if (child.isMesh && child.material) {
-                child.material.wireframe = wireframe;
-            }
+let debugMode = false;
+function toggleExpressionDebug() {
+    debugMode = !debugMode;
+    if (debugMode) {
+        // Visualize blendshape weights
+        morphMeshes.forEach(({ mesh }) => {
+            mesh.material.wireframe = true;
+        });
+    } else {
+        morphMeshes.forEach(({ mesh }) => {
+            mesh.material.wireframe = false;
         });
     }
 }
 
-function resetCamera() {
-    camera.position.set(0, 0, 3.5);
-    camera.lookAt(0, 0, 0);
+function calibrate() {
+    // Set current expression as neutral
+    alert('Look neutral and click OK to calibrate');
+    // In real implementation, capture current landmark state as baseline
+}
+
+function resetView() {
+    camera.position.set(0, 0.1, 2.8);
+    targetHeadRot.set(0, 0, 0);
+}
+
+function updateDebug(data) {
+    if (!debugMode) return;
+    document.getElementById('debug').innerHTML = Object.entries(data)
+        .map(([k, v]) => `${k}: ${v}`).join('<br>');
 }
 
 // ============================================================

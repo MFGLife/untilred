@@ -3,959 +3,1480 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Smart day · calendar logger</title>
+    <title>DayLog · Calendar Logger</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
-            --primary: #3b82f6;
-            --primary-dark: #2563eb;
-            --secondary: #8b5cf6;
-            --accent: #ec4899;
-            --bg: #0f172a;
-            --surface: #1e293b;
-            --surface-light: #334155;
-            --text: #f8fafc;
-            --text-muted: #94a3b8;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --error: #ef4444;
-            --border: rgba(255, 255, 255, 0.1);
+            --primary: #4f8ef7;
+            --primary-dim: #3b7ae3;
+            --secondary: #7c5cbf;
+            --accent: #e05d8a;
+            --accent2: #36c9a7;
+            --bg: #080c14;
+            --surface: #0f1622;
+            --surface2: #161f30;
+            --surface3: #1d2840;
+            --text: #eef2fc;
+            --text-muted: #7a8baa;
+            --text-faint: #3d4f6b;
+            --success: #2ecf8e;
+            --warning: #f0b429;
+            --error: #e85d5d;
+            --border: rgba(255,255,255,0.06);
+            --border-light: rgba(255,255,255,0.12);
+            --glow-blue: rgba(79,142,247,0.18);
+            --glow-purple: rgba(124,92,191,0.15);
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'DM Sans', sans-serif;
             background: var(--bg);
             color: var(--text);
             min-height: 100vh;
             line-height: 1.6;
+            overflow-x: hidden;
         }
 
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 2rem 1rem;
+        /* ===== PARTICLE CANVAS ===== */
+        #particle-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.5;
         }
 
-        header {
+        /* ===== HEADER ===== */
+        .header-wrap {
+            position: relative;
+            z-index: 2;
             text-align: center;
-            margin-bottom: 2rem;
+            padding: 3.5rem 1rem 2.5rem;
+            overflow: hidden;
+        }
+
+        .header-grid-lines {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(79,142,247,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(79,142,247,0.04) 1px, transparent 1px);
+            background-size: 40px 40px;
+            mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 20%, transparent 80%);
+            pointer-events: none;
+        }
+
+        .header-glow {
+            position: absolute;
+            top: -60px; left: 50%;
+            transform: translateX(-50%);
+            width: 600px; height: 280px;
+            background: radial-gradient(ellipse, rgba(79,142,247,0.12) 0%, rgba(124,92,191,0.06) 50%, transparent 70%);
+            pointer-events: none;
+            animation: headerGlowPulse 6s ease-in-out infinite;
+        }
+
+        @keyframes headerGlowPulse {
+            0%, 100% { opacity: 0.6; transform: translateX(-50%) scale(1); }
+            50% { opacity: 1; transform: translateX(-50%) scale(1.1); }
+        }
+
+        .logo-line {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 0.6rem;
+            animation: logoReveal 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        @keyframes logoReveal {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .logo-badge {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--primary);
+            background: rgba(79,142,247,0.1);
+            border: 1px solid rgba(79,142,247,0.25);
+            padding: 0.25rem 0.7rem;
+            border-radius: 4px;
+            animation: badgePulse 3s ease-in-out infinite;
+        }
+
+        @keyframes badgePulse {
+            0%, 100% { border-color: rgba(79,142,247,0.25); }
+            50% { border-color: rgba(79,142,247,0.5); box-shadow: 0 0 12px rgba(79,142,247,0.15); }
         }
 
         h1 {
-            font-size: 2.5rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            font-family: 'Space Mono', monospace;
+            font-size: clamp(2rem, 5vw, 3.2rem);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            line-height: 1.1;
+            animation: logoReveal 0.9s 0.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        .h1-day { color: var(--text); }
+        .h1-log {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 60%, var(--accent) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-bottom: 0.5rem;
+            background-clip: text;
+            position: relative;
+        }
+
+        .h1-sep {
+            color: var(--text-faint);
+            font-weight: 400;
+            margin: 0 0.2em;
         }
 
         .subtitle {
             color: var(--text-muted);
-            font-size: 1.1rem;
+            font-size: 1rem;
+            font-weight: 400;
+            letter-spacing: 0.01em;
+            animation: logoReveal 1s 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
-        .input-section {
+        /* animated underline on header */
+        .header-divider {
+            width: 60px; height: 2px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            margin: 1.2rem auto 0;
+            border-radius: 2px;
+            animation: dividerExpand 1s 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        @keyframes dividerExpand {
+            from { width: 0; opacity: 0; }
+            to { width: 60px; opacity: 1; }
+        }
+
+        /* ===== LAYOUT ===== */
+        .container {
+            position: relative;
+            z-index: 2;
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 0 1rem 4rem;
+        }
+
+        /* ===== SECTION CARD ===== */
+        .section-card {
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 16px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
+            padding: 1.75rem;
+            margin-bottom: 1.25rem;
+            position: relative;
+            overflow: hidden;
         }
 
+        .section-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(79,142,247,0.4), transparent);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+        .section-card:hover::before { opacity: 1; }
+
+        /* ===== LABELS ===== */
         label {
             display: block;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.45rem;
+            font-size: 0.72rem;
             font-weight: 600;
-            color: var(--text);
-            font-size: 0.9rem;
+            letter-spacing: 0.1em;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+            color: var(--text-muted);
         }
 
+        /* ===== INPUTS ===== */
         input[type="email"],
         textarea {
             width: 100%;
-            padding: 1rem;
-            background: rgba(15, 23, 42, 0.6);
-            border: 2px solid var(--surface-light);
-            border-radius: 12px;
+            padding: 0.85rem 1rem;
+            background: var(--surface2);
+            border: 1px solid var(--border-light);
+            border-radius: 10px;
             color: var(--text);
-            font-size: 1rem;
-            font-family: inherit;
-            transition: all 0.3s ease;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+            transition: border-color 0.25s, box-shadow 0.25s;
         }
 
         input[type="email"]:focus,
         textarea:focus {
             outline: none;
             border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            box-shadow: 0 0 0 3px rgba(79,142,247,0.12);
         }
 
         textarea {
-            min-height: 200px;
+            min-height: 180px;
             resize: vertical;
-            line-height: 1.6;
+            line-height: 1.65;
         }
 
         .hint {
-            color: var(--text-muted);
-            font-size: 0.875rem;
+            color: var(--text-faint);
+            font-size: 0.8rem;
             margin-top: 0.5rem;
-            font-style: italic;
+            font-family: 'Space Mono', monospace;
         }
 
+        /* ===== BUTTONS ===== */
         .btn {
             display: inline-flex;
             align-items: center;
-            gap: 0.5rem;
-            padding: 0.875rem 1.5rem;
+            gap: 0.45rem;
+            padding: 0.75rem 1.4rem;
             border: none;
-            border-radius: 10px;
-            font-size: 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
             font-weight: 600;
+            font-family: 'DM Sans', sans-serif;
             cursor: pointer;
-            transition: all 0.2s ease;
-            margin-right: 0.5rem;
-            margin-bottom: 0.5rem;
+            transition: all 0.18s ease;
+            letter-spacing: 0.01em;
         }
 
         .btn-primary {
             background: var(--primary);
-            color: white;
+            color: #fff;
         }
-
-        .btn-primary:hover {
-            background: var(--primary-dark);
-            transform: translateY(-1px);
-        }
+        .btn-primary:hover { background: var(--primary-dim); transform: translateY(-1px); box-shadow: 0 4px 18px rgba(79,142,247,0.3); }
 
         .btn-secondary {
-            background: var(--surface-light);
+            background: var(--surface3);
             color: var(--text);
-            border: 1px solid var(--border);
+            border: 1px solid var(--border-light);
         }
-
-        .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
+        .btn-secondary:hover { background: rgba(255,255,255,0.07); }
 
         .btn-success {
             background: var(--success);
-            color: white;
+            color: #05160e;
+            font-weight: 700;
         }
+        .btn-success:hover { filter: brightness(1.1); transform: translateY(-1px); }
 
         .btn-warning {
             background: var(--warning);
-            color: black;
+            color: #1a0f00;
+            font-weight: 700;
         }
 
-        .events-container {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 1.5rem;
-            margin-top: 1.5rem;
-            display: none;
+        .btn-danger {
+            background: rgba(232,93,93,0.15);
+            color: var(--error);
+            border: 1px solid rgba(232,93,93,0.2);
         }
+        .btn-danger:hover { background: rgba(232,93,93,0.25); }
 
+        .btn + .btn { margin-left: 0.5rem; }
+
+        .btn-row { margin-top: 1.25rem; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+        /* ===== EVENTS CONTAINER ===== */
+        .events-container { display: none; }
         .events-container.active {
             display: block;
-            animation: fadeIn 0.3s ease;
+            animation: fadeUp 0.35s ease both;
         }
 
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ===== EVENTS HEADER ===== */
         .events-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1.25rem;
             padding-bottom: 1rem;
             border-bottom: 1px solid var(--border);
-            flex-wrap: wrap;
+        }
+
+        .events-title {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.8rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text-muted);
         }
 
         .badge {
-            background: var(--primary);
-            color: white;
-            padding: 0.25rem 0.75rem;
+            background: rgba(79,142,247,0.15);
+            color: var(--primary);
+            border: 1px solid rgba(79,142,247,0.25);
+            padding: 0.2rem 0.7rem;
             border-radius: 20px;
-            font-size: 0.875rem;
-            font-weight: 600;
+            font-size: 0.75rem;
+            font-weight: 700;
+            font-family: 'Space Mono', monospace;
+            letter-spacing: 0.05em;
         }
 
         .needs-time-badge {
-            background: var(--warning);
-            color: #0f172a;
-            margin-left: 0.75rem;
-            padding: 0.25rem 0.75rem;
-            border-radius: 30px;
-            font-size: 0.8rem;
+            background: rgba(240,180,41,0.15);
+            color: var(--warning);
+            border: 1px solid rgba(240,180,41,0.3);
+            padding: 0.18rem 0.65rem;
+            border-radius: 20px;
+            font-size: 0.72rem;
             font-weight: 700;
-            display: inline-block;
+            font-family: 'Space Mono', monospace;
         }
 
+        /* ===== STATS ===== */
         .stats {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .stat-card {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.9rem 1rem;
+            text-align: center;
+            transition: border-color 0.25s;
+        }
+        .stat-card:hover { border-color: var(--border-light); }
+
+        .stat-value {
+            font-family: 'Space Mono', monospace;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            line-height: 1.1;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text-faint);
+            margin-top: 0.25rem;
+        }
+
+        /* ===== MISSING PROMPT ===== */
+        .missing-banner {
+            background: rgba(240,180,41,0.07);
+            border: 1px solid rgba(240,180,41,0.2);
+            border-left: 3px solid var(--warning);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            font-size: 0.85rem;
+            color: var(--warning);
+            margin-bottom: 1rem;
+            font-family: 'Space Mono', monospace;
+        }
+
+        /* ===== TIMELINE ===== */
+        .timeline {
+            display: flex;
+            flex-direction: column;
             gap: 1rem;
             margin-bottom: 1.5rem;
         }
 
-        .stat-card {
-            background: rgba(15, 23, 42, 0.5);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 1rem;
-            text-align: center;
-        }
-
-        .stat-value {
-            font-size: 1.5rem;
-            font-weight: 800;
-            color: var(--primary);
-        }
-
-        .stat-label {
-            font-size: 0.875rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .timeline {
-            display: flex;
-            flex-direction: column;
-            gap: 1.2rem;
-            margin-bottom: 1.5rem;
-        }
-
+        /* ===== EVENT CARD ===== */
         .event-card {
-            background: rgba(15, 23, 42, 0.7);
+            background: var(--surface2);
             border: 1px solid var(--border);
             border-radius: 14px;
-            padding: 1.2rem;
-            transition: all 0.2s;
+            padding: 1.2rem 1.25rem;
             position: relative;
-            border-left: 5px solid var(--primary);
+            border-left: 3px solid var(--primary);
+            transition: border-color 0.2s, box-shadow 0.2s;
         }
 
-        .event-card.missing-time {
-            border-left: 5px solid var(--warning);
-            background: rgba(245, 158, 11, 0.08);
+        .event-card:hover {
+            box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+            border-color: rgba(79,142,247,0.3);
         }
 
-        .event-card.redundant {
-            border-left: 5px solid var(--accent);
-        }
+        .event-card.missing-time { border-left-color: var(--warning); }
+        .event-card.type-fitness { border-left-color: var(--accent2); }
+        .event-card.type-work { border-left-color: var(--primary); }
+        .event-card.type-errand { border-left-color: var(--secondary); }
+        .event-card.redundant { border-left-color: var(--accent); }
 
-        .event-header {
+        /* card top row */
+        .card-top {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
+            gap: 0.75rem;
+            margin-bottom: 0.9rem;
             flex-wrap: wrap;
-            margin-bottom: 0.7rem;
         }
 
         .event-title-input {
-            background: transparent;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: white;
-            padding: 0.3rem 0.6rem;
-            font-size: 1.1rem;
+            flex: 1;
+            min-width: 180px;
+            background: var(--surface3);
+            border: 1px solid var(--border-light);
+            border-radius: 7px;
+            color: var(--text);
+            padding: 0.4rem 0.75rem;
+            font-size: 1rem;
             font-weight: 600;
-            width: 60%;
+            font-family: 'DM Sans', sans-serif;
+            transition: border-color 0.2s;
+        }
+        .event-title-input:focus { outline: none; border-color: var(--primary); }
+
+        .card-badges { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+
+        /* time row */
+        .time-row {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.8rem;
+            background: rgba(0,0,0,0.25);
+            padding: 0.5rem 0.85rem;
+            border-radius: 8px;
         }
 
-        .event-time-group {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 0.8rem;
-            background: rgba(0,0,0,0.2);
-            padding: 0.5rem 1rem;
-            border-radius: 40px;
-            margin-bottom: 0.8rem;
+        .time-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            color: var(--text-faint);
+            text-transform: uppercase;
         }
 
         .time-input {
-            background: rgba(15,23,42,0.8);
-            border: 1px solid var(--border);
-            color: white;
-            padding: 0.4rem 0.6rem;
-            border-radius: 20px;
-            font-size: 0.9rem;
+            background: var(--surface3);
+            border: 1px solid var(--border-light);
+            color: var(--text);
+            padding: 0.35rem 0.65rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-family: 'Space Mono', monospace;
+            width: 110px;
+            transition: border-color 0.2s;
+        }
+        .time-input:focus { outline: none; border-color: var(--primary); }
+
+        .time-arrow {
+            color: var(--text-faint);
+            font-size: 0.8rem;
         }
 
-        .detail-chip {
-            background: var(--surface-light);
-            border-radius: 30px;
-            padding: 0.3rem 0.9rem;
-            font-size: 0.85rem;
+        /* meta chips row */
+        .meta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .chip {
             display: inline-flex;
             align-items: center;
             gap: 0.3rem;
-            margin-right: 0.5rem;
-            margin-bottom: 0.3rem;
+            background: var(--surface3);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.25rem 0.6rem;
+            font-size: 0.78rem;
+            color: var(--text-muted);
         }
 
-        .event-actions {
+        .chip input {
+            background: transparent;
+            border: none;
+            color: var(--text);
+            font-size: 0.78rem;
+            font-family: 'DM Sans', sans-serif;
+            min-width: 60px;
+            width: auto;
+            border-bottom: 1px solid var(--text-faint);
+            padding: 0;
+        }
+        .chip input:focus { outline: none; border-bottom-color: var(--primary); }
+
+        .chip-dur input {
+            width: 52px;
+        }
+
+        /* desc line */
+        .card-desc {
+            font-size: 0.8rem;
+            color: var(--text-faint);
+            font-style: italic;
+            line-height: 1.5;
+            margin-bottom: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            background: rgba(0,0,0,0.15);
+            border-radius: 6px;
+            border-left: 2px solid var(--border);
+        }
+
+        /* redundancy note */
+        .redundancy-note {
+            background: rgba(224,93,138,0.1);
+            border: 1px solid rgba(224,93,138,0.2);
+            color: var(--accent);
+            padding: 0.3rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            margin-bottom: 0.75rem;
+            font-family: 'Space Mono', monospace;
+        }
+
+        /* card actions */
+        .card-actions {
             display: flex;
-            gap: 0.5rem;
+            gap: 0.4rem;
             justify-content: flex-end;
-            margin-top: 1rem;
+            padding-top: 0.75rem;
             border-top: 1px solid var(--border);
-            padding-top: 1rem;
+            flex-wrap: wrap;
         }
 
         .btn-sm {
-            padding: 0.4rem 0.9rem;
-            font-size: 0.8rem;
-            border-radius: 30px;
+            padding: 0.35rem 0.8rem;
+            font-size: 0.78rem;
+            border-radius: 6px;
         }
 
-        .missing-query {
-            background: rgba(245,158,11,0.2);
-            padding: 0.8rem;
-            border-radius: 10px;
-            margin: 0.7rem 0;
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 0.8rem;
+        /* type pill */
+        .type-pill {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.65rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 0.2rem 0.55rem;
+            border-radius: 4px;
+            font-weight: 700;
         }
 
+        .type-work { background: rgba(79,142,247,0.15); color: var(--primary); }
+        .type-fitness { background: rgba(54,201,167,0.15); color: var(--accent2); }
+        .type-errand { background: rgba(124,92,191,0.15); color: #a885e8; }
+        .type-personal { background: rgba(255,255,255,0.07); color: var(--text-muted); }
+        .type-general { background: rgba(255,255,255,0.07); color: var(--text-muted); }
+
+        /* ===== GLOBAL ACTIONS ===== */
         .actions-global {
             display: flex;
             gap: 0.5rem;
             flex-wrap: wrap;
-            margin-top: 1.5rem;
-            padding-top: 1.5rem;
+            padding-top: 1.25rem;
             border-top: 1px solid var(--border);
+            margin-top: 0.5rem;
         }
 
+        /* ===== TOAST ===== */
         .toast {
             position: fixed;
             bottom: 2rem;
             right: 2rem;
-            background: var(--surface);
+            background: var(--surface2);
             color: var(--text);
-            padding: 1rem 1.5rem;
+            padding: 0.85rem 1.25rem;
             border-radius: 10px;
-            border-left: 4px solid var(--success);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            transform: translateX(400px);
-            transition: transform 0.3s ease;
-            z-index: 1000;
-        }
-
-        .toast.show {
-            transform: translateX(0);
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .inline-hint {
-            color: #fcd34d;
-            font-size: 0.85rem;
-            font-style: italic;
-        }
-
-        .redundancy-clarify {
-            background: var(--accent);
-            color: white;
-            padding: 0.25rem 0.8rem;
-            border-radius: 30px;
+            border-left: 3px solid var(--success);
+            box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+            transform: translateX(420px);
+            transition: transform 0.3s cubic-bezier(0.22,1,0.36,1);
+            z-index: 9999;
+            font-family: 'Space Mono', monospace;
             font-size: 0.8rem;
-            border: none;
+            max-width: 280px;
+        }
+        .toast.show { transform: translateX(0); }
+        .toast.error { border-left-color: var(--error); }
+
+        /* ===== SEPARATOR ===== */
+        .section-sep {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin: 0.25rem 0 1.25rem;
+            color: var(--text-faint);
+            font-size: 0.7rem;
+            font-family: 'Space Mono', monospace;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        .section-sep::before, .section-sep::after {
+            content: ''; flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        @media (max-width: 600px) {
+            .btn + .btn { margin-left: 0; }
+            .time-row { flex-direction: column; align-items: flex-start; }
+            h1 { font-size: 1.9rem; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>⚡ daylog · calendar</h1>
-            <p class="subtitle">speak naturally, we sort the timeline. edit, merge, delete.</p>
-        </header>
 
-        <div class="input-section">
-            <label for="email">📧 Email (for sending)</label>
-            <input type="email" id="email" placeholder="you@example.com" value="hello@example.com">
-            
-            <label for="schedule" style="margin-top: 1.5rem;">🗓️ your daily summary</label>
+    <canvas id="particle-canvas"></canvas>
+
+    <!-- HEADER -->
+    <div class="header-wrap">
+        <div class="header-grid-lines"></div>
+        <div class="header-glow"></div>
+        <div class="logo-line">
+            <span class="logo-badge">v2.0</span>
+        </div>
+        <h1>
+            <span class="h1-day">day</span><span class="h1-log">log</span>
+            <span class="h1-sep">/</span>
+            <span class="h1-day" style="color: var(--text-muted); font-size: 0.72em; font-weight:400; letter-spacing:-0.01em;">calendar</span>
+        </h1>
+        <p class="subtitle">speak naturally &mdash; we sort the timeline. edit, merge, delete.</p>
+        <div class="header-divider"></div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="container">
+
+        <!-- INPUT SECTION -->
+        <div class="section-card" style="animation: fadeUp 0.5s 0.3s ease both;">
+            <label for="email">Email Address</label>
+            <input type="email" id="email" placeholder="you@example.com" value="hello@example.com" style="margin-bottom:1.25rem;">
+
+            <div class="section-sep">daily summary</div>
+
+            <label for="schedule">Your Day, In Your Words</label>
             <textarea id="schedule" placeholder="Today, I went to work at 730 drove about 70 miles got off early at 2:10 PM. And then I went to court to file paperwork at 3 PM I went to the library. I also worked out for about 45 minutes. I went on a 45 minute run And Did twenty minute super set.">Today, I went to work at 730 (assume 730am) drove about 70 miles (log the distance traveled) got off early at 2:10 PM. And then I went to court to file paperwork at 3 PM I went to the library.(ask for a time i went to library since you found an event with no time) I also worked out for about 45 minutes. I went on a 45 minute run And Did twenty minute super set, (clarify redundancy but organizing the workout.)</textarea>
-            <div class="hint">💡 times: 730, 2:10pm, 3 PM. distances: "drove 70 miles". workouts merged intelligently.</div>
-            
-            <div style="margin-top: 1rem;">
-                <button class="btn btn-primary" onclick="parseSchedule()">
-                    <span>🔍</span> parse & clarify
-                </button>
-                <button class="btn btn-secondary" onclick="clearAll()">
-                    <span>🗑️</span> clear
-                </button>
+            <div class="hint">// times: 730am · 2:10pm · 3 PM &nbsp;|&nbsp; distances: "drove 70 miles" &nbsp;|&nbsp; workouts merged intelligently</div>
+
+            <div class="btn-row">
+                <button class="btn btn-primary" onclick="parseSchedule()">Parse &amp; Clarify</button>
+                <button class="btn btn-secondary" onclick="clearAll()">Clear</button>
             </div>
         </div>
 
-        <div class="events-container" id="eventsContainer">
+        <!-- EVENTS SECTION -->
+        <div class="events-container section-card" id="eventsContainer">
             <div class="events-header">
-                <span class="events-title">📋 editable events</span>
+                <span class="events-title">Editable Events</span>
                 <span class="badge" id="eventCount">0 events</span>
             </div>
 
             <div class="stats" id="statsContainer"></div>
-            <div id="missingPromptArea" style="margin-bottom: 1rem;"></div>
+            <div id="missingPromptArea"></div>
             <div class="timeline" id="timeline"></div>
 
             <div class="actions-global">
-                <button class="btn btn-success" onclick="sendEmail()">
-                    <span>📧</span> send to email
-                </button>
-                <button class="btn btn-secondary" onclick="downloadICS()">
-                    <span>📅</span> download .ics
-                </button>
-                <button class="btn btn-secondary" onclick="copyToClipboard()">
-                    <span>📋</span> copy summary
-                </button>
-                <button class="btn btn-secondary" onclick="resetFromCurrentEvents()" style="background:#2c3e50;">
-                    <span>🔄</span> refresh from edits
-                </button>
+                <button class="btn btn-success" onclick="sendEmail()">Send to Email</button>
+                <button class="btn btn-secondary" onclick="downloadICS()">Download .ics</button>
+                <button class="btn btn-secondary" onclick="copyToClipboard()">Copy Summary</button>
+                <button class="btn btn-secondary" onclick="resetFromCurrentEvents()">Refresh View</button>
             </div>
         </div>
+
     </div>
 
     <div class="toast" id="toast">Message</div>
 
+    <!-- ===================== SCRIPT ===================== -->
     <script>
-        // ---------- GLOBAL STATE ----------
-        let parsedEvents = [];      // enriched events, fully editable
-        let totalDriving = 0;
-        let redundancyWarningShown = false; 
+    // ========================
+    //   PARTICLE SYSTEM
+    // ========================
+    (function() {
+        const canvas = document.getElementById('particle-canvas');
+        const ctx = canvas.getContext('2d');
+        let W, H, particles = [], animFrame;
 
-        // ---------- MAIN PARSER (SMART, WITH QUESTIONS) ----------
-        function parseSchedule() {
-            const text = document.getElementById('schedule').value;
-            if (!text.trim()) {
-                showToast('enter your day first');
-                return;
-            }
-
-            const extraction = extractEventsAdvanced(text);
-            parsedEvents = extraction.events;
-            totalDriving = extraction.totalMiles;
-
-            // auto‑ask for missing times: inject prompt inside event cards
-            displayEvents();
-
-            // specifically for library with no time – our parser already flags missing times
-            showToast(`parsed ${parsedEvents.length} events · library? check missing badges`);
+        function resize() {
+            W = canvas.width = window.innerWidth;
+            H = canvas.height = window.innerHeight;
         }
 
-        // ---------- ADVANCED EXTRACTION (handles distances, workouts, redundancy hints) ----------
-        function extractEventsAdvanced(text) {
-            let events = [];
-            let totalMiles = 0;
+        function randomBetween(a, b) { return a + Math.random() * (b - a); }
 
-            // 1) split by sentences but also keep natural flow
-            let rawSegments = text.split(/(?<=\.|!|\?)\s+/);
-            
-            // store workout-related segments to merge redundancy
-            let workoutSegments = [];
+        function createParticle() {
+            return {
+                x: randomBetween(0, W),
+                y: randomBetween(0, H),
+                r: randomBetween(0.6, 2.2),
+                vx: randomBetween(-0.12, 0.12),
+                vy: randomBetween(-0.22, -0.05),
+                alpha: randomBetween(0.08, 0.45),
+                color: Math.random() > 0.6 ? '79,142,247' : '124,92,191',
+                twinkleSpeed: randomBetween(0.008, 0.025),
+                twinkleDir: Math.random() > 0.5 ? 1 : -1
+            };
+        }
 
-            // first pass: gather driving miles
-            const mileMatches = [...text.matchAll(/(\d+)\s*miles?/gi)];
-            mileMatches.forEach(m => totalMiles += parseInt(m[1]));
+        function initParticles() {
+            const count = Math.min(130, Math.floor(W * H / 8000));
+            particles = Array.from({ length: count }, createParticle);
+        }
 
-            // second pass: create base events
-            rawSegments.forEach(segment => {
-                if (!segment.trim()) return;
-
-                // is it a workout mention? collect and handle later
-                if (/(workout|run|superset|super set|exercise|ran|jog|gym|minute run|min run|twenty minute|45 minute)/i.test(segment)) {
-                    workoutSegments.push(segment);
-                } else {
-                    const ev = createEventFromSegment(segment);
-                    if (ev) events.push(ev);
+        function drawConnections() {
+            const maxDist = 120;
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < maxDist) {
+                        const alpha = (1 - dist / maxDist) * 0.06;
+                        ctx.beginPath();
+                        ctx.strokeStyle = `rgba(79,142,247,${alpha})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.stroke();
+                    }
                 }
-            });
-
-            // handle workouts: merge overlapping / clarify redundancy
-            if (workoutSegments.length > 0) {
-                let mergedWorkout = mergeWorkoutSegments(workoutSegments);
-                events.push(mergedWorkout);
             }
+        }
 
-            // check for library or any event that likely has no time
-            // also search for 'library' without time reference
-            if (text.toLowerCase().includes('library')) {
-                // see if any event already has library & time; if not, we'll add a "needs time" event
-                let hasLibraryWithTime = events.some(e => e.title.toLowerCase().includes('library') && e.startTime);
-                if (!hasLibraryWithTime) {
-                    // create a library event with missing time
-                    let libEvent = {
-                        id: 'lib-' + Date.now() + Math.random(),
-                        title: 'Library 📚',
-                        startTime: null,
-                        endTime: null,
-                        duration: null,
-                        location: 'Library',
-                        description: 'visit library (time unknown)',
+        function animate() {
+            ctx.clearRect(0, 0, W, H);
+            drawConnections();
+            particles.forEach(p => {
+                // twinkle
+                p.alpha += p.twinkleSpeed * p.twinkleDir;
+                if (p.alpha > 0.5 || p.alpha < 0.04) p.twinkleDir *= -1;
+
+                // move
+                p.x += p.vx;
+                p.y += p.vy;
+
+                // wrap
+                if (p.x < -5) p.x = W + 5;
+                if (p.x > W + 5) p.x = -5;
+                if (p.y < -5) p.y = H + 5;
+                if (p.y > H + 5) p.y = -5;
+
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(${p.color},${p.alpha})`;
+                ctx.fill();
+            });
+            animFrame = requestAnimationFrame(animate);
+        }
+
+        window.addEventListener('resize', () => { resize(); initParticles(); });
+        resize();
+        initParticles();
+        animate();
+    })();
+
+
+    // ========================
+    //   GLOBAL STATE
+    // ========================
+    let parsedEvents = [];
+    let totalDriving = 0;
+
+    // ========================
+    //   PARSE ENTRY POINT
+    // ========================
+    function parseSchedule() {
+        const text = document.getElementById('schedule').value;
+        if (!text.trim()) { showToast('Enter your day first'); return; }
+        const extraction = extractEventsAdvanced(text);
+        parsedEvents = extraction.events;
+        totalDriving = extraction.totalMiles;
+        displayEvents();
+        showToast(`Parsed ${parsedEvents.length} event${parsedEvents.length !== 1 ? 's' : ''}`);
+    }
+
+    // ========================
+    //   ADVANCED EXTRACTION
+    // ========================
+    function extractEventsAdvanced(text) {
+        let events = [];
+        let totalMiles = 0;
+
+        // collect all mile mentions
+        const mileMatches = [...text.matchAll(/(\d+)\s*miles?/gi)];
+        mileMatches.forEach(m => totalMiles += parseInt(m[1]));
+
+        // split by sentence endings
+        let rawSegments = text.split(/(?<=[.!?])\s+/);
+
+        let workoutSegments = [];
+
+        rawSegments.forEach(seg => {
+            if (!seg.trim()) return;
+            if (/(workout|run|superset|super set|exercise|ran|jog|gym|minute run|min run|twenty minute|\d+\s*minute)/i.test(seg) &&
+                !/(work at|work \d|went to work|got off)/i.test(seg)) {
+                workoutSegments.push(seg);
+            } else {
+                const ev = createEventFromSegment(seg);
+                if (ev) events.push(ev);
+            }
+        });
+
+        if (workoutSegments.length > 0) {
+            events.push(mergeWorkoutSegments(workoutSegments));
+        }
+
+        // library: ensure it's there with missingTime flag if no time found
+        if (/library/i.test(text)) {
+            let hasLib = events.some(e => /library/i.test(e.title) && e.startTime);
+            if (!hasLib) {
+                let libHasAny = events.some(e => /library/i.test(e.title));
+                if (!libHasAny) {
+                    events.push({
+                        id: 'lib-' + Date.now(),
+                        title: 'Library Visit',
+                        startTime: null, endTime: null, duration: 60,
+                        location: 'Public Library',
+                        description: 'Visit to the library — no time specified in summary. Please set an arrival time so this can be added to your calendar.',
                         type: 'personal',
                         missingTime: true,
                         originalText: 'I went to the library.'
-                    };
-                    events.push(libEvent);
+                    });
                 }
             }
-
-            // remove duplicates / near duplicates (work redundancy)
-            events = mergeSimilarEvents(events);
-
-            // sort by time, but keep missingTime events at top (chrono by time if exist)
-            events.sort((a,b) => {
-                if (!a.startTime && !b.startTime) return 0;
-                if (!a.startTime) return -1;  // missing time shows first to edit
-                if (!b.startTime) return 1;
-                return a.startTime - b.startTime;
-            });
-
-            return { events, totalMiles };
         }
 
-        // create event from non-workout segment
-        function createEventFromSegment(seg) {
-            let lower = seg.toLowerCase();
-            if (!hasTimeIndicator(seg) && !/(drove|miles|work|court|library|meeting|file|paperwork)/i.test(seg)) return null;
-            
-            let event = {
-                id: 'ev-' + Date.now() + '-' + Math.random().toString(36).substring(2,6),
-                title: 'Activity',
-                startTime: null,
-                endTime: null,
-                duration: null,
-                location: null,
-                description: seg,
-                type: 'general',
-                missingTime: false,
-                distance: null,
-                originalText: seg
-            };
+        events = mergeSimilarEvents(events);
 
-            // extract distance
-            let distMatch = seg.match(/(\d+)\s*miles?/i);
-            if (distMatch) event.distance = parseInt(distMatch[1]);
+        // sort: missing time events first, then chronological
+        events.sort((a, b) => {
+            if (!a.startTime && !b.startTime) return 0;
+            if (!a.startTime) return -1;
+            if (!b.startTime) return 1;
+            return a.startTime - b.startTime;
+        });
 
-            // ---- TIME PARSING (start, end, duration) ----
-            let startTime = extractStartTime(seg);
-            if (startTime) event.startTime = startTime;
+        return { events, totalMiles };
+    }
 
-            let endTime = extractEndTime(seg);
-            if (endTime) event.endTime = endTime;
+    // ========================
+    //   CREATE EVENT FROM SEGMENT
+    // ========================
+    function createEventFromSegment(seg) {
+        let lower = seg.toLowerCase();
 
-            let duration = extractDuration(seg);
-            if (duration) event.duration = duration;
+        if (!hasTimeIndicator(seg) &&
+            !/(drove|miles|work|court|library|meeting|file|paperwork)/i.test(seg)) return null;
 
-            // derive end from duration if possible
-            if (event.startTime && !event.endTime && event.duration) {
-                event.endTime = new Date(event.startTime.getTime() + event.duration * 60000);
+        let event = {
+            id: 'ev-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+            title: 'Activity',
+            startTime: null, endTime: null, duration: null,
+            location: null,
+            description: buildRichDescription(seg, 'general'),
+            type: 'general',
+            missingTime: false,
+            distance: null,
+            originalText: seg
+        };
+
+        let distMatch = seg.match(/(\d+)\s*miles?/i);
+        if (distMatch) event.distance = parseInt(distMatch[1]);
+
+        let startTime = extractStartTime(seg);
+        if (startTime) event.startTime = startTime;
+
+        let endTime = extractEndTime(seg);
+        if (endTime) event.endTime = endTime;
+
+        let duration = extractDuration(seg);
+        if (duration) event.duration = duration;
+
+        // derive end from start + duration ONLY if end not already set
+        if (event.startTime && !event.endTime && event.duration) {
+            event.endTime = new Date(event.startTime.getTime() + event.duration * 60000);
+        }
+
+        // derive duration from start/end ONLY if duration not already set
+        if (event.startTime && event.endTime && !event.duration) {
+            let diffMs = event.endTime.getTime() - event.startTime.getTime();
+            if (diffMs > 0) {
+                event.duration = Math.round(diffMs / 60000);
             }
+        }
 
-            // derive duration from start/end
-            if (event.startTime && event.endTime && !event.duration) {
-                event.duration = Math.round((event.endTime - event.startTime) / 60000);
-            }
+        if (!event.startTime) event.missingTime = true;
 
-            if (!event.startTime) {
-                event.missingTime = true;
-            }
-
-            // TITLE & TYPE
-            if (lower.includes('work') && (lower.includes('went') || lower.includes('started') || lower.includes('get off'))) {
-                event.title = 'Work';
-                event.type = 'work';
-                event.location = 'Work';
-            } else if (lower.includes('court')) {
-                event.title = 'Court - file paperwork';
-                event.type = 'errand';
-                event.location = 'Court';
-            } else if (lower.includes('library')) {
-                event.title = 'Library';
-                event.type = 'personal';
-                event.location = 'Library';
-                if (!event.startTime) event.missingTime = true;
-            } else {
-                // fallback title
-                let words = seg.split(' ');
-                for (let i=0; i<words.length; i++) {
-                    if (words[i] === 'went' && words[i+1] === 'to') {
-                        let place = words[i+2]?.replace(/[^a-zA-Z]/g, '');
-                        if (place) { event.title = place.charAt(0).toUpperCase() + place.slice(1); break; }
+        // --- CLASSIFY & TITLE ---
+        if (/went to work|start.*work|arrive.*work|730|7:30/i.test(lower) &&
+            !/(court|library)/i.test(lower)) {
+            event.title = 'Work';
+            event.type = 'work';
+            event.location = 'Work';
+            event.description = buildRichDescription(seg, 'work');
+        } else if (/court|file.*paper|paperwork/i.test(lower)) {
+            event.title = 'Court — File Paperwork';
+            event.type = 'errand';
+            event.location = 'Courthouse';
+            event.description = buildRichDescription(seg, 'errand');
+        } else if (/library/i.test(lower)) {
+            event.title = 'Library Visit';
+            event.type = 'personal';
+            event.location = 'Public Library';
+            if (!event.startTime) event.missingTime = true;
+            event.description = buildRichDescription(seg, 'library');
+        } else {
+            let words = seg.split(' ');
+            for (let i = 0; i < words.length; i++) {
+                if (words[i].toLowerCase() === 'went' && words[i+1]?.toLowerCase() === 'to') {
+                    let place = words[i+2]?.replace(/[^a-zA-Z]/g, '');
+                    if (place) {
+                        event.title = place.charAt(0).toUpperCase() + place.slice(1);
+                        break;
                     }
                 }
             }
-
-            return event.startTime || event.missingTime ? event : null;
         }
 
-        function extractStartTime(t) {
-            let match = t.match(/(?:at|from|start(?:ed)?\s*)?(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)?/i) ||
-                        t.match(/(\d{3,4})\s*(am|pm|a\.m\.|p\.m\.)?/i);
-            if (!match) return null;
-            return parseTimeGeneric(match[1], match[2], match[3]);
-        }
+        return (event.startTime || event.missingTime) ? event : null;
+    }
 
-        function extractEndTime(t) {
-            let match = t.match(/(?:got off|until|to|finish|ended|off at)\s*(?:early\s*)?(?:at\s*)?(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)?/i) ||
-                        t.match(/(?:off at|ends at)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
-            if (!match) return null;
-            return parseTimeGeneric(match[1], match[2], match[3]);
-        }
-
-        function extractDuration(t) {
-            let match = t.match(/(\d+)\s*(?:minute|min|hour|hr)/i);
-            if (match) {
-                let val = parseInt(match[1]);
-                if (match[0].includes('hour') || match[0].includes('hr')) return val*60;
-                return val;
-            }
-            return null;
-        }
-
-        function parseTimeGeneric(hourStr, minuteStr, mer) {
-            let now = new Date();
-            let h = parseInt(hourStr);
-            let m = minuteStr ? parseInt(minuteStr) : 0;
-
-            if (hourStr.length === 3 || hourStr.length === 4) {
-                let str = hourStr;
-                if (str.length === 3) { h = parseInt(str[0]); m = parseInt(str.slice(1)); }
-                else if (str.length === 4) { h = parseInt(str.slice(0,2)); m = parseInt(str.slice(2)); }
-            }
-
-            if (mer) {
-                let isPM = /pm|p\.m\./i.test(mer);
-                if (isPM && h !== 12) h += 12;
-                if (!isPM && h === 12) h = 0;
-            } else {
-                if (h < 6) h += 12;  // heuristic: assume PM if small (work till 2, etc)
-            }
-
-            let date = new Date(now);
-            date.setHours(h, m, 0, 0);
-            return date;
-        }
-
-        function hasTimeIndicator(t) {
-            return /\d{1,2}:\d{2}/.test(t) || /\d{3,4}\s*(am|pm)/i.test(t) || /\d{1,2}\s*(am|pm)/i.test(t) || /at\s+\d/.test(t);
-        }
-
-        // ---------- WORKOUT MERGE & REDUNDANCY CLARIFICATION ----------
-        function mergeWorkoutSegments(segments) {
-            // combine all workout info into one enriched event, ask about redundancy
-            let totalDuration = 0;
-            let activities = [];
-            let combinedDesc = segments.join('; ');
-
-            segments.forEach(s => {
-                let dur = extractDuration(s);
-                if (dur) totalDuration += dur;
-                if (s.toLowerCase().includes('run')) activities.push('run');
-                if (s.toLowerCase().includes('super set') || s.toLowerCase().includes('superset')) activities.push('superset');
-                if (s.toLowerCase().includes('workout')) activities.push('workout');
-            });
-
-            let title = '🏋️ Workout';
-            if (activities.includes('run') && activities.includes('superset')) title = 'Run + superset';
-            else if (activities.includes('run')) title = 'Run';
-            else if (activities.includes('superset')) title = 'Superset';
-
-            // try to find a start time from any segment
-            let startTime = null;
-            for (let seg of segments) {
-                let st = extractStartTime(seg);
-                if (st) { startTime = st; break; }
-            }
-
-            let workoutEvent = {
-                id: 'fitness-' + Date.now(),
-                title: title,
-                startTime: startTime,
-                endTime: startTime ? new Date(startTime.getTime() + (totalDuration||45) * 60000) : null,
-                duration: totalDuration || 45,
-                location: 'Gym / home',
-                description: 'Merged workout: ' + combinedDesc,
-                type: 'fitness',
-                missingTime: startTime ? false : true,
-                redundancyNote: segments.length > 1 ? '⚠️ combined run + superset — edit if separate' : null
-            };
-            return workoutEvent;
-        }
-
-        function mergeSimilarEvents(events) {
-            // remove duplicate titles too close in time (within 5min)
-            let filtered = [];
-            events.forEach(ev => {
-                let duplicate = filtered.find(f => 
-                    f.title === ev.title && 
-                    f.startTime && ev.startTime &&
-                    Math.abs(f.startTime - ev.startTime) < 10*60000 &&
-                    f.location === ev.location
-                );
-                if (!duplicate) filtered.push(ev);
-            });
-            return filtered;
-        }
-
-        // ---------- RENDERING WITH EDIT CONTROLS + DELETE PER CARD ----------
-        function displayEvents() {
-            const container = document.getElementById('eventsContainer');
-            const timeline = document.getElementById('timeline');
-            const stats = document.getElementById('statsContainer');
-            const count = document.getElementById('eventCount');
-            const missingArea = document.getElementById('missingPromptArea');
-
-            container.classList.add('active');
-            count.textContent = `${parsedEvents.length} events`;
-
-            // stats recalc
-            let totalMins = parsedEvents.reduce((sum, e) => sum + (e.duration || 0), 0);
-            let fitnessCount = parsedEvents.filter(e => e.type === 'fitness').length;
-            let missingCount = parsedEvents.filter(e => e.missingTime).length;
-
-            stats.innerHTML = `
-                <div class="stat-card"><div class="stat-value">${parsedEvents.length}</div><div class="stat-label">events</div></div>
-                <div class="stat-card"><div class="stat-value">${Math.round(totalMins/6)/10 || 0}h</div><div class="stat-label">total time</div></div>
-                <div class="stat-card"><div class="stat-value">${totalDriving}</div><div class="stat-label">miles</div></div>
-                <div class="stat-card"><div class="stat-value">${fitnessCount}</div><div class="stat-label">workouts</div></div>
-                <div class="stat-card"><div class="stat-value" style="color:var(--warning);">${missingCount}</div><div class="stat-label">need time</div></div>
-            `;
-
-            // missing prompt summary
-            if (missingCount > 0) {
-                missingArea.innerHTML = `<div style="background: #f59e0b20; padding:0.7rem 1rem; border-radius:12px; border-left:4px solid #f59e0b;">
-                    ⏳ ${missingCount} event(s) missing time — click on ⏰ to add or edit directly.
-                </div>`;
-            } else missingArea.innerHTML = '';
-
-            // timeline cards
-            timeline.innerHTML = parsedEvents.map((ev, idx) => renderEventCard(ev, idx)).join('');
-
-            // attach event listeners after rendering (since innerHTML)
-            attachCardListeners();
-        }
-
-        function renderEventCard(ev, index) {
-            let startStr = ev.startTime ? formatTime(ev.startTime) : '❓ missing time';
-            let endStr = ev.endTime ? formatTime(ev.endTime) : (ev.duration ? 'calculated' : '—');
-
-            let durationStr = ev.duration ? `${ev.duration}m` : '—';
-            let missingClass = ev.missingTime ? 'missing-time' : '';
-            let redundancyHtml = ev.redundancyNote ? `<span class="redundancy-clarify">🔄 ${ev.redundancyNote}</span>` : '';
-
-            // provide inline time inputs for easy edit
-            return `
-            <div class="event-card ${missingClass}" data-event-id="${ev.id}" data-index="${index}">
-                <div class="event-header">
-                    <input type="text" class="event-title-input" value="${ev.title}" data-field="title" data-id="${ev.id}" placeholder="Title">
-                    <div>
-                        ${redundancyHtml}
-                        <span class="needs-time-badge" style="${ev.missingTime?'display:inline-block':'display:none'}">⏰ needs time</span>
-                    </div>
-                </div>
-                <div class="event-time-group">
-                    <span>🕒</span>
-                    <input type="text" class="time-input" value="${startStr}" placeholder="Start e.g. 3:00 PM" data-field="startRaw" data-id="${ev.id}" style="width:120px;">
-                    <span>→</span>
-                    <input type="text" class="time-input" value="${ev.endTime?formatTime(ev.endTime):''}" placeholder="End (optional)" data-field="endRaw" data-id="${ev.id}" style="width:110px;">
-                    <span class="detail-chip">⏱️ dur: <input type="number" value="${ev.duration||''}" placeholder="min" data-field="duration" data-id="${ev.id}" style="width:60px; background:transparent; border:none; color:white; border-bottom:1px solid gray;"> min</span>
-                </div>
-                <div style="display:flex; flex-wrap:wrap; gap:0.3rem; margin-bottom:0.3rem;">
-                    <span class="detail-chip">📍 loc: <input type="text" value="${ev.location||''}" placeholder="location" data-field="location" data-id="${ev.id}" style="background:transparent; border:none; color:white; border-bottom:1px solid gray;"></span>
-                    ${ev.distance? `<span class="detail-chip">🚗 ${ev.distance} mi</span>` : ''}
-                    <span class="detail-chip">📌 ${ev.type}</span>
-                </div>
-                <div style="font-size:0.8rem; color:var(--text-muted); font-style:italic;">${ev.description.substring(0,70)}${ev.description.length>70?'…':''}</div>
-                
-                <div class="event-actions">
-                    <button class="btn-sm btn-secondary" onclick="deleteEvent('${ev.id}')">🗑️ delete</button>
-                    <button class="btn-sm btn-primary" onclick="saveEventEdits('${ev.id}')">💾 save edits</button>
-                    <button class="btn-sm btn-warning" onclick="askTimeForEvent('${ev.id}')" style="background: #f59e0b;">⏰ set time</button>
-                </div>
-            </div>`;
-        }
-
-        function formatTime(d) {
-            if (!d) return '';
-            return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-        }
-
-        // ----- EDIT / DELETE / UPDATE -----
-        window.deleteEvent = function(id) {
-            parsedEvents = parsedEvents.filter(e => e.id !== id);
-            displayEvents();
-            showToast('event deleted');
+    // ========================
+    //   RICH DESCRIPTION BUILDER
+    // ========================
+    function buildRichDescription(seg, type) {
+        const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        const templates = {
+            work: `Work session logged on ${today}. ${seg.trim()} — Distance traveled was noted in the daily summary. Duration calculated from start time through end time as recorded.`,
+            errand: `Errand recorded on ${today}. ${seg.trim()} — This was an in-person visit requiring travel. Time and context captured from voice summary.`,
+            library: `Library visit noted on ${today}. ${seg.trim()} — Exact arrival time was not specified in the summary and should be added manually. Event duration is estimated.`,
+            fitness: `Fitness activity logged on ${today}. Details sourced from daily summary and combined into a single workout block.`,
+            general: `${seg.trim()} — Event recorded on ${today} from natural language summary.`
         };
+        return templates[type] || templates.general;
+    }
 
-        window.saveEventEdits = function(id) {
-            const event = parsedEvents.find(e => e.id === id);
-            if (!event) return;
+    // ========================
+    //   TIME EXTRACTION
+    // ========================
+    function extractStartTime(t) {
+        // Look for phrases like "at 730", "at 3 PM", "at 2:10"
+        let m = t.match(/\bat\s+(\d{3,4})\s*(am|pm)?/i);
+        if (m) return parseTimeGeneric(m[1], null, m[2]);
 
-            // fetch from inputs
-            let titleInput = document.querySelector(`input[data-id="${id}"][data-field="title"]`);
-            if (titleInput) event.title = titleInput.value;
+        m = t.match(/\bat\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
+        if (m) return parseTimeGeneric(m[1], m[2], m[3]);
 
-            let startRaw = document.querySelector(`input[data-id="${id}"][data-field="startRaw"]`)?.value;
-            let endRaw = document.querySelector(`input[data-id="${id}"][data-field="endRaw"]`)?.value;
-            let durInput = document.querySelector(`input[data-id="${id}"][data-field="duration"]`)?.value;
-            let locInput = document.querySelector(`input[data-id="${id}"][data-field="location"]`)?.value;
+        // bare 4-digit time like "730am"
+        m = t.match(/\b(\d{3,4})\s*(am|pm)\b/i);
+        if (m) return parseTimeGeneric(m[1], null, m[2]);
 
-            if (locInput !== undefined) event.location = locInput;
+        return null;
+    }
 
-            // parse times flexibly
-            if (startRaw && startRaw !== '❓ missing time') {
-                let newStart = parseNaturalTime(startRaw);
-                if (newStart) event.startTime = newStart;
+    function extractEndTime(t) {
+        // Look for "got off", "off at", "until", "ended at"
+        let m = t.match(/(?:got\s+off|off\s+at|finish(?:ed)?|ended?|until)\s+(?:early\s+)?(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
+        if (m) return parseTimeGeneric(m[1], m[2], m[3]);
+
+        m = t.match(/(?:got\s+off|off\s+at|finish(?:ed)?|ended?|until)\s+(?:early\s+)?(?:at\s+)?(\d{3,4})\s*(am|pm)?/i);
+        if (m) return parseTimeGeneric(m[1], null, m[2]);
+
+        return null;
+    }
+
+    function extractDuration(t) {
+        // Only match explicit duration phrases like "45 minutes", "2 hours", "20 min"
+        let m = t.match(/(\d+)\s*(hours?|hrs?|minutes?|mins?)/i);
+        if (!m) return null;
+        let val = parseInt(m[1]);
+        if (/hours?|hrs?/i.test(m[2])) return val * 60;
+        return val;
+    }
+
+    function parseTimeGeneric(hourStr, minuteStr, mer) {
+        let h, m_val;
+        let s = String(hourStr).trim();
+
+        if (s.length === 3) {
+            h = parseInt(s[0]);
+            m_val = parseInt(s.slice(1));
+        } else if (s.length === 4) {
+            h = parseInt(s.slice(0, 2));
+            m_val = parseInt(s.slice(2));
+        } else {
+            h = parseInt(s);
+            m_val = minuteStr ? parseInt(minuteStr) : 0;
+        }
+
+        if (isNaN(h)) return null;
+        if (isNaN(m_val)) m_val = 0;
+
+        if (mer) {
+            let isPM = /^(pm|p\.m\.)$/i.test(mer.trim());
+            if (isPM && h !== 12) h += 12;
+            if (!isPM && h === 12) h = 0;
+        } else {
+            // No meridiem: heuristic — values <= 6 are likely PM (work gets out, court, etc.)
+            if (h >= 1 && h <= 6) h += 12;
+        }
+
+        let date = new Date();
+        date.setHours(h, m_val, 0, 0);
+        return date;
+    }
+
+    function hasTimeIndicator(t) {
+        return /\d{1,2}:\d{2}/.test(t) ||
+               /\d{3,4}\s*(am|pm)/i.test(t) ||
+               /\d{1,2}\s*(am|pm)/i.test(t) ||
+               /\bat\s+\d/.test(t);
+    }
+
+    // ========================
+    //   WORKOUT MERGE
+    // ========================
+    function mergeWorkoutSegments(segments) {
+        let activities = [];
+        let totalDuration = 0;
+
+        segments.forEach(s => {
+            let dur = extractDuration(s);
+            if (dur) totalDuration += dur;
+            if (/run|ran|jog/i.test(s)) activities.push('Run');
+            if (/super\s*set/i.test(s)) activities.push('Superset');
+            if (/workout/i.test(s) && !activities.length) activities.push('Workout');
+        });
+
+        if (!activities.length) activities.push('Workout');
+        let uniqueActivities = [...new Set(activities)];
+        let title = uniqueActivities.join(' + ');
+
+        let startTime = null;
+        for (let seg of segments) {
+            let st = extractStartTime(seg);
+            if (st) { startTime = st; break; }
+        }
+
+        let endTime = startTime && totalDuration
+            ? new Date(startTime.getTime() + totalDuration * 60000)
+            : null;
+
+        const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        let desc = `Combined fitness session recorded on ${today}. `;
+        desc += `Activities identified: ${uniqueActivities.join(', ')}. `;
+        desc += totalDuration ? `Total estimated duration: ${totalDuration} minutes. ` : '';
+        desc += `Original notes: "${segments.join('; ')}" — Individual segments were merged to avoid duplicate calendar entries.`;
+
+        return {
+            id: 'fitness-' + Date.now(),
+            title: title,
+            startTime: startTime,
+            endTime: endTime,
+            duration: totalDuration || null,
+            location: 'Gym / Home',
+            description: desc,
+            type: 'fitness',
+            missingTime: !startTime,
+            redundancyNote: segments.length > 1
+                ? `${segments.length} workout mentions combined — edit if these were separate sessions`
+                : null,
+            originalText: segments.join(' ')
+        };
+    }
+
+    function mergeSimilarEvents(events) {
+        let filtered = [];
+        events.forEach(ev => {
+            let dup = filtered.find(f =>
+                f.title === ev.title &&
+                f.startTime && ev.startTime &&
+                Math.abs(f.startTime - ev.startTime) < 10 * 60000
+            );
+            if (!dup) filtered.push(ev);
+        });
+        return filtered;
+    }
+
+    // ========================
+    //   DISPLAY
+    // ========================
+    function displayEvents() {
+        const container = document.getElementById('eventsContainer');
+        const timeline  = document.getElementById('timeline');
+        const stats     = document.getElementById('statsContainer');
+        const count     = document.getElementById('eventCount');
+        const missing   = document.getElementById('missingPromptArea');
+
+        container.classList.add('active');
+        count.textContent = `${parsedEvents.length} event${parsedEvents.length !== 1 ? 's' : ''}`;
+
+        let totalMins    = parsedEvents.reduce((s, e) => s + (e.duration || 0), 0);
+        let fitnessCount = parsedEvents.filter(e => e.type === 'fitness').length;
+        let missingCount = parsedEvents.filter(e => e.missingTime).length;
+
+        let totalHours = totalMins > 0 ? (totalMins / 60).toFixed(1) : '0';
+
+        stats.innerHTML = `
+            <div class="stat-card">
+                <div class="stat-value">${parsedEvents.length}</div>
+                <div class="stat-label">Events</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${totalHours}h</div>
+                <div class="stat-label">Total Time</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${totalDriving}</div>
+                <div class="stat-label">Miles</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${fitnessCount}</div>
+                <div class="stat-label">Workouts</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" style="color:var(--warning)">${missingCount}</div>
+                <div class="stat-label">Need Time</div>
+            </div>
+        `;
+
+        missing.innerHTML = missingCount > 0
+            ? `<div class="missing-banner">// ${missingCount} event${missingCount !== 1 ? 's' : ''} missing time — set via the "Set Time" button on each card</div>`
+            : '';
+
+        timeline.innerHTML = parsedEvents.map((ev, idx) => renderEventCard(ev, idx)).join('');
+    }
+
+    // ========================
+    //   RENDER CARD
+    // ========================
+    function renderEventCard(ev, index) {
+        let startVal = ev.startTime ? formatTime(ev.startTime) : '';
+        let endVal   = ev.endTime   ? formatTime(ev.endTime)   : '';
+        let missingClass = ev.missingTime ? 'missing-time' : '';
+        let typeClass    = `type-${ev.type}`;
+
+        let redundancyHtml = ev.redundancyNote
+            ? `<div class="redundancy-note">Note: ${ev.redundancyNote}</div>`
+            : '';
+
+        let distChip = ev.distance
+            ? `<span class="chip">Drive: <strong style="color:var(--text); margin-left:4px">${ev.distance} mi</strong></span>`
+            : '';
+
+        let typePillClass = `type-${ev.type}`;
+
+        return `
+        <div class="event-card ${missingClass} ${typeClass}" data-id="${ev.id}" data-index="${index}">
+            <div class="card-top">
+                <input type="text" class="event-title-input"
+                    value="${escHtml(ev.title)}"
+                    data-field="title" data-id="${ev.id}"
+                    placeholder="Event title">
+                <div class="card-badges">
+                    <span class="type-pill ${typePillClass}">${ev.type}</span>
+                    ${ev.missingTime ? `<span class="needs-time-badge">No Time</span>` : ''}
+                </div>
+            </div>
+
+            <div class="time-row">
+                <span class="time-label">Start</span>
+                <input type="text" class="time-input"
+                    value="${escHtml(startVal)}"
+                    placeholder="e.g. 3:00 PM"
+                    data-field="startRaw" data-id="${ev.id}">
+                <span class="time-arrow">&rarr;</span>
+                <span class="time-label">End</span>
+                <input type="text" class="time-input"
+                    value="${escHtml(endVal)}"
+                    placeholder="optional"
+                    data-field="endRaw" data-id="${ev.id}">
+            </div>
+
+            <div class="meta-row">
+                <span class="chip chip-dur">
+                    Duration:&nbsp;
+                    <input type="number" min="0"
+                        value="${ev.duration !== null && ev.duration !== undefined ? ev.duration : ''}"
+                        placeholder="min"
+                        data-field="duration" data-id="${ev.id}">
+                    &nbsp;min
+                </span>
+                <span class="chip">
+                    Location:&nbsp;
+                    <input type="text"
+                        value="${escHtml(ev.location || '')}"
+                        placeholder="location"
+                        data-field="location" data-id="${ev.id}">
+                </span>
+                ${distChip}
+            </div>
+
+            ${redundancyHtml}
+
+            <div class="card-desc">${escHtml(ev.description)}</div>
+
+            <div class="card-actions">
+                <button class="btn btn-sm btn-danger" onclick="deleteEvent('${ev.id}')">Delete</button>
+                <button class="btn btn-sm btn-warning" onclick="askTimeForEvent('${ev.id}')">Set Time</button>
+                <button class="btn btn-sm btn-primary" onclick="saveEventEdits('${ev.id}')">Save Edits</button>
+            </div>
+        </div>`;
+    }
+
+    function escHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function formatTime(d) {
+        if (!(d instanceof Date) || isNaN(d)) return '';
+        return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    }
+
+    // ========================
+    //   SAVE EDITS — FIXED
+    // ========================
+    window.saveEventEdits = function(id) {
+        const event = parsedEvents.find(e => e.id === id);
+        if (!event) return;
+
+        // 1. Title
+        let titleEl = document.querySelector(`input[data-id="${id}"][data-field="title"]`);
+        if (titleEl) event.title = titleEl.value.trim() || event.title;
+
+        // 2. Location
+        let locEl = document.querySelector(`input[data-id="${id}"][data-field="location"]`);
+        if (locEl) event.location = locEl.value.trim();
+
+        // 3. Read raw time strings BEFORE re-rendering
+        let startRawEl = document.querySelector(`input[data-id="${id}"][data-field="startRaw"]`);
+        let endRawEl   = document.querySelector(`input[data-id="${id}"][data-field="endRaw"]`);
+        let durEl      = document.querySelector(`input[data-id="${id}"][data-field="duration"]`);
+
+        let startRaw = startRawEl ? startRawEl.value.trim() : '';
+        let endRaw   = endRawEl   ? endRawEl.value.trim()   : '';
+        let durRaw   = durEl      ? durEl.value.trim()      : '';
+
+        // 4. Parse start time (only update if user entered something valid)
+        let newStart = null;
+        if (startRaw) {
+            newStart = parseNaturalTime(startRaw);
+            if (newStart) {
+                event.startTime = newStart;
                 event.missingTime = false;
             }
-            if (endRaw) {
-                let newEnd = parseNaturalTime(endRaw);
-                if (newEnd) event.endTime = newEnd;
+        }
+
+        // 5. Parse end time (only update if user entered something valid)
+        let newEnd = null;
+        if (endRaw) {
+            newEnd = parseNaturalTime(endRaw);
+            if (newEnd) event.endTime = newEnd;
+        }
+
+        // 6. Parse duration if entered by user
+        let userDuration = null;
+        if (durRaw !== '') {
+            let parsed = parseInt(durRaw);
+            if (!isNaN(parsed) && parsed >= 0) {
+                userDuration = parsed;
+                event.duration = userDuration;
             }
-            if (durInput !== undefined && durInput !== '') {
-                event.duration = parseInt(durInput);
-                if (event.startTime && event.duration) {
-                    event.endTime = new Date(event.startTime.getTime() + event.duration * 60000);
+        }
+
+        // 7. RECALCULATE: resolve start/end/duration consistently
+        //    Priority: explicit user inputs win. Derive what's missing.
+        if (event.startTime && event.endTime) {
+            // Both times set — derive duration from them (positive only)
+            let diffMs = event.endTime.getTime() - event.startTime.getTime();
+            if (diffMs > 0) {
+                event.duration = Math.round(diffMs / 60000);
+            } else {
+                // End before start — user likely entered wrong value; keep duration if we have it
+                if (userDuration !== null) {
+                    event.endTime = new Date(event.startTime.getTime() + userDuration * 60000);
+                    event.duration = userDuration;
+                } else {
+                    showToast('End time is before start — please check times', 3000);
+                    return; // don't re-render with bad state
                 }
             }
-            if (event.startTime && event.endTime && !event.duration) {
-                event.duration = Math.round((event.endTime - event.startTime) / 60000);
+        } else if (event.startTime && event.duration && !event.endTime) {
+            // Derive end from start + duration
+            event.endTime = new Date(event.startTime.getTime() + event.duration * 60000);
+        } else if (!event.startTime && event.duration !== null) {
+            // Only duration known — that's fine, store it
+        }
+
+        showToast(`'${event.title}' saved`);
+        displayEvents();
+    };
+
+    window.deleteEvent = function(id) {
+        parsedEvents = parsedEvents.filter(e => e.id !== id);
+        displayEvents();
+        showToast('Event deleted');
+    };
+
+    window.askTimeForEvent = function(id) {
+        let ev = parsedEvents.find(e => e.id === id);
+        if (!ev) return;
+        let newTime = prompt(`Enter time for "${ev.title}" (e.g. 4:30 PM, 1630, 4pm)`);
+        if (newTime) {
+            let parsed = parseNaturalTime(newTime);
+            if (parsed) {
+                ev.startTime = parsed;
+                ev.missingTime = false;
+                if (ev.duration && !ev.endTime) {
+                    ev.endTime = new Date(parsed.getTime() + ev.duration * 60000);
+                }
+                showToast(`Time set to ${formatTime(parsed)}`);
+                displayEvents();
+            } else {
+                showToast('Could not parse that time format', 3000);
             }
-
-            showToast(`✅ '${event.title}' updated`);
-            displayEvents(); 
-        };
-
-        window.askTimeForEvent = function(id) {
-            let ev = parsedEvents.find(e => e.id === id);
-            if (!ev) return;
-            let newTime = prompt(`Enter time for "${ev.title}" (e.g. 4:30pm, 1630, 4 PM)`);
-            if (newTime) {
-                let parsed = parseNaturalTime(newTime);
-                if (parsed) {
-                    ev.startTime = parsed;
-                    ev.missingTime = false;
-                    if (ev.duration && !ev.endTime) {
-                        ev.endTime = new Date(parsed.getTime() + ev.duration * 60000);
-                    }
-                    showToast(`time set to ${formatTime(parsed)}`);
-                    displayEvents();
-                } else showToast('could not parse time', 2000);
-            }
-        };
-
-        function parseNaturalTime(str) {
-            if (!str) return null;
-            let m = str.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)?/i);
-            if (m) return parseTimeGeneric(m[1], m[2], m[3]);
-            // try 24h
-            let m24 = str.match(/([0-2][0-9])([0-5][0-9])/);
-            if (m24) return parseTimeGeneric(m24[1], m24[2], null);
-            return null;
         }
+    };
 
-        window.resetFromCurrentEvents = function() {
-            // just refresh display
-            displayEvents();
-            showToast('refreshed from current edits');
-        };
+    function parseNaturalTime(str) {
+        if (!str) return null;
+        str = str.trim();
 
-        function attachCardListeners() {
-            // dynamic listeners not needed; save button triggers explicit.
-        }
+        // HH:MM AM/PM
+        let m = str.match(/^(\d{1,2}):(\d{2})\s*(am|pm)?$/i);
+        if (m) return parseTimeGeneric(m[1], m[2], m[3]);
 
-        // ----- GLOBAL FUNCTIONS (EMAIL, ICS, COPY) -----
-        function generateICSFromEvents() {
-            if (parsedEvents.length === 0) return null;
-            let ics = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//daylog//parser','CALSCALE:GREGORIAN'];
-            let nowStr = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-            parsedEvents.forEach((ev, i) => {
-                if (!ev.startTime) return;
-                let start = ev.startTime.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-                let end = (ev.endTime || new Date(ev.startTime.getTime() + (ev.duration||60)*60000)).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-                ics.push('BEGIN:VEVENT');
-                ics.push(`UID:ev-${i}-${Date.now()}@local`);
-                ics.push(`DTSTAMP:${nowStr}`);
-                ics.push(`DTSTART:${start}`);
-                ics.push(`DTEND:${end}`);
-                ics.push(`SUMMARY:${ev.title}`);
-                ics.push(`LOCATION:${ev.location||''}`);
-                ics.push('END:VEVENT');
-            });
-            ics.push('END:VCALENDAR');
-            return ics.join('\r\n');
-        }
+        // H AM/PM or HH AM/PM
+        m = str.match(/^(\d{1,2})\s*(am|pm)$/i);
+        if (m) return parseTimeGeneric(m[1], null, m[2]);
 
-        window.downloadICS = function() {
-            let ics = generateICSFromEvents();
-            if (!ics) { showToast('no events with time'); return; }
-            let blob = new Blob([ics], {type:'text/calendar'});
-            let a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `daylog-${new Date().toISOString().slice(0,10)}.ics`;
-            a.click();
-            showToast('ics downloaded');
-        };
+        // 4-digit 24h e.g. 1430
+        m = str.match(/^([01]?\d|2[0-3])([0-5]\d)$/);
+        if (m) return parseTimeGeneric(m[1], m[2], null);
 
-        window.sendEmail = function() {
-            let email = document.getElementById('email').value;
-            if (!email) { showToast('enter email'); return; }
-            let body = 'Daily schedule:\n\n';
-            parsedEvents.forEach(ev => {
-                let t = ev.startTime ? formatTime(ev.startTime) : '❓no time';
-                body += `- ${t}: ${ev.title} ${ev.location ? '📍 '+ev.location : ''} ${ev.duration?ev.duration+'min':''}\n`;
-            });
-            body += `\n🚗 total miles: ${totalDriving}`;
-            let subject = `daylog ${new Date().toLocaleDateString()}`;
-            window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-            showToast('email client opened');
-        };
+        // 3-digit 24h e.g. 730
+        m = str.match(/^([1-9])([0-5]\d)$/);
+        if (m) return parseTimeGeneric(m[1], m[2], null);
 
-        window.copyToClipboard = function() {
-            let txt = parsedEvents.map(ev => {
-                return `${ev.startTime ? formatTime(ev.startTime) : '??'} — ${ev.title} ${ev.location||''} ${ev.duration?ev.duration+'m':''}`;
-            }).join('\n');
-            navigator.clipboard.writeText(txt).then(() => showToast('copied!'));
-        };
+        // Any time inside a longer string
+        m = str.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
+        if (m) return parseTimeGeneric(m[1], m[2], m[3]);
 
-        function clearAll() {
-            document.getElementById('schedule').value = '';
-            document.getElementById('eventsContainer').classList.remove('active');
-            parsedEvents = []; totalDriving = 0;
-            showToast('cleared');
-        }
+        return null;
+    }
 
-        function showToast(msg, dur=2500) {
-            let t = document.getElementById('toast');
-            t.textContent = msg;
-            t.classList.add('show');
-            setTimeout(() => t.classList.remove('show'), dur);
-        }
+    window.resetFromCurrentEvents = function() {
+        displayEvents();
+        showToast('View refreshed');
+    };
 
-        window.parseSchedule = parseSchedule;
-        window.clearAll = clearAll;
-
-        // on paste auto trigger
-        document.getElementById('schedule').addEventListener('paste', function() {
-            setTimeout(parseSchedule, 120);
+    // ========================
+    //   ICS / EMAIL / COPY
+    // ========================
+    function generateICSFromEvents() {
+        if (!parsedEvents.some(e => e.startTime)) return null;
+        let ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//daylog//parser//EN', 'CALSCALE:GREGORIAN'];
+        let nowStr = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+        parsedEvents.forEach((ev, i) => {
+            if (!ev.startTime) return;
+            let start = ev.startTime.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+            let end = (ev.endTime || new Date(ev.startTime.getTime() + (ev.duration || 60) * 60000))
+                         .toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+            ics.push('BEGIN:VEVENT');
+            ics.push(`UID:ev-${i}-${Date.now()}@daylog`);
+            ics.push(`DTSTAMP:${nowStr}`);
+            ics.push(`DTSTART:${start}`);
+            ics.push(`DTEND:${end}`);
+            ics.push(`SUMMARY:${ev.title}`);
+            if (ev.location) ics.push(`LOCATION:${ev.location}`);
+            if (ev.description) ics.push(`DESCRIPTION:${ev.description.replace(/\n/g, '\\n')}`);
+            ics.push('END:VEVENT');
         });
+        ics.push('END:VCALENDAR');
+        return ics.join('\r\n');
+    }
+
+    window.downloadICS = function() {
+        let ics = generateICSFromEvents();
+        if (!ics) { showToast('No events with time to export'); return; }
+        let blob = new Blob([ics], { type: 'text/calendar' });
+        let a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `daylog-${new Date().toISOString().slice(0,10)}.ics`;
+        a.click();
+        showToast('Calendar file downloaded');
+    };
+
+    window.sendEmail = function() {
+        let email = document.getElementById('email').value.trim();
+        if (!email) { showToast('Enter an email address first'); return; }
+        let body = `Daily Log — ${new Date().toLocaleDateString('en-US', {weekday:'long',year:'numeric',month:'long',day:'numeric'})}\n\n`;
+        parsedEvents.forEach(ev => {
+            let t = ev.startTime ? formatTime(ev.startTime) : '(no time)';
+            let e = ev.endTime   ? ` – ${formatTime(ev.endTime)}`  : '';
+            body += `${t}${e}  |  ${ev.title}`;
+            if (ev.location) body += `  |  ${ev.location}`;
+            if (ev.duration) body += `  |  ${ev.duration} min`;
+            body += '\n';
+        });
+        if (totalDriving) body += `\nTotal miles driven: ${totalDriving}`;
+        let subject = encodeURIComponent(`DayLog — ${new Date().toLocaleDateString()}`);
+        window.location.href = `mailto:${email}?subject=${subject}&body=${encodeURIComponent(body)}`;
+        showToast('Email client opened');
+    };
+
+    window.copyToClipboard = function() {
+        let txt = parsedEvents.map(ev => {
+            let t = ev.startTime ? formatTime(ev.startTime) : '??:??';
+            let e = ev.endTime   ? ` – ${formatTime(ev.endTime)}` : '';
+            return `${t}${e}  ${ev.title}${ev.location ? '  @ ' + ev.location : ''}${ev.duration ? '  (' + ev.duration + ' min)' : ''}`;
+        }).join('\n');
+        navigator.clipboard.writeText(txt).then(() => showToast('Copied to clipboard'));
+    };
+
+    function clearAll() {
+        document.getElementById('schedule').value = '';
+        document.getElementById('eventsContainer').classList.remove('active');
+        parsedEvents = []; totalDriving = 0;
+        showToast('Cleared');
+    }
+
+    function showToast(msg, dur = 2500) {
+        let t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), dur);
+    }
+
+    // auto-parse on paste
+    document.getElementById('schedule').addEventListener('paste', function() {
+        setTimeout(parseSchedule, 150);
+    });
+
+    window.parseSchedule  = parseSchedule;
+    window.clearAll       = clearAll;
     </script>
 </body>
 </html>

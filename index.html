@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Particle Face Tracking</title>
+    <title>Anime GLB Face Tracking</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { overflow: hidden; background: #000; }
+        body { overflow: hidden; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); }
         #input_video { display: none; }
         #output_canvas { display: block; width: 100vw; height: 100vh; }
         #loading {
@@ -14,268 +14,435 @@
             transform: translate(-50%, -50%);
             color: #fff; font-family: 'Courier New', monospace; font-size: 22px;
             pointer-events: none; letter-spacing: 2px;
-            text-shadow: 0 0 12px rgba(180,220,255,0.7);
+            text-shadow: 0 0 20px rgba(255, 100, 200, 0.8);
+            z-index: 100;
+        }
+        #controls {
+            position: absolute; bottom: 20px; left: 50%;
+            transform: translateX(-50%);
+            display: flex; gap: 10px;
+            z-index: 10;
+        }
+        button {
+            background: rgba(255, 100, 200, 0.2);
+            border: 1px solid rgba(255, 100, 200, 0.5);
+            color: #fff;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: rgba(255, 100, 200, 0.4);
+            box-shadow: 0 0 15px rgba(255, 100, 200, 0.5);
         }
     </style>
+    <!-- Three.js and GLTF Loader -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <!-- MediaPipe -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 </head>
 <body>
 
-<div id="loading">Initializing Camera...</div>
+<div id="loading">Loading Anime Avatar...</div>
 <video id="input_video" playsinline></video>
 <canvas id="output_canvas"></canvas>
+<div id="controls">
+    <button onclick="toggleWireframe()">Wireframe</button>
+    <button onclick="resetCamera()">Reset View</button>
+</div>
 
 <script>
 // ============================================================
-// CONFIG
+// CONFIGURATION
 // ============================================================
-const PARTICLES_PER_LANDMARK = 4; // each landmark spawns this many cloud particles
-const CLOUD_RADIUS = 0.038;       // radius of the sphere shell around each landmark
-const INTERP_EDGES = 2;           // extra points interpolated along each mesh edge
-
-// Key face-mesh edges we interpolate along (pairs of landmark indices).
-// These cover: face outline, eyebrows, eyes, nose, lips, and cheek/jaw structure.
-const FACE_EDGES = [
-    // ---- Face outline (jawline + temples) ----
-    [0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[9,10],
-    [10,11],[11,12],[12,13],[13,14],[14,15],[15,16],[16,17],[17,18],[18,19],
-    [19,20],[20,21],[21,22],[22,23],[23,24],[24,25],[25,26],[26,27],
-    // ---- Left eyebrow ----
-    [66,67],[67,68],[68,69],[69,70],[70,71],[71,72],[72,73],[73,74],[74,75],[75,76],[76,77],
-    // ---- Right eyebrow ----
-    [78,79],[79,80],[80,81],[81,82],[82,83],[83,84],[84,85],[85,86],[86,87],[87,88],
-    // ---- Left eye ----
-    [161,246],[246,35],[35,31],[31,32],[32,33],[33,34],[34,35],
-    [36,37],[37,38],[38,39],[39,40],[40,41],[41,36],
-    [160,161],[161,162],[162,163],[163,164],
-    // ---- Right eye ----
-    [389,387],[387,366],[366,368],[368,369],[369,370],[370,371],
-    [374,375],[375,376],[376,377],[377,378],[378,379],[379,374],
-    [388,389],[389,390],[390,391],[391,392],
-    // ---- Nose bridge & tip ----
-    [6,195],[195,5],[5,4],[4,69],[69,131],[131,51],[51,52],[52,53],[53,54],
-    [55,56],[56,57],[57,58],[58,59],[59,60],[60,61],
-    [54,55],[55,59],[59,60],[60,48],[48,49],[49,50],[50,51],
-    [54,68],[68,67],[67,66],[66,59],
-    // ---- Outer lips ----
-    [84,54],[54,37],[37,36],[36,84],
-    [0,37],[37,38],[38,267],[267,0],
-    [61,88],[88,89],[89,90],[90,91],[91,92],[92,63],[63,62],[62,61],
-    [48,178],[178,87],[87,86],[86,85],[85,84],[84,13],[13,14],[14,88],
-    // ---- Inner lips ----
-    [78,95],[95,96],[96,97],[97,98],[98,99],[99,100],[100,101],[101,102],
-    [78,79],[79,80],[80,81],[81,82],[82,83],[83,84],[84,85],
-    // ---- Chin & cheeks ----
-    [28,29],[29,30],[30,31],[31,32],
-    [103,104],[104,105],[105,106],[106,107],[107,108],[108,109],[109,110],
-    [333,334],[334,335],[335,336],[336,337],[337,338],[338,339],[339,340],
-    // ---- Forehead center line ----
-    [151,8],[8,195],[195,200],
-    // ---- Cheek fill diagonals ----
-    [36,118],[118,117],[117,116],[116,35],
-    [266,347],[347,348],[348,349],[349,366],
-    // ---- Under-eye / cheekbone ----
-    [119,120],[120,121],[121,122],[122,123],
-    [348,349],[349,350],[350,351],[351,352],
-    // ---- Brow-to-temple ----
-    [70,71],[71,72],[72,73],[73,155],
-    [301,302],[302,303],[303,304],[304,383],
-    // ---- Nose side walls ----
-    [220,221],[221,222],[222,131],
-    [449,450],[450,451],[451,360],
-    // ---- Lip corner detail ----
-    [61,146],[146,147],[147,148],[148,149],[149,150],[150,35],
-    [291,376],[376,377],[377,378],[378,379],[379,380],[380,266],
-    // ---- Forehead sides ----
-    [101,100],[100,99],[99,98],[98,97],[97,96],[96,95],
-    [329,328],[328,327],[327,326],[326,325],[325,324],[324,323],
-    // ---- Mid-face connectors ----
-    [198,199],[199,200],[200,201],[201,202],
-    [427,428],[428,429],[429,430],[430,431],
-    // ---- Orbital fill ----
-    [35,189],[189,190],[190,191],[191,192],
-    [266,418],[418,419],[419,420],[420,421],
-    // ---- Lower cheek to jaw ----
-    [176,177],[177,178],[178,179],[179,180],
-    [405,406],[406,407],[407,408],[408,409],
-    // ---- Ear region approximation ----
-    [127,234],[234,93],[93,132],[132,58],
-    [356,463],[463,322],[322,361],[361,287],
-    // ---- Extra forehead fill ----
-    [10,109],[109,108],[108,107],[107,106],
-    [247,339],[339,338],[338,337],[337,336],
-    // ---- Nose to cheek bridges ----
-    [131,118],[118,119],[119,120],
-    [360,347],[347,348],[348,349],
-    // ---- Crown / top head ----
-    [234,247],[247,246],
-    [7,9],[9,11],[11,14],[14,20]
-];
-
-// ============================================================
-// Deduplicate edges and precompute interpolated landmark sets
-// ============================================================
-function dedupEdges(edges, max) {
-    const seen = new Set();
-    const out = [];
-    for (const [a, b] of edges) {
-        if (a < 0 || a >= max || b < 0 || b >= max) continue;
-        const key = Math.min(a,b) + '_' + Math.max(a,b);
-        if (!seen.has(key)) { seen.add(key); out.push([a, b]); }
+const CONFIG = {
+    modelUrl: 'https://models.readyplayer.me/6398a5d2b4f5f6c0d8c9e7f3.glb',
+    
+    scale: 1.5,
+    smoothing: 0.3, // 0-1, higher = smoother but more latency
+    
+    // Landmark to bone/blendshape mapping weights
+    influenceStrength: {
+        brow: 1.0,
+        eye: 1.2,
+        mouth: 1.0,
+        jaw: 0.8,
+        headRotation: 1.0
     }
-    return out;
-}
-const DEDUPED_EDGES = dedupEdges(FACE_EDGES, 468);
-
-// Total particle count:
-//   base 468 landmarks × PARTICLES_PER_LANDMARK
-// + interpolated edge points × PARTICLES_PER_LANDMARK
-const interpCount = DEDUPED_EDGES.length * INTERP_EDGES;
-const totalLandmarks = 468 + interpCount;
-const totalParticles = totalLandmarks * PARTICLES_PER_LANDMARK;
+};
 
 // ============================================================
 // THREE.JS SETUP
 // ============================================================
 const canvas = document.getElementById('output_canvas');
 const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1a2e);
+scene.fog = new THREE.Fog(0x1a1a2e, 5, 20);
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.z = 2;
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 0, 3.5);
 
 const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-// Geometry for all particles
-const geometry = new THREE.BufferGeometry();
-const positions = new Float32Array(totalParticles * 3);
-geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+// Lighting setup for anime style
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+scene.add(ambientLight);
 
-// Per-particle offsets baked via Fibonacci sphere sampling.
-// Fibonacci sphere places N points on a unit sphere with maximum
-// angular separation — no clustering, no randomness bias.
-// Math:
-//   golden angle increment = PI * (3 - sqrt(5))  ≈ 2.39996 rad
-//   For point i out of N:
-//     y  = 1 - (2i+1)/N          → evenly spaced latitude slices
-//     r  = sqrt(1 - y²)          → radius of latitude circle (trig identity)
-//     phi = goldenAngle * i      → longitude that never repeats closely
-//     x  = r * cos(phi)
-//     z  = r * sin(phi)
-// Each landmark group of PARTICLES_PER_LANDMARK gets its own fresh
-// Fibonacci sequence starting at index 0, so every group is identical
-// in shape but that's fine — the landmarks themselves differ.
-const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5)); // ≈ 2.39996 radians
+const mainLight = new THREE.DirectionalLight(0xffd1dc, 1.2);
+mainLight.position.set(2, 3, 2);
+mainLight.castShadow = true;
+mainLight.shadow.mapSize.width = 2048;
+mainLight.shadow.mapSize.height = 2048;
+scene.add(mainLight);
 
-const offsets = new Float32Array(totalParticles * 3);
-for (let i = 0; i < totalLandmarks; i++) {
-    for (let p = 0; p < PARTICLES_PER_LANDMARK; p++) {
-        const pi = i * PARTICLES_PER_LANDMARK + p;
+const rimLight = new THREE.SpotLight(0x00ffff, 0.8);
+rimLight.position.set(-3, 2, -2);
+rimLight.lookAt(0, 0, 0);
+scene.add(rimLight);
 
-        // Fibonacci sphere for this sub-index within the group
-        const y   = 1 - (2 * p + 1) / PARTICLES_PER_LANDMARK; // latitude: -1 → 1
-        const r   = Math.sqrt(1 - y * y);                      // circle radius at this latitude
-        const phi = GOLDEN_ANGLE * p;                           // longitude via golden angle
+const fillLight = new THREE.PointLight(0xff69b4, 0.5);
+fillLight.position.set(0, -1, 2);
+scene.add(fillLight);
 
-        offsets[pi * 3]     =  r * Math.cos(phi) * CLOUD_RADIUS;
-        offsets[pi * 3 + 1] =  y                  * CLOUD_RADIUS;
-        offsets[pi * 3 + 2] =  r * Math.sin(phi) * CLOUD_RADIUS;
+// ============================================================
+// GLB MODEL LOADING
+// ============================================================
+let avatar = null;
+let morphTargets = {};
+let bones = {};
+let mixer = null;
+let targetRotations = { x: 0, y: 0, z: 0 };
+let currentRotations = { x: 0, y: 0, z: 0 };
+
+// Create a default anime-style head geometry if no GLB loads
+function createDefaultAnimeHead() {
+    const group = new THREE.Group();
+    
+    // Head sphere (stylized)
+    const headGeo = new THREE.SphereGeometry(0.6, 32, 32);
+    // Flatten slightly for anime look
+    headGeo.scale(0.85, 1, 0.9);
+    const headMat = new THREE.MeshToonMaterial({ 
+        color: 0xffe0bd,
+        gradientMap: null
+    });
+    const head = new THREE.Mesh(headGeo, headMat);
+    head.castShadow = true;
+    head.receiveShadow = true;
+    group.add(head);
+    
+    // Eyes (large anime style)
+    const eyeGeo = new THREE.SphereGeometry(0.12, 16, 16);
+    eyeGeo.scale(1, 1.3, 0.5);
+    const eyeMat = new THREE.MeshToonMaterial({ color: 0x3366cc, emissive: 0x112244 });
+    
+    const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+    leftEye.position.set(-0.18, 0.05, 0.45);
+    group.add(leftEye);
+    
+    const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+    rightEye.position.set(0.18, 0.05, 0.45);
+    group.add(rightEye);
+    
+    // Eye highlights
+    const highlightGeo = new THREE.SphereGeometry(0.04, 8, 8);
+    const highlightMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    
+    const leftHighlight = new THREE.Mesh(highlightGeo, highlightMat);
+    leftHighlight.position.set(-0.15, 0.1, 0.52);
+    group.add(leftHighlight);
+    
+    const rightHighlight = new THREE.Mesh(highlightGeo, highlightMat);
+    rightHighlight.position.set(0.21, 0.1, 0.52);
+    group.add(rightHighlight);
+    
+    // Hair (simplified anime style)
+    const hairGeo = new THREE.SphereGeometry(0.65, 32, 32, 0, Math.PI * 2, 0, Math.PI * 0.45);
+    const hairMat = new THREE.MeshToonMaterial({ color: 0x2a2a4a });
+    const hair = new THREE.Mesh(hairGeo, hairMat);
+    hair.position.y = 0.05;
+    hair.rotation.x = Math.PI;
+    hair.castShadow = true;
+    group.add(hair);
+    
+    // Bangs
+    for (let i = 0; i < 5; i++) {
+        const bangGeo = new THREE.ConeGeometry(0.08, 0.4, 4);
+        const bang = new THREE.Mesh(bangGeo, hairMat);
+        bang.position.set((i - 2) * 0.15, 0.5, 0.45);
+        bang.rotation.x = -0.3;
+        bang.rotation.z = (i - 2) * 0.1;
+        group.add(bang);
     }
+    
+    return group;
 }
 
-const material = new THREE.PointsMaterial({
-    color: 0xb8deff,
-    size: 0.015,
-    sizeAttenuation: true,
-    transparent: true,
-    opacity: 0.85
-});
+function loadModel() {
+    const loader = new THREE.GLTFLoader();
+    
+    loader.load(CONFIG.modelUrl, 
+        (gltf) => {
+            avatar = gltf.scene;
+            
+            // Center and scale
+            const box = new THREE.Box3().setFromObject(avatar);
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const scale = CONFIG.scale / maxDim;
+            
+            avatar.scale.setScalar(scale);
+            avatar.position.sub(center.multiplyScalar(scale));
+            
+            // Setup morph targets and bones
+            avatar.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    
+                    // Store morph targets if they exist
+                    if (child.morphTargetDictionary) {
+                        Object.keys(child.morphTargetDictionary).forEach(key => {
+                            morphTargets[key] = {
+                                mesh: child,
+                                index: child.morphTargetDictionary[key]
+                            };
+                        });
+                    }
+                }
+                
+                if (child.isBone) {
+                    bones[child.name] = child;
+                }
+            });
+            
+            scene.add(avatar);
+            document.getElementById('loading').style.display = 'none';
+            
+            // Setup animation mixer if animations exist
+            if (gltf.animations && gltf.animations.length) {
+                mixer = new THREE.AnimationMixer(avatar);
+            }
+        },
+        (progress) => {
+            console.log('Loading:', (progress.loaded / progress.total * 100) + '%');
+        },
+        (error) => {
+            console.warn('GLB load failed, using default anime head:', error);
+            avatar = createDefaultAnimeHead();
+            scene.add(avatar);
+            document.getElementById('loading').style.display = 'none';
+        }
+    );
+}
 
-const particleSystem = new THREE.Points(geometry, material);
-scene.add(particleSystem);
+loadModel();
 
 // ============================================================
-// MEDIAPIPE FACE MESH
+// MEDIAPIPE FACE TRACKING
 // ============================================================
 const videoElement = document.getElementById('input_video');
-const loadingMsg   = document.getElementById('loading');
 
-// Uniform scale factor – use the LARGER dimension so the face fills
-// the viewport without squishing regardless of aspect ratio.
-function getScale() {
-    const aspect = window.innerWidth / window.innerHeight;
-    // We want the mapped face to span roughly 2.8 units in its larger axis.
-    // MediaPipe coords are 0-1, so multiply by scaleFactor to get world units,
-    // then subtract half to centre.
-    const baseScale = 2.8;
-    return { sx: baseScale * Math.max(1, aspect), sy: baseScale * Math.max(1, 1 / aspect) };
+// Key landmark indices for facial features
+const LANDMARKS = {
+    // Face bounds for head rotation calculation
+    leftEye: [33, 133, 157, 158, 159, 160, 161, 173, 246],
+    rightEye: [362, 263, 384, 385, 386, 387, 388, 398, 466],
+    leftEyebrow: [70, 63, 105, 66, 107, 55, 65, 52, 53, 46],
+    rightEyebrow: [336, 296, 334, 293, 300, 285, 295, 282, 283, 276],
+    nose: [1, 2, 3, 4, 5, 6, 168, 197, 195, 5, 4],
+    upperLip: [61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291],
+    lowerLip: [146, 91, 181, 84, 17, 314, 405, 321, 375, 291],
+    jaw: [10, 152, 234, 454, 323, 93, 132, 361, 172, 136, 150, 149, 176, 148, 152],
+    faceOval: [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109]
+};
+
+function getLandmarkCenter(landmarks, indices) {
+    let x = 0, y = 0, z = 0;
+    indices.forEach(idx => {
+        x += landmarks[idx].x;
+        y += landmarks[idx].y;
+        z += landmarks[idx].z;
+    });
+    return {
+        x: x / indices.length,
+        y: y / indices.length,
+        z: z / indices.length
+    };
+}
+
+function getEyeOpenness(landmarks, eyeIndices) {
+    // Calculate eye height vs width ratio
+    const top = landmarks[eyeIndices[2]]; // upper eyelid
+    const bottom = landmarks[eyeIndices[4]]; // lower eyelid
+    const left = landmarks[eyeIndices[0]];
+    const right = landmarks[eyeIndices[1]];
+    
+    const height = Math.sqrt(
+        Math.pow(top.x - bottom.x, 2) + 
+        Math.pow(top.y - bottom.y, 2)
+    );
+    const width = Math.sqrt(
+        Math.pow(left.x - right.x, 2) + 
+        Math.pow(left.y - right.y, 2)
+    );
+    
+    return Math.min(height / width * 3, 1); // Normalize
+}
+
+function getMouthOpenness(landmarks) {
+    const upperLip = getLandmarkCenter(landmarks, LANDMARKS.upperLip);
+    const lowerLip = getLandmarkCenter(landmarks, LANDMARKS.lowerLip);
+    
+    const mouthHeight = Math.sqrt(
+        Math.pow(upperLip.x - lowerLip.x, 2) +
+        Math.pow(upperLip.y - lowerLip.y, 2)
+    );
+    
+    // Normalize based on face size
+    const faceWidth = Math.sqrt(
+        Math.pow(landmarks[234].x - landmarks[454].x, 2) +
+        Math.pow(landmarks[234].y - landmarks[454].y, 2)
+    );
+    
+    return Math.min(mouthHeight / faceWidth * 4, 1.2);
+}
+
+function getEyebrowRaise(landmarks, isLeft) {
+    const browIndices = isLeft ? LANDMARKS.leftEyebrow : LANDMARKS.rightEyebrow;
+    const brow = getLandmarkCenter(landmarks, browIndices);
+    const eye = getLandmarkCenter(landmarks, isLeft ? LANDMARKS.leftEye : LANDMARKS.rightEye);
+    
+    // Distance between eyebrow and eye
+    return (brow.y - eye.y) * 10; // Scale factor
 }
 
 function onResults(results) {
-    loadingMsg.style.display = 'none';
-
-    if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
-
-    const lm   = results.multiFaceLandmarks[0]; // 468 raw landmarks
-    const pos  = particleSystem.geometry.attributes.position.array;
-    const { sx, sy } = getScale();
-
-    // Helper: convert one MediaPipe landmark to world coords
-    function lmToWorld(idx) {
-        return {
-            x:  (0.5 - lm[idx].x) * sx,
-            y:  (0.5 - lm[idx].y) * sy,
-            z: -lm[idx].z * 1.5
-        };
-    }
-
-    // --- Step 1: build the full landmark array (base + interpolated) ---
-    // We store them flat for speed.
-    const allLM = new Float32Array(totalLandmarks * 3);
-
-    // Base 468 landmarks
-    for (let i = 0; i < 468; i++) {
-        const w = lmToWorld(i);
-        allLM[i * 3]     = w.x;
-        allLM[i * 3 + 1] = w.y;
-        allLM[i * 3 + 2] = w.z;
-    }
-
-    // Interpolated edge landmarks
-    let idx = 468;
-    for (let e = 0; e < DEDUPED_EDGES.length; e++) {
-        const [a, b] = DEDUPED_EDGES[e];
-        const ax = allLM[a*3], ay = allLM[a*3+1], az = allLM[a*3+2];
-        const bx = allLM[b*3], by = allLM[b*3+1], bz = allLM[b*3+2];
-        for (let k = 1; k <= INTERP_EDGES; k++) {
-            const t = k / (INTERP_EDGES + 1);
-            allLM[idx * 3]     = ax + (bx - ax) * t;
-            allLM[idx * 3 + 1] = ay + (by - ay) * t;
-            allLM[idx * 3 + 2] = az + (bz - az) * t;
-            idx++;
+    if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0 || !avatar) return;
+    
+    const lm = results.multiFaceLandmarks[0];
+    
+    // Calculate head rotation from face orientation
+    const nose = getLandmarkCenter(lm, LANDMARKS.nose);
+    const leftEye = getLandmarkCenter(lm, LANDMARKS.leftEye);
+    const rightEye = getLandmarkCenter(lm, LANDMARKS.rightEye);
+    const chin = lm[152];
+    const forehead = lm[10];
+    
+    // Calculate rotation angles
+    const eyeLine = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
+    const headTilt = -eyeLine; // Roll
+    
+    const faceDepth = Math.atan2(nose.z - (leftEye.z + rightEye.z) / 2, 
+                                Math.abs(rightEye.x - leftEye.x));
+    const headYaw = (nose.x - 0.5) * 2; // Left/right turn
+    const headPitch = (nose.y - 0.5) * 2; // Up/down
+    
+    // Apply smoothing
+    targetRotations = {
+        x: headPitch * CONFIG.influenceStrength.headRotation,
+        y: headYaw * CONFIG.influenceStrength.headRotation,
+        z: headTilt * CONFIG.influenceStrength.headRotation
+    };
+    
+    // Apply facial expressions
+    const leftEyeOpen = getEyeOpenness(lm, [33, 133, 157, 158, 159, 160, 161]);
+    const rightEyeOpen = getEyeOpenness(lm, [362, 263, 384, 385, 386, 387, 388]);
+    const mouthOpen = getMouthOpenness(lm);
+    const leftBrowRaise = getEyebrowRaise(lm, true);
+    const rightBrowRaise = getEyebrowRaise(lm, false);
+    
+    // Apply to morph targets if they exist
+    Object.keys(morphTargets).forEach(key => {
+        const target = morphTargets[key];
+        const name = key.toLowerCase();
+        
+        let value = 0;
+        
+        // Map morph targets to expressions
+        if (name.includes('eye') && name.includes('blink')) {
+            value = 1 - ((leftEyeOpen + rightEyeOpen) / 2);
+        } else if (name.includes('eye') && name.includes('wide')) {
+            value = Math.max(leftBrowRaise, rightBrowRaise) * 0.5;
+        } else if (name.includes('mouth') && name.includes('open')) {
+            value = mouthOpen;
+        } else if (name.includes('brow') && name.includes('up')) {
+            value = (leftBrowRaise + rightBrowRaise) / 2;
+        } else if (name.includes('jaw') && name.includes('open')) {
+            value = mouthOpen * 0.7;
         }
+        
+        target.mesh.morphTargetInfluences[target.index] = THREE.MathUtils.lerp(
+            target.mesh.morphTargetInfluences[target.index] || 0,
+            value,
+            CONFIG.smoothing
+        );
+    });
+    
+    // Animate default head parts if no morph targets
+    if (Object.keys(morphTargets).length === 0) {
+        animateDefaultHead(leftEyeOpen, rightEyeOpen, mouthOpen, leftBrowRaise, rightBrowRaise);
     }
-
-    // --- Step 2: scatter PARTICLES_PER_LANDMARK particles around each landmark ---
-    for (let i = 0; i < totalLandmarks; i++) {
-        const lx = allLM[i * 3],     ly = allLM[i * 3 + 1], lz = allLM[i * 3 + 2];
-        for (let p = 0; p < PARTICLES_PER_LANDMARK; p++) {
-            const pi = (i * PARTICLES_PER_LANDMARK + p);
-            pos[pi * 3]     = lx + offsets[pi * 3];
-            pos[pi * 3 + 1] = ly + offsets[pi * 3 + 1];
-            pos[pi * 3 + 2] = lz + offsets[pi * 3 + 2];
-        }
-    }
-
-    particleSystem.geometry.attributes.position.needsUpdate = true;
 }
 
-const faceMesh = new FaceMesh({ locateFile: (file) => {
-    return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
-}});
+function animateDefaultHead(leftEye, rightEye, mouth, leftBrow, rightBrow) {
+    // Find and animate eye meshes
+    avatar.children.forEach(child => {
+        if (child.geometry && child.geometry.type === 'SphereGeometry') {
+            // Scale eyes based on openness
+            if (child.position.x < 0) { // Left eye
+                child.scale.y = 1.3 * leftEye;
+            } else if (child.position.x > 0) { // Right eye
+                child.scale.y = 1.3 * rightEye;
+            }
+        }
+    });
+    
+    // Mouth animation (if we had a mouth mesh)
+    // For now, head rotation is the main animation
+}
+
+// ============================================================
+// ANIMATION LOOP
+// ============================================================
+function animate() {
+    requestAnimationFrame(animate);
+    
+    // Smooth rotation interpolation
+    currentRotations.x = THREE.MathUtils.lerp(currentRotations.x, targetRotations.x, CONFIG.smoothing);
+    currentRotations.y = THREE.MathUtils.lerp(currentRotations.y, targetRotations.y, CONFIG.smoothing);
+    currentRotations.z = THREE.MathUtils.lerp(currentRotations.z, targetRotations.z, CONFIG.smoothing);
+    
+    if (avatar) {
+        avatar.rotation.x = currentRotations.x;
+        avatar.rotation.y = currentRotations.y;
+        avatar.rotation.z = currentRotations.z;
+        
+        // Add subtle idle animation
+        const time = Date.now() * 0.001;
+        avatar.position.y = Math.sin(time) * 0.02;
+    }
+    
+    if (mixer) mixer.update(0.016);
+    
+    renderer.render(scene, camera);
+}
+animate();
+
+// ============================================================
+// MEDIAPIPE SETUP
+// ============================================================
+const faceMesh = new FaceMesh({ 
+    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+});
 
 faceMesh.setOptions({
     maxNumFaces: 1,
@@ -286,9 +453,6 @@ faceMesh.setOptions({
 
 faceMesh.onResults(onResults);
 
-// ============================================================
-// CAMERA
-// ============================================================
 const cameraFeed = new Camera(videoElement, {
     onFrame: async () => { await faceMesh.send({ image: videoElement }); },
     width: 1280,
@@ -297,13 +461,24 @@ const cameraFeed = new Camera(videoElement, {
 cameraFeed.start();
 
 // ============================================================
-// ANIMATION LOOP
+// CONTROLS
 // ============================================================
-function animate() {
-    requestAnimationFrame(animate);
-    renderer.render(scene, camera);
+let wireframe = false;
+function toggleWireframe() {
+    wireframe = !wireframe;
+    if (avatar) {
+        avatar.traverse((child) => {
+            if (child.isMesh && child.material) {
+                child.material.wireframe = wireframe;
+            }
+        });
+    }
 }
-animate();
+
+function resetCamera() {
+    camera.position.set(0, 0, 3.5);
+    camera.lookAt(0, 0, 0);
+}
 
 // ============================================================
 // RESIZE

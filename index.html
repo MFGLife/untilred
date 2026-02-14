@@ -399,7 +399,7 @@
       i++;
 
       // variable typing delay
-      await new Promise(r => setTimeout(r, 60 + Math.random() * 120));
+      await new Promise(r => setTimeout(r, 30 + Math.random() * 60));
 
       // occasional pause
       if (Math.random() < 0.2 && i < fullText.length - 2) {

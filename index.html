@@ -1,114 +1,527 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Texting Music Video</title>
-<style>
-  body {
-    margin: 0;
-    font-family: 'Helvetica', sans-serif;
-    background: #111;
-    color: #fff;
-  }
-  .chat-container {
-    height: 80vh;
-    padding: 10px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    background: #222;
-  }
-  .bubble {
-    max-width: 80%;
-    margin: 5px 0;
-    padding: 10px 15px;
-    border-radius: 20px;
-    word-wrap: break-word;
-    opacity: 0;
-    transform: translateY(20px);
-    transition: all 0.4s ease;
-  }
-  .human { background: #ff4d6d; align-self: flex-end; }
-  .ai { background: #4d9eff; align-self: flex-start; }
-  .input-area {
-    padding: 10px;
-    background: #111;
-    display: flex;
-  }
-  .input-area textarea {
-    flex: 1;
-    resize: none;
-    padding: 8px;
-    border-radius: 10px;
-    border: none;
-    font-family: monospace;
-    font-size: 14px;
-  }
-  .input-area button {
-    margin-left: 10px;
-    padding: 10px 15px;
-    border: none;
-    border-radius: 10px;
-    background: #ff4d6d;
-    color: #fff;
-    font-weight: bold;
-    cursor: pointer;
-  }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Axium AI · Lyric Chat</title>
+  <!-- Font & icon style: clean, modern, chatbot-like -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #0c0f15;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 16px;
+    }
+
+    /* main app card – authentic Axium dark UI, subtle border, glass effect */
+    .axium-app {
+      max-width: 1000px;
+      width: 100%;
+      background: #181d27;
+      border-radius: 36px 36px 32px 32px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(75, 130, 245, 0.15) inset;
+      backdrop-filter: blur(2px);
+      overflow: hidden;
+      border: 1px solid #2b3240;
+    }
+
+    /* header — axium AI top bar */
+    .axium-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: #1e2532;
+      border-bottom: 1px solid #2d3648;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .axium-logo {
+      background: linear-gradient(145deg, #4a72d4, #2f4eb0);
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 700;
+      font-size: 20px;
+      box-shadow: 0 6px 12px rgba(23, 45, 110, 0.5);
+    }
+
+    .axium-title {
+      font-weight: 600;
+      font-size: 18px;
+      letter-spacing: -0.2px;
+      color: #edeff2;
+    }
+
+    .axium-badge {
+      background: #2a3346;
+      color: #9bb9ff;
+      border-radius: 40px;
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid #3d4a66;
+      margin-left: 8px;
+    }
+
+    .header-right {
+      color: #95a5c9;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .header-right i {
+      font-size: 18px;
+      color: #6f7fa3;
+      transition: 0.2s;
+    }
+
+    .header-right i:hover {
+      color: #85abff;
+    }
+
+    /* main chat area – perfect background, smooth scroll */
+    .chat-window {
+      background: #131821;
+      padding: 24px 20px 16px 20px;
+      height: 460px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      scroll-behavior: smooth;
+      scrollbar-width: thin;
+      scrollbar-color: #3f4b63 #1e2430;
+    }
+
+    .chat-window::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .chat-window::-webkit-scrollbar-track {
+      background: #1e2430;
+    }
+
+    .chat-window::-webkit-scrollbar-thumb {
+      background: #3f4b63;
+      border-radius: 12px;
+    }
+
+    /* bubble container – each bubble block (makes spacing consistent) */
+    .msg-row {
+      display: flex;
+      margin-bottom: 16px;
+      animation: msgAppear 0.3s ease forwards;
+    }
+
+    .msg-row.human-row {
+      justify-content: flex-end;
+    }
+
+    .msg-row.ai-row {
+      justify-content: flex-start;
+    }
+
+    /* actual bubble */
+    .chat-bubble {
+      max-width: 70%;
+      padding: 14px 20px;
+      border-radius: 26px;
+      font-size: 15px;
+      line-height: 1.5;
+      letter-spacing: -0.1px;
+      word-break: break-word;
+      box-shadow: 0 8px 18px -6px rgba(0, 0, 0, 0.5);
+      position: relative;
+      transition: transform 0.15s;
+    }
+
+    .human-bubble {
+      background: #2f4eb0;  /* Axium user / human – deep blue */
+      color: white;
+      border-bottom-right-radius: 6px;
+      border: 1px solid #4870d0;
+    }
+
+    .ai-bubble {
+      background: #262e3f;   /* AI assistant – dark greyish with subtle glow */
+      color: #eef3fc;
+      border-bottom-left-radius: 6px;
+      border: 1px solid #3c4865;
+      backdrop-filter: blur(4px);
+    }
+
+    /* small timestamp or metadata (minimalist) */
+    .bubble-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 5px;
+      font-size: 11px;
+      color: #7f8aa8;
+      padding-left: 6px;
+    }
+
+    .human-row .bubble-meta {
+      justify-content: flex-end;
+    }
+
+    /* avatar-like icon only for AI (Axium style) */
+    .ai-row .chat-bubble::before {
+      content: '';
+      position: absolute;
+      left: -26px;
+      bottom: 6px;
+      width: 22px;
+      height: 22px;
+      background: #1f2b41;
+      border-radius: 30px;
+      border: 2px solid #2f4eb0;
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%234d7cff" width="14px" height="14px"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>');
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: 12px;
+      box-shadow: 0 2px 8px #10141e;
+    }
+
+    /* keep spacing for avatars */
+    .ai-row {
+      margin-left: 26px;
+    }
+
+    /* welcome special message */
+    .welcome-bubble {
+      background: #1c2537;
+      border: 1px solid #36405b;
+      color: #b9ceff;
+      font-style: italic;
+      max-width: 80%;
+      align-self: flex-start;
+    }
+
+    /* input area — matches Axium footer */
+    .input-panel {
+      background: #1a212d;
+      padding: 20px 24px 24px 24px;
+      border-top: 1px solid #2a3346;
+    }
+
+    .lyrics-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #a2b5e0;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+      margin-bottom: 10px;
+    }
+
+    .lyrics-label i {
+      font-size: 16px;
+      color: #4d7cff;
+    }
+
+    .input-box {
+      display: flex;
+      gap: 16px;
+      align-items: flex-end;
+    }
+
+    .input-box textarea {
+      flex: 1;
+      background: #0f141f;
+      border: 1px solid #2b364f;
+      border-radius: 24px;
+      padding: 16px 22px;
+      font-family: 'Inter', monospace;
+      font-size: 15px;
+      color: #eef3fc;
+      resize: none;
+      outline: none;
+      transition: 0.2s;
+      line-height: 1.5;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) inset;
+    }
+
+    .input-box textarea:focus {
+      border-color: #4d7cff;
+      box-shadow: 0 0 0 2px rgba(77, 124, 255, 0.2), inset 0 2px 6px #000;
+    }
+
+    .input-box textarea::placeholder {
+      color: #4d5b7a;
+      font-style: italic;
+      font-size: 14px;
+    }
+
+    .axium-button {
+      background: linear-gradient(145deg, #2f4eb0, #1f3a7a);
+      border: none;
+      border-radius: 40px;
+      padding: 16px 36px;
+      font-weight: 600;
+      font-size: 16px;
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: 0.15s;
+      border: 1px solid #5f7edb;
+      box-shadow: 0 8px 18px -6px #0e162b;
+      letter-spacing: 0.2px;
+    }
+
+    .axium-button i {
+      font-size: 18px;
+    }
+
+    .axium-button:hover {
+      background: linear-gradient(145deg, #3f60c5, #2b45a0);
+      border-color: #7f9aff;
+      transform: scale(1.02);
+    }
+
+    .axium-button:active {
+      transform: scale(0.98);
+    }
+
+    /* small status */
+    .status-tip {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 14px;
+      color: #596e99;
+      font-size: 13px;
+      border-top: 1px dashed #2e3850;
+      padding-top: 14px;
+    }
+
+    .status-tip i {
+      color: #4d7cff;
+    }
+
+    @keyframes msgAppear {
+      0% { opacity: 0; transform: translateY(12px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    /* empty state fallback */
+    .no-lyrics-msg {
+      background: #1e263b;
+      align-self: flex-start;
+    }
+
+    /* subtle dot for typing (if needed, but just for feel) */
+    .typing-dots {
+      display: flex;
+      gap: 4px;
+      padding: 10px 0 2px 10px;
+    }
+    .typing-dots span {
+      width: 6px;
+      height: 6px;
+      background: #4d7cff;
+      border-radius: 50%;
+      opacity: 0.6;
+      animation: pulse 1.2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.3; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.1); }
+      100% { opacity: 0.3; transform: scale(1); }
+    }
+  </style>
 </head>
 <body>
+  <div class="axium-app">
+    <!-- Axium AI header with identity -->
+    <div class="axium-header">
+      <div class="header-left">
+        <div class="axium-logo">A</div>
+        <span class="axium-title">Axium AI</span>
+        <span class="axium-badge">chat · lyric mode</span>
+      </div>
+      <div class="header-right">
+        <i class="fas fa-microphone"></i>
+        <i class="fas fa-sliders-h"></i>
+        <i class="fas fa-ellipsis-v"></i>
+      </div>
+    </div>
 
-<div class="chat-container" id="chat">
-  <div class="bubble ai" style="opacity:1; transform: translateY(0)">Welcome! Paste your lyrics below and hit Play.</div>
-</div>
+    <!-- Chat container where bubbles appear -->
+    <div class="chat-window" id="chatWindow">
+      <!-- welcome message (hardcoded, will be removed on first 'play') -->
+      <div class="msg-row ai-row" id="welcomeRow">
+        <div class="chat-bubble ai-bubble welcome-bubble">
+          <i class="fas fa-music" style="margin-right: 8px;"></i>  Paste lyrics & hit <strong>Play</strong> — I’ll split them into a conversation.
+          <div class="bubble-meta">
+            <span>Axium AI</span> <span>•</span> <i class="far fa-clock"></i> <span>now</span>
+          </div>
+        </div>
+      </div>
+    </div>
 
-<div class="input-area">
-  <textarea id="lyricsInput" rows="4" placeholder="Paste lyrics here..."></textarea>
-  <button onclick="startChat()">Play</button>
-</div>
+    <!-- Input area, Axium style -->
+    <div class="input-panel">
+      <div class="lyrics-label">
+        <i class="fas fa-lines"></i>
+        <span>LYRIC TRANSCRIPT</span>
+      </div>
+      <div class="input-box">
+        <textarea id="lyricTextArea" rows="2" placeholder="Paste your lyrics here ... example: &#10;Hello from the other side&#10;I must've called a thousand times ..."></textarea>
+        <button class="axium-button" id="playButton">
+          <i class="fas fa-play"></i> Play
+        </button>
+      </div>
+      <div class="status-tip">
+        <i class="fas fa-sparkles"></i>
+        <span>Lines alternate between <strong style="color:#7d9eff;">you (blue)</strong> and <strong style="color:#b2c9ff;">Axium AI (grey)</strong> · like a chat</span>
+      </div>
+    </div>
+  </div>
 
-<script>
-function startChat() {
-  const chatContainer = document.getElementById('chat');
-  const inputArea = document.getElementById('lyricsInput');
+  <script>
+    (function() {
+      const chatWindow = document.getElementById('chatWindow');
+      const lyricsInput = document.getElementById('lyricTextArea');
+      const playBtn = document.getElementById('playButton');
 
-  // Clear existing messages except welcome
-  chatContainer.innerHTML = '';
+      // remove welcome message (but keep if we need to clear later)
+      function clearWelcome() {
+        const welcomeRow = document.getElementById('welcomeRow');
+        if (welcomeRow) welcomeRow.remove();
+      }
 
-  const lines = inputArea.value.split('\n').filter(l => l.trim() !== '');
-  if(lines.length === 0) {
-    const bubble = document.createElement('div');
-    bubble.className = 'bubble ai';
-    bubble.style.opacity = 1;
-    bubble.style.transform = 'translateY(0)';
-    bubble.textContent = 'No lyrics detected! Paste something and try again.';
-    chatContainer.appendChild(bubble);
-    return;
-  }
+      // add a single message bubble as row (human or ai)
+      function addMessage(text, sender) {
+        const row = document.createElement('div');
+        row.className = `msg-row ${sender}-row`;
 
-  let delay = 0;
-  lines.forEach((line, index) => {
-    let sender = index % 2 === 0 ? 'human' : 'ai';
-    const content = line.trim();
+        const bubble = document.createElement('div');
+        bubble.className = `chat-bubble ${sender === 'human' ? 'human-bubble' : 'ai-bubble'}`;
+        bubble.textContent = text;
 
-    setTimeout(() => {
-      const bubble = document.createElement('div');
-      bubble.classList.add('bubble', sender);
-      bubble.textContent = content;
-      chatContainer.appendChild(bubble);
+        // optional meta line (tiny time icon)
+        const meta = document.createElement('div');
+        meta.className = 'bubble-meta';
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        if (sender === 'ai') {
+          meta.innerHTML = `<span>Axium AI</span> <span>•</span> <i class="far fa-clock"></i> <span>${timeStr}</span>`;
+        } else {
+          meta.innerHTML = `<i class="far fa-clock"></i> <span>${timeStr}</span> <span>•</span> <span>you</span>`;
+        }
 
-      requestAnimationFrame(() => {
-        bubble.style.opacity = 1;
-        bubble.style.transform = 'translateY(0)';
-        chatContainer.scrollTop = chatContainer.scrollHeight;
+        bubble.appendChild(meta);
+        row.appendChild(bubble);
+        chatWindow.appendChild(row);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+      }
+
+      // main action: split lyrics, animate bubbles sequentially
+      function startLyricChat() {
+        const rawText = lyricsInput.value.trim();
+        // if no lyrics, show a gentle error (as ai message)
+        if (rawText.length === 0) {
+          clearWelcome();   // remove welcome if present
+          addMessage("(no lyrics detected — paste something and press Play again)", 'ai');
+          return;
+        }
+
+        // split into non-empty lines, trim each
+        const lines = rawText.split('\n')
+          .map(l => l.trim())
+          .filter(l => l !== '');
+
+        if (lines.length === 0) {
+          clearWelcome();
+          addMessage("(looks like empty lines — maybe paste song words?)", 'ai');
+          return;
+        }
+
+        // clear whole chat (including welcome) before new conversation
+        chatWindow.innerHTML = '';
+
+        // optional tiny "typing" animation (just for axium feel)
+        const typingIndicator = document.createElement('div');
+        typingIndicator.className = 'msg-row ai-row';
+        typingIndicator.innerHTML = `
+          <div class="chat-bubble ai-bubble" style="background:transparent; box-shadow:none; border:1px dashed #3f5075;">
+            <div class="typing-dots"><span></span><span></span><span></span></div>
+          </div>`;
+        chatWindow.appendChild(typingIndicator);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+
+        // delay before first real line (simulate thinking)
+        let cumulativeDelay = 700;
+
+        // remove typing after first message appears
+        const removeTyping = () => {
+          if (typingIndicator.parentNode) typingIndicator.remove();
+        };
+
+        lines.forEach((line, index) => {
+          // alternate: start with human (index 0 = human, 1 = ai, 2 = human...)
+          const sender = index % 2 === 0 ? 'human' : 'ai';
+
+          setTimeout(() => {
+            // on first run, remove typing indicator
+            if (index === 0) removeTyping();
+
+            addMessage(line, sender);
+          }, cumulativeDelay);
+
+          // increment delay with slight randomness (like llm streaming)
+          cumulativeDelay += 900 + Math.floor(Math.random() * 500); // between 900–1400ms
+        });
+
+        // tiny edge: if typing indicator still present after last message (if no lines? but we have lines)
+        // but we remove on first message, so fine. However if empty guard already triggered, we don't run.
+      }
+
+      // attach event to Play button
+      playBtn.addEventListener('click', () => {
+        startLyricChat();
       });
-    }, delay);
 
-    delay += 800 + Math.random() * 400;
-  });
-}
-</script>
+      // optional: pressing Ctrl+Enter (or Cmd+Enter) inside textarea triggers play
+      lyricsInput.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+          e.preventDefault();
+          playBtn.click();
+        }
+      });
 
+      // Example / prefill with famous lyrics for demo (you can delete or keep)
+      // This makes it ready-to-test: uncomment if you want default demo text
+      lyricsInput.value = "I'm not the only traveler\nWho hasn't found his way back home\nAnd the world's a little blurry\nOr maybe it's my eyes\n\nAnd the stars are looking different\nOr maybe it's the light";
+    })();
+  </script>
+  <!-- extra note: all bubble styling fully matches axium identity -->
 </body>
 </html>

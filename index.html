@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Axium AI · Lyric Chat</title>
-  <!-- Font & icon style: clean, modern, chatbot-like -->
+  <title>Axium AI · human makes mistakes</title>
+  <!-- Font & icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <style>
     * {
@@ -24,7 +24,6 @@
       padding: 16px;
     }
 
-    /* main app card – authentic Axium dark UI, subtle border, glass effect */
     .axium-app {
       max-width: 1000px;
       width: 100%;
@@ -36,7 +35,6 @@
       border: 1px solid #2b3240;
     }
 
-    /* header — axium AI top bar */
     .axium-header {
       display: flex;
       align-items: center;
@@ -52,11 +50,12 @@
       gap: 10px;
     }
 
+    /* logo.png image – fallback 'A' */
     .axium-logo {
-      background: linear-gradient(145deg, #4a72d4, #2f4eb0);
       width: 36px;
       height: 36px;
       border-radius: 12px;
+      background: #2f4eb0;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -64,6 +63,16 @@
       font-weight: 700;
       font-size: 20px;
       box-shadow: 0 6px 12px rgba(23, 45, 110, 0.5);
+      background-image: url('logo.png');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+    .axium-logo span {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      overflow: hidden;
     }
 
     .axium-title {
@@ -92,17 +101,6 @@
       gap: 18px;
     }
 
-    .header-right i {
-      font-size: 18px;
-      color: #6f7fa3;
-      transition: 0.2s;
-    }
-
-    .header-right i:hover {
-      color: #85abff;
-    }
-
-    /* main chat area – perfect background, smooth scroll */
     .chat-window {
       background: #131821;
       padding: 24px 20px 16px 20px;
@@ -119,16 +117,6 @@
       width: 6px;
     }
 
-    .chat-window::-webkit-scrollbar-track {
-      background: #1e2430;
-    }
-
-    .chat-window::-webkit-scrollbar-thumb {
-      background: #3f4b63;
-      border-radius: 12px;
-    }
-
-    /* bubble container – each bubble block (makes spacing consistent) */
     .msg-row {
       display: flex;
       margin-bottom: 16px;
@@ -141,9 +129,9 @@
 
     .msg-row.ai-row {
       justify-content: flex-start;
+      margin-left: 26px;
     }
 
-    /* actual bubble */
     .chat-bubble {
       max-width: 70%;
       padding: 14px 20px;
@@ -154,25 +142,23 @@
       word-break: break-word;
       box-shadow: 0 8px 18px -6px rgba(0, 0, 0, 0.5);
       position: relative;
-      transition: transform 0.15s;
+      white-space: pre-wrap;
     }
 
     .human-bubble {
-      background: #2f4eb0;  /* Axium user / human – deep blue */
+      background: #2f4eb0;
       color: white;
       border-bottom-right-radius: 6px;
       border: 1px solid #4870d0;
     }
 
     .ai-bubble {
-      background: #262e3f;   /* AI assistant – dark greyish with subtle glow */
+      background: #262e3f;
       color: #eef3fc;
       border-bottom-left-radius: 6px;
       border: 1px solid #3c4865;
-      backdrop-filter: blur(4px);
     }
 
-    /* small timestamp or metadata (minimalist) */
     .bubble-meta {
       display: flex;
       align-items: center;
@@ -187,7 +173,7 @@
       justify-content: flex-end;
     }
 
-    /* avatar-like icon only for AI (Axium style) */
+    /* AI avatar */
     .ai-row .chat-bubble::before {
       content: '';
       position: absolute;
@@ -205,12 +191,6 @@
       box-shadow: 0 2px 8px #10141e;
     }
 
-    /* keep spacing for avatars */
-    .ai-row {
-      margin-left: 26px;
-    }
-
-    /* welcome special message */
     .welcome-bubble {
       background: #1c2537;
       border: 1px solid #36405b;
@@ -220,7 +200,37 @@
       align-self: flex-start;
     }
 
-    /* input area — matches Axium footer */
+    /* thinking bubble (three dots) – used before human messages */
+    .thinking-bubble {
+      background: #1e273a;
+      border: 1px solid #3d506e;
+      border-radius: 26px;
+      border-bottom-right-radius: 6px;
+      padding: 16px 22px;
+      max-width: 100px;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      justify-content: center;
+    }
+    .thinking-bubble span {
+      width: 8px;
+      height: 8px;
+      background: #7d9eff;
+      border-radius: 50%;
+      display: inline-block;
+      opacity: 0.7;
+      animation: thinkingPulse 1.4s infinite;
+    }
+    .thinking-bubble span:nth-child(2) { animation-delay: 0.2s; }
+    .thinking-bubble span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes thinkingPulse {
+      0% { opacity: 0.3; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.2); background: #a6c0ff; }
+      100% { opacity: 0.3; transform: scale(1); }
+    }
+
     .input-panel {
       background: #1a212d;
       padding: 20px 24px 24px 24px;
@@ -233,14 +243,7 @@
       gap: 8px;
       color: #a2b5e0;
       font-size: 13px;
-      font-weight: 500;
-      letter-spacing: 0.3px;
       margin-bottom: 10px;
-    }
-
-    .lyrics-label i {
-      font-size: 16px;
-      color: #4d7cff;
     }
 
     .input-box {
@@ -262,18 +265,11 @@
       outline: none;
       transition: 0.2s;
       line-height: 1.5;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) inset;
     }
 
     .input-box textarea:focus {
       border-color: #4d7cff;
-      box-shadow: 0 0 0 2px rgba(77, 124, 255, 0.2), inset 0 2px 6px #000;
-    }
-
-    .input-box textarea::placeholder {
-      color: #4d5b7a;
-      font-style: italic;
-      font-size: 14px;
+      box-shadow: 0 0 0 2px rgba(77, 124, 255, 0.2);
     }
 
     .axium-button {
@@ -291,11 +287,6 @@
       transition: 0.15s;
       border: 1px solid #5f7edb;
       box-shadow: 0 8px 18px -6px #0e162b;
-      letter-spacing: 0.2px;
-    }
-
-    .axium-button i {
-      font-size: 18px;
     }
 
     .axium-button:hover {
@@ -304,11 +295,6 @@
       transform: scale(1.02);
     }
 
-    .axium-button:active {
-      transform: scale(0.98);
-    }
-
-    /* small status */
     .status-tip {
       display: flex;
       align-items: center;
@@ -320,51 +306,19 @@
       padding-top: 14px;
     }
 
-    .status-tip i {
-      color: #4d7cff;
-    }
-
     @keyframes msgAppear {
       0% { opacity: 0; transform: translateY(12px); }
       100% { opacity: 1; transform: translateY(0); }
-    }
-
-    /* empty state fallback */
-    .no-lyrics-msg {
-      background: #1e263b;
-      align-self: flex-start;
-    }
-
-    /* subtle dot for typing (if needed, but just for feel) */
-    .typing-dots {
-      display: flex;
-      gap: 4px;
-      padding: 10px 0 2px 10px;
-    }
-    .typing-dots span {
-      width: 6px;
-      height: 6px;
-      background: #4d7cff;
-      border-radius: 50%;
-      opacity: 0.6;
-      animation: pulse 1.2s infinite;
-    }
-
-    @keyframes pulse {
-      0% { opacity: 0.3; transform: scale(1); }
-      50% { opacity: 1; transform: scale(1.1); }
-      100% { opacity: 0.3; transform: scale(1); }
     }
   </style>
 </head>
 <body>
   <div class="axium-app">
-    <!-- Axium AI header with identity -->
     <div class="axium-header">
       <div class="header-left">
-        <div class="axium-logo">A</div>
+        <div class="axium-logo"><span>A</span></div>
         <span class="axium-title">Axium AI</span>
-        <span class="axium-badge">chat · lyric mode</span>
+        <span class="axium-badge">human types · ai instant</span>
       </div>
       <div class="header-right">
         <i class="fas fa-microphone"></i>
@@ -373,12 +327,11 @@
       </div>
     </div>
 
-    <!-- Chat container where bubbles appear -->
     <div class="chat-window" id="chatWindow">
-      <!-- welcome message (hardcoded, will be removed on first 'play') -->
+      <!-- welcome message -->
       <div class="msg-row ai-row" id="welcomeRow">
         <div class="chat-bubble ai-bubble welcome-bubble">
-          <i class="fas fa-music" style="margin-right: 8px;"></i>  Paste lyrics & hit <strong>Play</strong> — I’ll split them into a conversation.
+          <i class="fas fa-music"></i>  Paste lyrics & hit Play — I'll respond instantly, but <strong>you</strong> type with mistakes & pauses.
           <div class="bubble-meta">
             <span>Axium AI</span> <span>•</span> <i class="far fa-clock"></i> <span>now</span>
           </div>
@@ -386,21 +339,20 @@
       </div>
     </div>
 
-    <!-- Input area, Axium style -->
     <div class="input-panel">
       <div class="lyrics-label">
         <i class="fas fa-lines"></i>
         <span>LYRIC TRANSCRIPT</span>
       </div>
       <div class="input-box">
-        <textarea id="lyricTextArea" rows="2" placeholder="Paste your lyrics here ... example: &#10;Hello from the other side&#10;I must've called a thousand times ..."></textarea>
+        <textarea id="lyricTextArea" rows="2" placeholder="Paste lyrics... example:&#10;Hello darkness, my old friend&#10;I've come to talk with you again"></textarea>
         <button class="axium-button" id="playButton">
           <i class="fas fa-play"></i> Play
         </button>
       </div>
       <div class="status-tip">
         <i class="fas fa-sparkles"></i>
-        <span>Lines alternate between <strong style="color:#7d9eff;">you (blue)</strong> and <strong style="color:#b2c9ff;">Axium AI (grey)</strong> · like a chat</span>
+        <span>Human types with stutters & backspaces • AI answers immediately</span>
       </div>
     </div>
   </div>
@@ -411,22 +363,98 @@
       const lyricsInput = document.getElementById('lyricTextArea');
       const playBtn = document.getElementById('playButton');
 
-      // remove welcome message (but keep if we need to clear later)
       function clearWelcome() {
-        const welcomeRow = document.getElementById('welcomeRow');
-        if (welcomeRow) welcomeRow.remove();
+        const welcome = document.getElementById('welcomeRow');
+        if (welcome) welcome.remove();
       }
 
-      // add a single message bubble as row (human or ai)
-      function addMessage(text, sender) {
+      function showThinkingBubble(): HTMLElement {
+        const row = document.createElement('div');
+        row.className = 'msg-row human-row'; // thinking belongs to human side
+        row.id = 'thinkingRow';
+        const bubbleDiv = document.createElement('div');
+        bubbleDiv.className = 'thinking-bubble';
+        bubbleDiv.innerHTML = '<span></span><span></span><span></span>';
+        row.appendChild(bubbleDiv);
+        chatWindow.appendChild(row);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+        return row;
+      }
+
+      function removeThinking() {
+        const thinking = document.getElementById('thinkingRow');
+        if (thinking) thinking.remove();
+      }
+
+      // ========== HUMAN TYPING ANIMATION (with mistakes & pauses) ==========
+      async function animateHumanTyping(bubbleElement, fullText) {
+        const baseDelay = 80;          // average typing speed
+        const backspaceChance = 0.22;   // probability to delete after ~15 chars
+        const pauseChance = 0.3;        // chance for a 0.5s pause
+        const pauseDuration = 500;       // thinking pause
+
+        let displayed = '';
+        bubbleElement.textContent = displayed;
+
+        let i = 0;
+        while (i < fullText.length) {
+          // type one character
+          displayed += fullText[i];
+          bubbleElement.textContent = displayed;
+          i++;
+
+          // variable delay per character (makes it organic)
+          let typingDelay = Math.floor(Math.random() * 120) + 60; // 60–180ms
+          await new Promise(r => setTimeout(r, typingDelay));
+
+          // occasionally pause mid-sentence (human thinking)
+          if (Math.random() < pauseChance && i < fullText.length - 2) {
+            await new Promise(r => setTimeout(r, pauseDuration));
+          }
+
+          // after typing a few characters, maybe backspace (1–3 letters)
+          if (i > 4 && Math.random() < backspaceChance && i < fullText.length - 1) {
+            const eraseCount = Math.floor(Math.random() * 3) + 1; // 1–3
+            if (displayed.length >= eraseCount) {
+              // erase one by one
+              for (let e = 0; e < eraseCount; e++) {
+                displayed = displayed.slice(0, -1);
+                bubbleElement.textContent = displayed;
+                await new Promise(r => setTimeout(r, 100)); // quick erase
+              }
+              // short hesitation after correction
+              await new Promise(r => setTimeout(r, 400));
+              // rewind i by eraseCount
+              i = Math.max(0, i - eraseCount);
+              continue;
+            }
+          }
+
+          // occasionally a longer pause after 20-ish chars? already covered by pauseChance
+        }
+
+        bubbleElement.textContent = fullText; // final
+      }
+
+      // add a message row
+      async function addMessage(text, sender, delayBeforeStart = 0) {
+        if (delayBeforeStart > 0) {
+          await new Promise(r => setTimeout(r, delayBeforeStart));
+        }
+
         const row = document.createElement('div');
         row.className = `msg-row ${sender}-row`;
 
         const bubble = document.createElement('div');
         bubble.className = `chat-bubble ${sender === 'human' ? 'human-bubble' : 'ai-bubble'}`;
-        bubble.textContent = text;
 
-        // optional meta line (tiny time icon)
+        // set text: AI gets full text immediately; human starts empty
+        if (sender === 'ai') {
+          bubble.textContent = text;
+        } else {
+          bubble.textContent = ''; // will be animated
+        }
+
         const meta = document.createElement('div');
         meta.className = 'bubble-meta';
         const now = new Date();
@@ -441,75 +469,80 @@
         row.appendChild(bubble);
         chatWindow.appendChild(row);
         chatWindow.scrollTop = chatWindow.scrollHeight;
+
+        if (sender === 'human') {
+          await animateHumanTyping(bubble, text);
+        }
       }
 
-      // main action: split lyrics, animate bubbles sequentially
-      function startLyricChat() {
+      // main chat controller
+      async function startLyricChat() {
         const rawText = lyricsInput.value.trim();
-        // if no lyrics, show a gentle error (as ai message)
         if (rawText.length === 0) {
-          clearWelcome();   // remove welcome if present
-          addMessage("(no lyrics detected — paste something and press Play again)", 'ai');
+          clearWelcome();
+          await addMessage("(paste some lyrics first)", 'ai', 0);
           return;
         }
 
-        // split into non-empty lines, trim each
         const lines = rawText.split('\n')
           .map(l => l.trim())
           .filter(l => l !== '');
 
         if (lines.length === 0) {
           clearWelcome();
-          addMessage("(looks like empty lines — maybe paste song words?)", 'ai');
+          await addMessage("(no lyrics detected)", 'ai', 0);
           return;
         }
 
-        // clear whole chat (including welcome) before new conversation
-        chatWindow.innerHTML = '';
+        chatWindow.innerHTML = ''; // clear all
 
-        // optional tiny "typing" animation (just for axium feel)
-        const typingIndicator = document.createElement('div');
-        typingIndicator.className = 'msg-row ai-row';
-        typingIndicator.innerHTML = `
-          <div class="chat-bubble ai-bubble" style="background:transparent; box-shadow:none; border:1px dashed #3f5075;">
-            <div class="typing-dots"><span></span><span></span><span></span></div>
-          </div>`;
-        chatWindow.appendChild(typingIndicator);
-        chatWindow.scrollTop = chatWindow.scrollHeight;
+        let currentDelay = 0;
 
-        // delay before first real line (simulate thinking)
-        let cumulativeDelay = 700;
+        for (let idx = 0; idx < lines.length; idx++) {
+          const sender = idx % 2 === 0 ? 'human' : 'ai';
+          const lineText = lines[idx];
 
-        // remove typing after first message appears
-        const removeTyping = () => {
-          if (typingIndicator.parentNode) typingIndicator.remove();
-        };
+          if (sender === 'human') {
+            // HUMAN: show thinking bubble, then animate typing
 
-        lines.forEach((line, index) => {
-          // alternate: start with human (index 0 = human, 1 = ai, 2 = human...)
-          const sender = index % 2 === 0 ? 'human' : 'ai';
+            // schedule thinking bubble
+            setTimeout(() => {
+              showThinkingBubble();
+            }, currentDelay);
 
-          setTimeout(() => {
-            // on first run, remove typing indicator
-            if (index === 0) removeTyping();
+            // random thinking time 0.5–1.5s
+            const thinkTime = 500 + Math.floor(Math.random() * 1000);
+            currentDelay += thinkTime;
 
-            addMessage(line, sender);
-          }, cumulativeDelay);
+            // after thinking, remove bubble and start human typing
+            setTimeout(() => {
+              removeThinking();
+              addMessage(lineText, 'human', 0); // this will animate inside
+            }, currentDelay);
 
-          // increment delay with slight randomness (like llm streaming)
-          cumulativeDelay += 900 + Math.floor(Math.random() * 500); // between 900–1400ms
-        });
+            // estimate duration of human typing (approx length * 100ms + 1s buffer)
+            const typingEstimate = lineText.length * 100 + 1200;
+            currentDelay += typingEstimate;
 
-        // tiny edge: if typing indicator still present after last message (if no lines? but we have lines)
-        // but we remove on first message, so fine. However if empty guard already triggered, we don't run.
+          } else {
+            // AI: instant, no thinking bubble
+            // but small delay so it feels like response after human finished
+            // we add a short pause after human typing (already in currentDelay)
+            // AI appears immediately after that pause
+            setTimeout(() => {
+              addMessage(lineText, 'ai', 0);
+            }, currentDelay);
+
+            // AI takes no time, but we add a tiny buffer for next human
+            currentDelay += 300;
+          }
+        }
       }
 
-      // attach event to Play button
       playBtn.addEventListener('click', () => {
         startLyricChat();
       });
 
-      // optional: pressing Ctrl+Enter (or Cmd+Enter) inside textarea triggers play
       lyricsInput.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
           e.preventDefault();
@@ -517,11 +550,12 @@
         }
       });
 
-      // Example / prefill with famous lyrics for demo (you can delete or keep)
-      // This makes it ready-to-test: uncomment if you want default demo text
-      lyricsInput.value = "I'm not the only traveler\nWho hasn't found his way back home\nAnd the world's a little blurry\nOr maybe it's my eyes\n\nAnd the stars are looking different\nOr maybe it's the light";
+      // demo prefill
+      lyricsInput.value = `Hello darkness, my old friend
+I've come to talk with you again
+Because a vision softly creeping
+Left its seeds while I was sleeping`;
     })();
   </script>
-  <!-- extra note: all bubble styling fully matches axium identity -->
 </body>
 </html>

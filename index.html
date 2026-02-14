@@ -10,18 +10,14 @@
     font-family: 'Helvetica', sans-serif;
     background: #111;
     color: #fff;
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    overflow: hidden;
   }
   .chat-container {
-    flex: 1;
+    height: 80vh;
     padding: 10px;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
-    background: linear-gradient(#111, #222);
+    background: #222;
   }
   .bubble {
     max-width: 80%;
@@ -33,18 +29,8 @@
     transform: translateY(20px);
     transition: all 0.4s ease;
   }
-  .human {
-    background: #ff4d6d;
-    align-self: flex-end;
-  }
-  .ai {
-    background: #4d9eff;
-    align-self: flex-start;
-  }
-  .typing {
-    font-style: italic;
-    opacity: 0.6;
-  }
+  .human { background: #ff4d6d; align-self: flex-end; }
+  .ai { background: #4d9eff; align-self: flex-start; }
   .input-area {
     padding: 10px;
     background: #111;
@@ -73,33 +59,38 @@
 </head>
 <body>
 
-<div class="chat-container" id="chat"></div>
+<div class="chat-container" id="chat">
+  <div class="bubble ai" style="opacity:1; transform: translateY(0)">Welcome! Paste your lyrics below and hit Play.</div>
+</div>
 
 <div class="input-area">
-  <textarea id="lyricsInput" rows="4" placeholder="Paste your lyrics here with H: or AI: prefixes..."></textarea>
+  <textarea id="lyricsInput" rows="4" placeholder="Paste lyrics here..."></textarea>
   <button onclick="startChat()">Play</button>
 </div>
 
 <script>
-const chatContainer = document.getElementById('chat');
-const inputArea = document.getElementById('lyricsInput');
-
 function startChat() {
+  const chatContainer = document.getElementById('chat');
+  const inputArea = document.getElementById('lyricsInput');
+
+  // Clear existing messages except welcome
   chatContainer.innerHTML = '';
+
   const lines = inputArea.value.split('\n').filter(l => l.trim() !== '');
+  if(lines.length === 0) {
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble ai';
+    bubble.style.opacity = 1;
+    bubble.style.transform = 'translateY(0)';
+    bubble.textContent = 'No lyrics detected! Paste something and try again.';
+    chatContainer.appendChild(bubble);
+    return;
+  }
+
   let delay = 0;
-
   lines.forEach((line, index) => {
-    let sender = 'human';
-    let content = line;
-
-    if (line.startsWith('AI:')) {
-      sender = 'ai';
-      content = line.slice(3).trim();
-    } else if (line.startsWith('H:')) {
-      sender = 'human';
-      content = line.slice(2).trim();
-    }
+    let sender = index % 2 === 0 ? 'human' : 'ai';
+    const content = line.trim();
 
     setTimeout(() => {
       const bubble = document.createElement('div');
@@ -107,7 +98,6 @@ function startChat() {
       bubble.textContent = content;
       chatContainer.appendChild(bubble);
 
-      // Animate in
       requestAnimationFrame(() => {
         bubble.style.opacity = 1;
         bubble.style.transform = 'translateY(0)';
@@ -115,8 +105,7 @@ function startChat() {
       });
     }, delay);
 
-    // Increase delay per line (adjust for speed)
-    delay += 800 + Math.random() * 400; // random variance for realism
+    delay += 800 + Math.random() * 400;
   });
 }
 </script>

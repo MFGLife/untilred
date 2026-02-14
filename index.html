@@ -358,204 +358,161 @@
   </div>
 
   <script>
-    (function() {
-      const chatWindow = document.getElementById('chatWindow');
-      const lyricsInput = document.getElementById('lyricTextArea');
-      const playBtn = document.getElementById('playButton');
+(function() {
+  const chatWindow = document.getElementById('chatWindow');
+  const lyricsInput = document.getElementById('lyricTextArea');
+  const playBtn = document.getElementById('playButton');
 
-      function clearWelcome() {
-        const welcome = document.getElementById('welcomeRow');
-        if (welcome) welcome.remove();
+  function clearWelcome() {
+    const welcome = document.getElementById('welcomeRow');
+    if (welcome) welcome.remove();
+  }
+
+  function showThinkingBubble() {
+    const row = document.createElement('div');
+    row.className = 'msg-row human-row';
+    row.id = 'thinkingRow';
+    const bubbleDiv = document.createElement('div');
+    bubbleDiv.className = 'thinking-bubble';
+    bubbleDiv.innerHTML = '<span></span><span></span><span></span>';
+    row.appendChild(bubbleDiv);
+    chatWindow.appendChild(row);
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+    return row;
+  }
+
+  function removeThinking() {
+    const thinking = document.getElementById('thinkingRow');
+    if (thinking) thinking.remove();
+  }
+
+  // Human typing animation – ONE mistake per bubble
+  async function animateHumanTyping(bubbleElement, fullText) {
+    let displayed = '';
+    let mistakeDone = false;
+    bubbleElement.textContent = displayed;
+    let i = 0;
+
+    while (i < fullText.length) {
+      displayed += fullText[i];
+      bubbleElement.textContent = displayed;
+      i++;
+
+      // variable typing delay
+      await new Promise(r => setTimeout(r, 60 + Math.random() * 120));
+
+      // occasional pause
+      if (Math.random() < 0.2 && i < fullText.length - 2) {
+        await new Promise(r => setTimeout(r, 500));
       }
 
-      function showThinkingBubble() {
-  const row = document.createElement('div');
-  row.className = 'msg-row human-row'; // thinking belongs to human side
-  row.id = 'thinkingRow';
-  const bubbleDiv = document.createElement('div');
-  bubbleDiv.className = 'thinking-bubble';
-  bubbleDiv.innerHTML = '<span></span><span></span><span></span>';
-  row.appendChild(bubbleDiv);
-  chatWindow.appendChild(row);
-  chatWindow.scrollTop = chatWindow.scrollHeight;
-  return row;
-}
-
-      function removeThinking() {
-        const thinking = document.getElementById('thinkingRow');
-        if (thinking) thinking.remove();
-      }
-
-      // ========== HUMAN TYPING ANIMATION (with mistakes & pauses) ==========
-      async function animateHumanTyping(bubbleElement, fullText) {
-        const baseDelay = 80;          // average typing speed
-        const backspaceChance = 0.22;   // probability to delete after ~15 chars
-        const pauseChance = 0.3;        // chance for a 0.5s pause
-        const pauseDuration = 500;       // thinking pause
-
-        let displayed = '';
-        bubbleElement.textContent = displayed;
-
-        let i = 0;
-        while (i < fullText.length) {
-          // type one character
-          displayed += fullText[i];
+      // only ONE backspace per bubble
+      if (!mistakeDone && i > 4 && Math.random() < 0.3 && i < fullText.length - 1) {
+        const eraseCount = Math.floor(Math.random() * 3) + 1; // 1–3
+        for (let e = 0; e < eraseCount && displayed.length > 0; e++) {
+          displayed = displayed.slice(0, -1);
           bubbleElement.textContent = displayed;
-          i++;
-
-          // variable delay per character (makes it organic)
-          let typingDelay = Math.floor(Math.random() * 120) + 60; // 60–180ms
-          await new Promise(r => setTimeout(r, typingDelay));
-
-          // occasionally pause mid-sentence (human thinking)
-          if (Math.random() < pauseChance && i < fullText.length - 2) {
-            await new Promise(r => setTimeout(r, pauseDuration));
-          }
-
-          // after typing a few characters, maybe backspace (1–3 letters)
-          if (i > 4 && Math.random() < backspaceChance && i < fullText.length - 1) {
-            const eraseCount = Math.floor(Math.random() * 3) + 1; // 1–3
-            if (displayed.length >= eraseCount) {
-              // erase one by one
-              for (let e = 0; e < eraseCount; e++) {
-                displayed = displayed.slice(0, -1);
-                bubbleElement.textContent = displayed;
-                await new Promise(r => setTimeout(r, 100)); // quick erase
-              }
-              // short hesitation after correction
-              await new Promise(r => setTimeout(r, 400));
-              // rewind i by eraseCount
-              i = Math.max(0, i - eraseCount);
-              continue;
-            }
-          }
-
-          // occasionally a longer pause after 20-ish chars? already covered by pauseChance
+          await new Promise(r => setTimeout(r, 100));
         }
-
-        bubbleElement.textContent = fullText; // final
+        await new Promise(r => setTimeout(r, 400)); // short hesitation
+        i = Math.max(0, i - eraseCount);
+        mistakeDone = true;
       }
+    }
 
-      // add a message row
-      async function addMessage(text, sender, delayBeforeStart = 0) {
-        if (delayBeforeStart > 0) {
-          await new Promise(r => setTimeout(r, delayBeforeStart));
-        }
+    bubbleElement.textContent = fullText;
+  }
 
-        const row = document.createElement('div');
-        row.className = `msg-row ${sender}-row`;
+  // Add message row
+  async function addMessage(text, sender) {
+    const row = document.createElement('div');
+    row.className = `msg-row ${sender}-row`;
 
-        const bubble = document.createElement('div');
-        bubble.className = `chat-bubble ${sender === 'human' ? 'human-bubble' : 'ai-bubble'}`;
+    const bubble = document.createElement('div');
+    bubble.className = `chat-bubble ${sender === 'human' ? 'human-bubble' : 'ai-bubble'}`;
 
-        // set text: AI gets full text immediately; human starts empty
-        if (sender === 'ai') {
-          bubble.textContent = text;
-        } else {
-          bubble.textContent = ''; // will be animated
-        }
+    if (sender === 'ai') {
+      bubble.textContent = text;
+    } else {
+      bubble.textContent = '';
+    }
 
-        const meta = document.createElement('div');
-        meta.className = 'bubble-meta';
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        if (sender === 'ai') {
-          meta.innerHTML = `<span>Axium AI</span> <span>•</span> <i class="far fa-clock"></i> <span>${timeStr}</span>`;
-        } else {
-          meta.innerHTML = `<i class="far fa-clock"></i> <span>${timeStr}</span> <span>•</span> <span>you</span>`;
-        }
+    const meta = document.createElement('div');
+    meta.className = 'bubble-meta';
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-        bubble.appendChild(meta);
-        row.appendChild(bubble);
-        chatWindow.appendChild(row);
-        chatWindow.scrollTop = chatWindow.scrollHeight;
+    if (sender === 'ai') {
+      meta.innerHTML = `<span>Axium AI</span> <span>•</span> <i class="far fa-clock"></i> <span>${timeStr}</span>`;
+    } else {
+      meta.innerHTML = `<i class="far fa-clock"></i> <span>${timeStr}</span> <span>•</span> <span>you</span>`;
+    }
 
-        if (sender === 'human') {
-          await animateHumanTyping(bubble, text);
-        }
+    bubble.appendChild(meta);
+    row.appendChild(bubble);
+    chatWindow.appendChild(row);
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+
+    if (sender === 'human') {
+      await animateHumanTyping(bubble, text);
+    }
+  }
+
+  // Main chat controller
+  async function startLyricChat() {
+    const rawText = lyricsInput.value.trim();
+    if (rawText.length === 0) {
+      clearWelcome();
+      await addMessage("(paste some lyrics first)", 'ai');
+      return;
+    }
+
+    const lines = rawText.split('\n').map(l => l.trim()).filter(l => l !== '');
+    if (lines.length === 0) {
+      clearWelcome();
+      await addMessage("(no lyrics detected)", 'ai');
+      return;
+    }
+
+    chatWindow.innerHTML = ''; // clear all
+    clearWelcome();
+
+    for (let idx = 0; idx < lines.length; idx++) {
+      const sender = idx % 2 === 0 ? 'human' : 'ai';
+      const lineText = lines[idx];
+
+      if (sender === 'human') {
+        showThinkingBubble();
+        await new Promise(r => setTimeout(r, 500 + Math.random() * 1000));
+        removeThinking();
+        await addMessage(lineText, 'human');
+      } else {
+        // small pause to feel natural
+        await new Promise(r => setTimeout(r, 300));
+        await addMessage(lineText, 'ai');
       }
+    }
+  }
 
-      // main chat controller
-      async function startLyricChat() {
-        const rawText = lyricsInput.value.trim();
-        if (rawText.length === 0) {
-          clearWelcome();
-          await addMessage("(paste some lyrics first)", 'ai', 0);
-          return;
-        }
+  playBtn.addEventListener('click', () => {
+    startLyricChat();
+  });
 
-        const lines = rawText.split('\n')
-          .map(l => l.trim())
-          .filter(l => l !== '');
+  lyricsInput.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      playBtn.click();
+    }
+  });
 
-        if (lines.length === 0) {
-          clearWelcome();
-          await addMessage("(no lyrics detected)", 'ai', 0);
-          return;
-        }
-
-        chatWindow.innerHTML = ''; // clear all
-
-        let currentDelay = 0;
-
-        for (let idx = 0; idx < lines.length; idx++) {
-          const sender = idx % 2 === 0 ? 'human' : 'ai';
-          const lineText = lines[idx];
-
-          if (sender === 'human') {
-            // HUMAN: show thinking bubble, then animate typing
-
-            // schedule thinking bubble
-            setTimeout(() => {
-              showThinkingBubble();
-            }, currentDelay);
-
-            // random thinking time 0.5–1.5s
-            const thinkTime = 500 + Math.floor(Math.random() * 1000);
-            currentDelay += thinkTime;
-
-            // after thinking, remove bubble and start human typing
-            setTimeout(() => {
-              removeThinking();
-              addMessage(lineText, 'human', 0); // this will animate inside
-            }, currentDelay);
-
-            // estimate duration of human typing (approx length * 100ms + 1s buffer)
-            const typingEstimate = lineText.length * 100 + 1200;
-            currentDelay += typingEstimate;
-
-          } else {
-            // AI: instant, no thinking bubble
-            // but small delay so it feels like response after human finished
-            // we add a short pause after human typing (already in currentDelay)
-            // AI appears immediately after that pause
-            setTimeout(() => {
-              addMessage(lineText, 'ai', 0);
-            }, currentDelay);
-
-            // AI takes no time, but we add a tiny buffer for next human
-            currentDelay += 300;
-          }
-        }
-      }
-
-      playBtn.addEventListener('click', () => {
-        startLyricChat();
-      });
-
-      lyricsInput.addEventListener('keydown', (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-          e.preventDefault();
-          playBtn.click();
-        }
-      });
-
-      // demo prefill
-      lyricsInput.value = `Hello darkness, my old friend
+  // demo prefill
+  lyricsInput.value = `Hello darkness, my old friend
 I've come to talk with you again
 Because a vision softly creeping
 Left its seeds while I was sleeping`;
-    })();
-  </script>
+})();
+
+
+</script>
 </body>
 </html>

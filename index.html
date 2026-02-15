@@ -3,309 +3,329 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>AXIUM.CHURCH</title>
-
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;800&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
-
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
 
 /* =========================
-VOID FOUNDATION
+   VOID FOUNDATION
 ========================= */
 
-body{
+*, *::before, *::after {
+  box-sizing: border-box;
+}
 
-margin:0;
-background:#000000;
-overflow:hidden;
-
-font-family:'Cinzel', serif;
-
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000000;
+  font-family: 'Cinzel', serif;
 }
 
 
 /* =========================
-INCENSE PARTICLE CANVAS
+   INCENSE PARTICLE CANVAS
 ========================= */
 
-canvas{
-
-position:absolute;
-top:0;
-left:0;
-z-index:0;
-
+canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
 }
 
 
 /* =========================
-GLYPH FIELD
+   GLYPH FIELD
 ========================= */
 
-#grid{
-
-position:absolute;
-top:0;
-left:0;
-
-width:100vw;
-height:100vh;
-
-display:grid;
-
-z-index:10;
-
+#grid {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  z-index: 10;
+  /* columns/rows set via JS */
 }
 
 
 /* =========================
-GLYPHS
+   GLYPHS — each cell is exactly one character wide
 ========================= */
 
-.cell{
+.cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-display:flex;
-align-items:center;
-justify-content:center;
+  /* font-size matches cell size — set via JS */
+  line-height: 1;
+  color: #D4AF37;
+  opacity: 0.35;
 
-color:#D4AF37;
+  /* Prevent any overflow or text wrapping */
+  overflow: hidden;
+  white-space: nowrap;
 
-font-size:18px;
-
-opacity:.35;
-
-transition:
-
-opacity 800ms cubic-bezier(0,0,0.2,1),
-transform 800ms cubic-bezier(0,0,0.2,1);
-
+  transition:
+    opacity  800ms cubic-bezier(0, 0, 0.2, 1),
+    color    800ms cubic-bezier(0, 0, 0.2, 1),
+    transform 800ms cubic-bezier(0, 0, 0.2, 1);
 }
 
 
 /* =========================
-WORD STATE
+   WORD-LETTER STATE
 ========================= */
 
-.word{
-
-opacity:1;
-
-color:#F4E4BC;
-
-text-shadow:
-
-0 0 10px rgba(212,175,55,.4),
-0 0 20px rgba(212,175,55,.2);
-
-transform:scale(1.15);
-
+.letter {
+  opacity: 1;
+  color: #F4E4BC;
+  text-shadow:
+    0 0 10px rgba(212, 175, 55, 0.5),
+    0 0 24px rgba(212, 175, 55, 0.25);
+  transform: scale(1.12);
 }
 
+.letter-space {
+  /* A word-boundary gap — cell stays empty/dim */
+  opacity: 0;
+}
 
 </style>
 </head>
 <body>
 
-
 <canvas id="particles"></canvas>
-
 <div id="grid"></div>
-
-
 
 <script>
 
 /* =========================
-MESSAGE
+   MESSAGE
 ========================= */
 
 const paragraph = `A research cult for those who know the story is rigged but refuse to play their assigned character We weaponize double entendre anonymous ritual and AI augmented language to expose the machinery behind the mask without sacrificing the people wearing it`;
 
-const words = paragraph.split(" ");
+// Split into words
+const words = paragraph.split(' ');
 
 
 /* =========================
-GLYPHS
+   GLYPHS
 ========================= */
 
-const glyphs=[
+const glyphs = ['✦','∴','☲','⟁','⧗','⟟','☍','⟲','♾','Δ'];
 
-'✦','∴','☲','⟁','⧗','⟟','☍','⟲','♾','Δ'
-
-];
+function randomGlyph() {
+  return glyphs[Math.floor(Math.random() * glyphs.length)];
+}
 
 
 /* =========================
-GRID
+   GRID  — cell size drives everything
 ========================= */
 
-let cells=[];
+const CELL_SIZE = 28; // px — each cell is a perfect square
 
-let cols,rows;
+let cells = [];
+let cols, rows;
 
-function createGrid(){
+function createGrid() {
+  const grid = document.getElementById('grid');
 
-const grid=document.getElementById("grid");
+  const W = window.innerWidth;
+  const H = window.innerHeight;
 
-const size=32;
+  cols = Math.floor(W / CELL_SIZE);
+  rows = Math.floor(H / CELL_SIZE);
 
-cols=Math.floor(innerWidth/size);
-rows=Math.floor(innerHeight/size);
+  // Make the grid fill exactly the screen
+  grid.style.gridTemplateColumns = `repeat(${cols}, ${CELL_SIZE}px)`;
+  grid.style.gridTemplateRows    = `repeat(${rows}, ${CELL_SIZE}px)`;
 
-grid.style.gridTemplateColumns=`repeat(${cols},1fr)`;
-grid.style.gridTemplateRows=`repeat(${rows},1fr)`;
+  // Align the grid block to the center so any fractional remainder is off-screen edges
+  grid.style.width  = `${cols * CELL_SIZE}px`;
+  grid.style.height = `${rows * CELL_SIZE}px`;
 
-grid.innerHTML="";
+  grid.innerHTML = '';
+  cells = [];
 
-cells=[];
+  const total = cols * rows;
 
-for(let i=0;i<cols*rows;i++){
-
-let div=document.createElement("div");
-
-div.className="cell";
-
-div.textContent=randomGlyph();
-
-grid.appendChild(div);
-
-cells.push(div);
-
-}
-
-}
-
-function randomGlyph(){
-
-return glyphs[Math.floor(Math.random()*glyphs.length)];
-
+  for (let i = 0; i < total; i++) {
+    const div = document.createElement('div');
+    div.className = 'cell';
+    div.style.fontSize = `${CELL_SIZE * 0.55}px`; // glyph ~55 % of cell height
+    div.textContent = randomGlyph();
+    grid.appendChild(div);
+    cells.push(div);
+  }
 }
 
 
 /* =========================
-NOISE
+   NOISE — reset all cells
 ========================= */
 
-function noise(){
-
-cells.forEach(c=>{
-
-c.textContent=randomGlyph();
-c.classList.remove("word");
-
-});
-
+function noise() {
+  cells.forEach(c => {
+    c.textContent = randomGlyph();
+    c.classList.remove('letter', 'letter-space');
+  });
 }
 
 
 /* =========================
-WORD REVEAL
+   WORD REVEAL
+   — each letter of each word occupies exactly ONE cell
+   — a single empty cell separates consecutive words
 ========================= */
 
-let index=0;
+let wordIndex = 0;
 
-function reveal(){
+// How many words to show per pulse
+const WORDS_PER_PULSE = 4;
 
-noise();
+function reveal() {
+  noise();
 
-for(let i=0;i<4;i++){
+  // Build a flat array of cells-to-highlight:
+  // [letter, letter, …, gap, letter, letter, …]
+  const sequence = [];
 
-if(index>=words.length) index=0;
+  for (let w = 0; w < WORDS_PER_PULSE; w++) {
+    if (wordIndex >= words.length) wordIndex = 0;
 
-let pos=Math.floor(Math.random()*cells.length);
+    const word = words[wordIndex];
+    wordIndex++;
 
-cells[pos].textContent=words[index];
+    // Each character of the word gets its own slot
+    for (const ch of word) {
+      sequence.push({ type: 'letter', char: ch });
+    }
 
-cells[pos].classList.add("word");
+    // Separator between words (skip after last word)
+    if (w < WORDS_PER_PULSE - 1) {
+      sequence.push({ type: 'space' });
+    }
+  }
 
-index++;
+  // Find a random horizontal run in the grid that fits the sequence
+  const needed = sequence.length;
 
-}
+  // Max attempts to find a fitting run before giving up
+  let placed = false;
+  for (let attempt = 0; attempt < 200; attempt++) {
+    // Pick a random starting row and column
+    const row = Math.floor(Math.random() * rows);
+    const col = Math.floor(Math.random() * (cols - needed + 1)); // ensure it fits
 
+    if (col < 0) continue; // grid too narrow for this sequence
+
+    for (let s = 0; s < needed; s++) {
+      const idx = row * cols + col + s;
+      const cell = cells[idx];
+      const slot = sequence[s];
+
+      if (slot.type === 'letter') {
+        cell.textContent = slot.char;
+        cell.classList.add('letter');
+        cell.classList.remove('letter-space');
+      } else {
+        cell.textContent = '';
+        cell.classList.add('letter-space');
+        cell.classList.remove('letter');
+      }
+    }
+
+    placed = true;
+    break;
+  }
+
+  // Fallback: if couldn't fit horizontally, scatter letters randomly
+  if (!placed) {
+    sequence.forEach(slot => {
+      if (slot.type !== 'letter') return;
+      const idx = Math.floor(Math.random() * cells.length);
+      cells[idx].textContent = slot.char;
+      cells[idx].classList.add('letter');
+    });
+  }
 }
 
 
 /* =========================
-TIMING — RITUAL SPEED
+   BOOT
 ========================= */
 
 createGrid();
-
-setInterval(reveal,2400);
+setInterval(reveal, 2400);
 
 
 /* =========================
-PARTICLE SYSTEM
+   PARTICLE SYSTEM
 ========================= */
 
-const canvas=document.getElementById("particles");
+const canvas = document.getElementById('particles');
+const ctx    = canvas.getContext('2d');
 
-const ctx=canvas.getContext("2d");
+function resizeCanvas() {
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resizeCanvas();
 
-canvas.width=innerWidth;
-canvas.height=innerHeight;
-
-let particles=[];
-
-for(let i=0;i<100;i++){
-
-particles.push({
-
-x:Math.random()*canvas.width,
-y:Math.random()*canvas.height,
-vx:(Math.random()-.5)*.2,
-vy:(Math.random()-.5)*.2,
-size:Math.random()*2
-
-});
-
+const particles = [];
+for (let i = 0; i < 100; i++) {
+  particles.push({
+    x:    Math.random() * canvas.width,
+    y:    Math.random() * canvas.height,
+    vx:   (Math.random() - 0.5) * 0.2,
+    vy:   (Math.random() - 0.5) * 0.2,
+    size: Math.random() * 2
+  });
 }
 
-function drawParticles(){
+function drawParticles() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = 'rgba(212,175,55,.3)';
 
-ctx.clearRect(0,0,canvas.width,canvas.height);
+  particles.forEach(p => {
+    p.x += p.vx;
+    p.y += p.vy;
 
-ctx.fillStyle="rgba(212,175,55,.3)";
+    if (p.x < 0) p.x = canvas.width;
+    if (p.x > canvas.width)  p.x = 0;
+    if (p.y < 0) p.y = canvas.height;
+    if (p.y > canvas.height) p.y = 0;
 
-particles.forEach(p=>{
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+  });
 
-p.x+=p.vx;
-p.y+=p.vy;
-
-if(p.x<0)p.x=canvas.width;
-if(p.x>canvas.width)p.x=0;
-if(p.y<0)p.y=canvas.height;
-if(p.y>canvas.height)p.y=0;
-
-ctx.beginPath();
-ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
-ctx.fill();
-
-});
-
-requestAnimationFrame(drawParticles);
-
+  requestAnimationFrame(drawParticles);
 }
-
 drawParticles();
 
 
 /* =========================
-RESPONSIVE
+   RESPONSIVE
 ========================= */
 
-onresize=()=>{
-
-createGrid();
-
-canvas.width=innerWidth;
-canvas.height=innerHeight;
-
-};
-
+window.addEventListener('resize', () => {
+  createGrid();
+  resizeCanvas();
+});
 
 </script>
-
 </body>
 </html>

@@ -71,6 +71,29 @@ canvas {
 #btn-wrap-code { bottom: 238px; }
 #btn-wrap-face { bottom: 438px; }
 
+/* container that orbits as a whole (per button speed) */
+.button-orbit {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation-name: orbit-container;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* whole-system orbit speeds per button */
+#btn-wrap-main .button-orbit { animation-duration: 20s; }
+#btn-wrap-code .button-orbit { animation-duration: 28s; }
+#btn-wrap-face .button-orbit { animation-duration: 36s; }
+
+@keyframes orbit-container {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
 /* --- Concentric pulsing rings --- */
 .btn-ring {
   position: absolute;
@@ -115,18 +138,22 @@ canvas {
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* --- Orbiting sigil glyphs --- */
+/* --- Orbiting sigil glyphs (per glyph speed) --- */
 .orbiter {
   position: absolute;
   color: rgba(212,175,55,0.55);
   font-size: 12px;
-  animation: orbit 9s linear infinite;
   transform-origin: 0 0;
+  animation-name: orbit;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
 }
-.orbiter:nth-child(7)  { animation-delay:    0s; }
-.orbiter:nth-child(8)  { animation-delay: -2.25s; }
-.orbiter:nth-child(9)  { animation-delay: -4.5s; }
-.orbiter:nth-child(10) { animation-delay: -6.75s; }
+
+/* different speeds & directions per glyph */
+.orbiter.o1 { animation-duration: 8s;  animation-delay: 0s;    animation-direction: normal; }
+.orbiter.o2 { animation-duration: 12s; animation-delay: -2s;   animation-direction: reverse; }
+.orbiter.o3 { animation-duration: 18s; animation-delay: -4s;   animation-direction: normal; }
+.orbiter.o4 { animation-duration: 26s; animation-delay: -6s;   animation-direction: reverse; }
 
 @keyframes orbit {
   0%   { transform: rotate(0deg)   translateX(72px) rotate(0deg);    opacity:.7; }
@@ -231,7 +258,7 @@ canvas {
   line-height: 1;
 }
 
-/* --- Sparks (injected by JS) --- */
+/* --- Sparks for clicks/hover --- */
 .spark {
   position: fixed;
   pointer-events: none;
@@ -253,71 +280,77 @@ canvas {
 
 <!-- ============ BUTTON: MSG ============ -->
 <div id="btn-wrap-main" class="btn-wrap">
-  <div class="btn-ring r1"></div>
-  <div class="btn-ring r2"></div>
-  <div class="btn-ring r3"></div>
-  <div class="btn-ring r4"></div>
-  <div class="arc arc1"></div>
-  <div class="arc arc2"></div>
-  <div class="arc arc3"></div>
-  <span class="orbiter">✦</span>
-  <span class="orbiter">∴</span>
-  <span class="orbiter">⧗</span>
-  <span class="orbiter">♾</span>
-  <div class="diamond d1"></div>
-  <div class="diamond d2"></div>
-  <div class="diamond d3"></div>
-  <div class="diamond d4"></div>
-  <a class="enter-btn" href="msg.html">
-    <span class="b-icon">⟁</span>
-    <span class="b-label">MSG</span>
-  </a>
+  <div class="button-orbit">
+    <div class="btn-ring r1"></div>
+    <div class="btn-ring r2"></div>
+    <div class="btn-ring r3"></div>
+    <div class="btn-ring r4"></div>
+    <div class="arc arc1"></div>
+    <div class="arc arc2"></div>
+    <div class="arc arc3"></div>
+    <span class="orbiter o1">✦</span>
+    <span class="orbiter o2">∴</span>
+    <span class="orbiter o3">⧗</span>
+    <span class="orbiter o4">♾</span>
+    <div class="diamond d1"></div>
+    <div class="diamond d2"></div>
+    <div class="diamond d3"></div>
+    <div class="diamond d4"></div>
+    <a class="enter-btn" href="msg.html">
+      <span class="b-icon">⟁</span>
+      <span class="b-label">MSG</span>
+    </a>
+  </div>
 </div>
 
 <!-- ============ BUTTON: CODE ============ -->
 <div id="btn-wrap-code" class="btn-wrap">
-  <div class="btn-ring r1"></div>
-  <div class="btn-ring r2"></div>
-  <div class="btn-ring r3"></div>
-  <div class="btn-ring r4"></div>
-  <div class="arc arc1"></div>
-  <div class="arc arc2"></div>
-  <div class="arc arc3"></div>
-  <span class="orbiter">✦</span>
-  <span class="orbiter">∴</span>
-  <span class="orbiter">⧗</span>
-  <span class="orbiter">♾</span>
-  <div class="diamond d1"></div>
-  <div class="diamond d2"></div>
-  <div class="diamond d3"></div>
-  <div class="diamond d4"></div>
-  <a class="enter-btn" href="">
-    <span class="b-icon">∴</span>
-    <span class="b-label">CODE</span>
-  </a>
+  <div class="button-orbit">
+    <div class="btn-ring r1"></div>
+    <div class="btn-ring r2"></div>
+    <div class="btn-ring r3"></div>
+    <div class="btn-ring r4"></div>
+    <div class="arc arc1"></div>
+    <div class="arc arc2"></div>
+    <div class="arc arc3"></div>
+    <span class="orbiter o1">✦</span>
+    <span class="orbiter o2">∴</span>
+    <span class="orbiter o3">⧗</span>
+    <span class="orbiter o4">♾</span>
+    <div class="diamond d1"></div>
+    <div class="diamond d2"></div>
+    <div class="diamond d3"></div>
+    <div class="diamond d4"></div>
+    <a class="enter-btn" href="">
+      <span class="b-icon">∴</span>
+      <span class="b-label">CODE</span>
+    </a>
+  </div>
 </div>
 
 <!-- ============ BUTTON: FACE ============ -->
 <div id="btn-wrap-face" class="btn-wrap">
-  <div class="btn-ring r1"></div>
-  <div class="btn-ring r2"></div>
-  <div class="btn-ring r3"></div>
-  <div class="btn-ring r4"></div>
-  <div class="arc arc1"></div>
-  <div class="arc arc2"></div>
-  <div class="arc arc3"></div>
-  <span class="orbiter">✦</span>
-  <span class="orbiter">∴</span>
-  <span class="orbiter">⧗</span>
-  <span class="orbiter">♾</span>
-  <div class="diamond d1"></div>
-  <div class="diamond d2"></div>
-  <div class="diamond d3"></div>
-  <div class="diamond d4"></div>
-  <a class="enter-btn" href="">
-    <span class="b-icon">⏣</span>
-    <span class="b-label">FACE</span>
-  </a>
+  <div class="button-orbit">
+    <div class="btn-ring r1"></div>
+    <div class="btn-ring r2"></div>
+    <div class="btn-ring r3"></div>
+    <div class="btn-ring r4"></div>
+    <div class="arc arc1"></div>
+    <div class="arc arc2"></div>
+    <div class="arc arc3"></div>
+    <span class="orbiter o1">✦</span>
+    <span class="orbiter o2">∴</span>
+    <span class="orbiter o3">⧗</span>
+    <span class="orbiter o4">♾</span>
+    <div class="diamond d1"></div>
+    <div class="diamond d2"></div>
+    <div class="diamond d3"></div>
+    <div class="diamond d4"></div>
+    <a class="enter-btn" href="">
+      <span class="b-icon">⏣</span>
+      <span class="b-label">FACE</span>
+    </a>
+  </div>
 </div>
 
 <script>

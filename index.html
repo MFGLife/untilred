@@ -6,7 +6,6 @@
 <title>UNTIL.RED</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
-
 *, *::before, *::after { box-sizing: border-box; }
 html, body {
   margin: 0; padding: 0;
@@ -57,9 +56,8 @@ canvas {
 /* ============================
    BUTTON SYSTEM
 ============================ */
-#btn-wrap {
+.btn-wrap {
   position: fixed;
-  bottom: 38px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
@@ -67,6 +65,11 @@ canvas {
   align-items: center;
   justify-content: center;
 }
+
+/* individual vertical positions */
+#btn-wrap-main { bottom: 38px; }
+#btn-wrap-code { bottom: 138px; }
+#btn-wrap-face { bottom: 238px; }
 
 /* --- Concentric pulsing rings --- */
 .btn-ring {
@@ -150,7 +153,7 @@ canvas {
 }
 
 /* --- Core button --- */
-#enter-btn {
+.enter-btn {
   position: relative;
   z-index: 3;
   width: 64px;
@@ -174,7 +177,7 @@ canvas {
 }
 
 /* Inner shimmer sweep on hover */
-#enter-btn::before {
+.enter-btn::before {
   content: '';
   position: absolute;
   top: -50%; left: -50%;
@@ -189,20 +192,20 @@ canvas {
   opacity: 0;
   transition: opacity 400ms;
 }
-#enter-btn:hover::before { opacity: 1; }
+.enter-btn:hover::before { opacity: 1; }
 
 @keyframes shimmerSpin { to { transform: rotate(360deg); } }
 
-#enter-btn:hover {
+.enter-btn:hover {
   border-color: rgba(212,175,55,.9);
   box-shadow:
     0 0 28px rgba(212,175,55,.22),
     0 0 55px rgba(212,175,55,.09),
     inset 0 0 18px rgba(212,175,55,.1);
 }
-#enter-btn:hover .b-icon  { transform: scale(1.25); opacity:1; }
-#enter-btn:hover .b-label { letter-spacing:.22em; opacity:1; }
-#enter-btn:active { transform: scale(0.93); }
+.enter-btn:hover .b-icon  { transform: scale(1.25); opacity:1; }
+.enter-btn:hover .b-label { letter-spacing:.22em; opacity:1; }
+.enter-btn:active { transform: scale(0.93); }
 
 .b-icon {
   font-size: 20px;
@@ -228,29 +231,6 @@ canvas {
   line-height: 1;
 }
 
-/* --- Additional Buttons --- */
-#btn-wrap2 {
-  position: fixed;
-  bottom: 238px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-#btn-wrap3 {
-  position: fixed;
-  bottom: 438px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 /* --- Sparks (injected by JS) --- */
 .spark {
   position: fixed;
@@ -264,7 +244,6 @@ canvas {
   0%   { opacity:1; transform:translate(0,0) scale(1); }
   100% { opacity:0; transform:var(--tx) scale(0.2); }
 }
-
 </style>
 </head>
 <body>
@@ -272,93 +251,76 @@ canvas {
 <canvas id="particles"></canvas>
 <div id="grid"></div>
 
-<!-- ============ Main BUTTON ============ -->
-<div id="btn-wrap">
-  <!-- pulsing rings -->
+<!-- ============ BUTTON: MSG ============ -->
+<div id="btn-wrap-main" class="btn-wrap">
   <div class="btn-ring r1"></div>
   <div class="btn-ring r2"></div>
   <div class="btn-ring r3"></div>
   <div class="btn-ring r4"></div>
-  <!-- spinning arcs -->
   <div class="arc arc1"></div>
   <div class="arc arc2"></div>
   <div class="arc arc3"></div>
-  <!-- orbiting glyphs -->
   <span class="orbiter">✦</span>
   <span class="orbiter">∴</span>
   <span class="orbiter">⧗</span>
   <span class="orbiter">♾</span>
-  <!-- diamond cardinal marks -->
   <div class="diamond d1"></div>
   <div class="diamond d2"></div>
   <div class="diamond d3"></div>
   <div class="diamond d4"></div>
-  <!-- core -->
-  <a id="enter-btn" href="msg.html">
+  <a class="enter-btn" href="msg.html">
     <span class="b-icon">⟁</span>
     <span class="b-label">MSG</span>
   </a>
 </div>
 
-
-<!-- ============ BUTTON2 ============ -->
-<div id="btn-wrap2">
-  <!-- pulsing rings -->
+<!-- ============ BUTTON: CODE ============ -->
+<div id="btn-wrap-code" class="btn-wrap">
   <div class="btn-ring r1"></div>
   <div class="btn-ring r2"></div>
   <div class="btn-ring r3"></div>
   <div class="btn-ring r4"></div>
-  <!-- spinning arcs -->
   <div class="arc arc1"></div>
   <div class="arc arc2"></div>
   <div class="arc arc3"></div>
-  <!-- orbiting glyphs -->
   <span class="orbiter">✦</span>
   <span class="orbiter">∴</span>
   <span class="orbiter">⧗</span>
   <span class="orbiter">♾</span>
-  <!-- diamond cardinal marks -->
   <div class="diamond d1"></div>
   <div class="diamond d2"></div>
   <div class="diamond d3"></div>
   <div class="diamond d4"></div>
-  <!-- core -->
-  <a id="enter-btn2" href="">
+  <a class="enter-btn" href="code.html">
     <span class="b-icon">∴</span>
     <span class="b-label">CODE</span>
   </a>
 </div>
 
-<!-- ============ BUTTON3 ============ -->
-<div id="btn-wrap3">
-  <!-- pulsing rings -->
+<!-- ============ BUTTON: FACE ============ -->
+<div id="btn-wrap-face" class="btn-wrap">
   <div class="btn-ring r1"></div>
   <div class="btn-ring r2"></div>
   <div class="btn-ring r3"></div>
   <div class="btn-ring r4"></div>
-  <!-- spinning arcs -->
   <div class="arc arc1"></div>
   <div class="arc arc2"></div>
   <div class="arc arc3"></div>
-  <!-- orbiting glyphs -->
   <span class="orbiter">✦</span>
   <span class="orbiter">∴</span>
   <span class="orbiter">⧗</span>
   <span class="orbiter">♾</span>
-  <!-- diamond cardinal marks -->
   <div class="diamond d1"></div>
   <div class="diamond d2"></div>
   <div class="diamond d3"></div>
   <div class="diamond d4"></div>
-  <!-- core -->
-  <a id="enter-btn3" href="">
+  <a class="enter-btn" href="face.html">
     <span class="b-icon">⏣</span>
     <span class="b-label">FACE</span>
   </a>
 </div>
 
 <script>
-
 /* =========================
    MESSAGE
 ========================= */
@@ -408,11 +370,10 @@ function createGrid() {
 /* =========================
    STATE
 ========================= */
-let litCells  = new Set();   // currently highlighted cell indices
-let usedRows  = new Set();   // rows used this word-cycle
+let litCells  = new Set();
+let usedRows  = new Set();
 let wordIndex = 0;
 
-/* Restore a single cell to a glyph without flicker */
 function restoreCell(idx) {
   const c = cells[idx];
   if (!c) return;
@@ -421,14 +382,12 @@ function restoreCell(idx) {
 }
 
 /* =========================
-   WORD REVEAL — one word, wrapping allowed, no row repeat
+   WORD REVEAL
 ========================= */
 function reveal() {
-  // Restore previously lit cells back to glyphs
   litCells.forEach(idx => restoreCell(idx));
   litCells.clear();
 
-  // Cycle words
   if (wordIndex >= words.length) {
     wordIndex = 0;
     usedRows.clear();
@@ -438,13 +397,9 @@ function reveal() {
   const letters = word.split('');
   const needed  = letters.length;
 
-  /* --- pick a row we haven't used yet --- */
   let startRow = pickFreshRow();
-
-  /* --- pick a random starting column --- */
   const startCol = Math.floor(Math.random() * cols);
 
-  /* --- place letters, wrapping row by row if needed --- */
   let r = startRow, c = startCol;
 
   for (let i = 0; i < needed; i++) {
@@ -462,20 +417,17 @@ function reveal() {
 }
 
 function pickFreshRow() {
-  // Build shuffled pool of all rows
   const pool = Array.from({ length: rows }, (_, i) => i);
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
-  // Find first unused
   for (const r of pool) {
     if (!usedRows.has(r)) {
       usedRows.add(r);
       return r;
     }
   }
-  // All rows used — reset and pick random
   usedRows.clear();
   const r = pool[0];
   usedRows.add(r);
@@ -490,7 +442,7 @@ reveal();
 setInterval(reveal, 2500);
 
 /* =========================
-   PARTICLES — clearly visible, lightly pulsing
+   PARTICLES
 ========================= */
 const canvas = document.getElementById('particles');
 const ctx    = canvas.getContext('2d');
@@ -539,25 +491,17 @@ function drawParticles() {
 drawParticles();
 
 /* =========================
-   BUTTON SPARKS
+   BUTTON SPARKS (all buttons)
 ========================= */
-const enterBtn = document.getElementById('enter-btn');
+const enterButtons = document.querySelectorAll('.enter-btn');
 
-enterBtn.addEventListener('mouseenter', () => burst(10));
-enterBtn.addEventListener('click',      () => burst(22));
+enterButtons.forEach(btn => {
+  btn.addEventListener('mouseenter', () => burst(btn, 10));
+  btn.addEventListener('click',      () => burst(btn, 22));
+});
 
-const enterBtn2 = document.getElementById('enter-btn2');
-
-enterBtn2.addEventListener('mouseenter', () => burst(10));
-enterBtn2.addEventListener('click',      () => burst(22));
-
-const enterBtn3 = document.getElementById('enter-btn3');
-
-enterBtn3.addEventListener('mouseenter', () => burst(10));
-enterBtn3.addEventListener('click',      () => burst(22));
-
-function burst(count) {
-  const rect = enterBtn.getBoundingClientRect();
+function burst(buttonEl, count) {
+  const rect = buttonEl.getBoundingClientRect();
   const cx = rect.left + rect.width  / 2;
   const cy = rect.top  + rect.height / 2;
 
@@ -580,12 +524,10 @@ function burst(count) {
 
 /* =========================
    BACKGROUND GLYPH DRIFT
-   Randomly refreshes a small batch of non-lit cells
-   so the whole field stays alive
 ========================= */
 function driftGlyphs() {
   const total   = cells.length;
-  const batchSz = Math.max(1, Math.floor(total * 0.015)); // ~1.5% per tick
+  const batchSz = Math.max(1, Math.floor(total * 0.015));
 
   for (let i = 0; i < batchSz; i++) {
     const idx = Math.floor(Math.random() * total);
@@ -603,7 +545,6 @@ window.addEventListener('resize', () => {
   createGrid();
   resizeCanvas();
 });
-
 </script>
 </body>
 </html>

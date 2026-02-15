@@ -508,6 +508,24 @@ function burst(count) {
 }
 
 /* =========================
+   BACKGROUND GLYPH DRIFT
+   Randomly refreshes a small batch of non-lit cells
+   so the whole field stays alive
+========================= */
+function driftGlyphs() {
+  const total   = cells.length;
+  const batchSz = Math.max(1, Math.floor(total * 0.015)); // ~1.5% per tick
+
+  for (let i = 0; i < batchSz; i++) {
+    const idx = Math.floor(Math.random() * total);
+    if (!litCells.has(idx)) {
+      cells[idx].textContent = randomGlyph();
+    }
+  }
+}
+setInterval(driftGlyphs, 80);
+
+/* =========================
    RESIZE
 ========================= */
 window.addEventListener('resize', () => {

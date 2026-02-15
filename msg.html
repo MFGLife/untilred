@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Axium AI · human makes mistakes</title>
+  <!-- Font & icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #0c0f15;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 16px;
+    }
+
+    .axium-app {
+      max-width: 1000px;
+      width: 100%;
+      background: #181d27;
+      border-radius: 36px 36px 32px 32px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(75, 130, 245, 0.15) inset;
+      backdrop-filter: blur(2px);
+      overflow: hidden;
+      border: 1px solid #2b3240;
+    }
+
+    .axium-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: #1e2532;
+      border-bottom: 1px solid #2d3648;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* logo.png image – fallback 'A' */
+    .axium-logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
+      background: #2f4eb0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 700;
+      font-size: 20px;
+      box-shadow: 0 6px 12px rgba(23, 45, 110, 0.5);
+      background-image: url('logo.png');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+    .axium-logo span {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      overflow: hidden;
+    }
+
+    .axium-title {
+      font-weight: 600;
+      font-size: 18px;
+      letter-spacing: -0.2px;
+      color: #edeff2;
+    }
+
+    .axium-badge {
+      background: #2a3346;
+      color: #9bb9ff;
+      border-radius: 40px;
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid #3d4a66;
+      margin-left: 8px;
+    }
+
+    .header-right {
+      color: #95a5c9;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .chat-window {
+      background: #131821;
+      padding: 24px 20px 16px 20px;
+      height: 460px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      scroll-behavior: smooth;
+      scrollbar-width: thin;
+      scrollbar-color: #3f4b63 #1e2430;
+    }
+
+    .chat-window::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .msg-row {
+      display: flex;
+      margin-bottom: 16px;
+      animation: msgAppear 0.3s ease forwards;
+    }
+
+    .msg-row.human-row {
+      justify-content: flex-end;
+    }
+
+    .msg-row.ai-row {
+      justify-content: flex-start;
+      margin-left: 26px;
+    }
+
+    .chat-bubble {
+      max-width: 70%;
+      padding: 14px 20px;
+      border-radius: 26px;
+      font-size: 15px;
+      line-height: 1.5;
+      letter-spacing: -0.1px;
+      word-break: break-word;
+      box-shadow: 0 8px 18px -6px rgba(0, 0, 0, 0.5);
+      position: relative;
+      white-space: pre-wrap;
+    }
+
+    .human-bubble {
+      background: #2f4eb0;
+      color: white;
+      border-bottom-right-radius: 6px;
+      border: 1px solid #4870d0;
+    }
+
+    .ai-bubble {
+      background: #262e3f;
+      color: #eef3fc;
+      border-bottom-left-radius: 6px;
+      border: 1px solid #3c4865;
+    }
+
+    .bubble-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 5px;
+      font-size: 11px;
+      color: #7f8aa8;
+      padding-left: 6px;
+    }
+
+    .human-row .bubble-meta {
+      justify-content: flex-end;
+    }
+
+    /* AI avatar */
+    .ai-row .chat-bubble::before {
+      content: '';
+      position: absolute;
+      left: -26px;
+      bottom: 6px;
+      width: 22px;
+      height: 22px;
+      background: #1f2b41;
+      border-radius: 30px;
+      border: 2px solid #2f4eb0;
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%234d7cff" width="14px" height="14px"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>');
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: 12px;
+      box-shadow: 0 2px 8px #10141e;
+    }
+
+    .welcome-bubble {
+      background: #1c2537;
+      border: 1px solid #36405b;
+      color: #b9ceff;
+      font-style: italic;
+      max-width: 80%;
+      align-self: flex-start;
+    }
+
+    /* thinking bubble (three dots) – used before human messages */
+    .thinking-bubble {
+      background: #1e273a;
+      border: 1px solid #3d506e;
+      border-radius: 26px;
+      border-bottom-right-radius: 6px;
+      padding: 16px 22px;
+      max-width: 100px;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      justify-content: center;
+    }
+    .thinking-bubble span {
+      width: 8px;
+      height: 8px;
+      background: #7d9eff;
+      border-radius: 50%;
+      display: inline-block;
+      opacity: 0.7;
+      animation: thinkingPulse 1.4s infinite;
+    }
+    .thinking-bubble span:nth-child(2) { animation-delay: 0.2s; }
+    .thinking-bubble span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes thinkingPulse {
+      0% { opacity: 0.3; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.2); background: #a6c0ff; }
+      100% { opacity: 0.3; transform: scale(1); }
+    }
+
+    .input-panel {
+      background: #1a212d;
+      padding: 20px 24px 24px 24px;
+      border-top: 1px solid #2a3346;
+    }
+
+    .lyrics-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #a2b5e0;
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+
+    .input-box {
+      display: flex;
+      gap: 16px;
+      align-items: flex-end;
+    }
+
+    .input-box textarea {
+      flex: 1;
+      background: #0f141f;
+      border: 1px solid #2b364f;
+      border-radius: 24px;
+      padding: 16px 22px;
+      font-family: 'Inter', monospace;
+      font-size: 15px;
+      color: #eef3fc;
+      resize: none;
+      outline: none;
+      transition: 0.2s;
+      line-height: 1.5;
+    }
+
+    .input-box textarea:focus {
+      border-color: #4d7cff;
+      box-shadow: 0 0 0 2px rgba(77, 124, 255, 0.2);
+    }
+
+    .axium-button {
+      background: linear-gradient(145deg, #2f4eb0, #1f3a7a);
+      border: none;
+      border-radius: 40px;
+      padding: 16px 36px;
+      font-weight: 600;
+      font-size: 16px;
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: 0.15s;
+      border: 1px solid #5f7edb;
+      box-shadow: 0 8px 18px -6px #0e162b;
+    }
+
+    .axium-button:hover {
+      background: linear-gradient(145deg, #3f60c5, #2b45a0);
+      border-color: #7f9aff;
+      transform: scale(1.02);
+    }
+
+    .status-tip {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 14px;
+      color: #596e99;
+      font-size: 13px;
+      border-top: 1px dashed #2e3850;
+      padding-top: 14px;
+    }
+
+    @keyframes msgAppear {
+      0% { opacity: 0; transform: translateY(12px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="axium-app">
+    <div class="axium-header">
+      <div class="header-left">
+        <div class="axium-logo"><span>A</span></div>
+        <span class="axium-title">Axium AI</span>
+        <span class="axium-badge">human types · ai instant</span>
+      </div>
+      <div class="header-right">
+        <i class="fas fa-microphone"></i>
+        <i class="fas fa-sliders-h"></i>
+        <i class="fas fa-ellipsis-v"></i>
+      </div>
+    </div>
+
+    <div class="chat-window" id="chatWindow">
+      <!-- welcome message -->
+      <div class="msg-row ai-row" id="welcomeRow">
+        <div class="chat-bubble ai-bubble welcome-bubble">
+          <i class="fas fa-music"></i>  Paste lyrics & hit Play — I'll respond instantly, but <strong>you</strong> type with mistakes & pauses.
+          <div class="bubble-meta">
+            <span>Axium AI</span> <span>•</span> <i class="far fa-clock"></i> <span>now</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-panel">
+      <div class="lyrics-label">
+        <i class="fas fa-lines"></i>
+        <span>LYRIC TRANSCRIPT</span>
+      </div>
+      <div class="input-box">
+        <textarea id="lyricTextArea" rows="2" placeholder="Paste lyrics... example:&#10;Hello darkness, my old friend&#10;I've come to talk with you again"></textarea>
+        <button class="axium-button" id="playButton">
+          <i class="fas fa-play"></i> Play
+        </button>
+      </div>
+      <div class="status-tip">
+        <i class="fas fa-sparkles"></i>
+        <span>Human types with stutters & backspaces • AI answers immediately</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+(function() {
+  const chatWindow = document.getElementById('chatWindow');
+  const lyricsInput = document.getElementById('lyricTextArea');
+  const playBtn = document.getElementById('playButton');
+
+  function clearWelcome() {
+    const welcome = document.getElementById('welcomeRow');
+    if (welcome) welcome.remove();
+  }
+
+  function showThinkingBubble() {
+    const row = document.createElement('div');
+    row.className = 'msg-row human-row';
+    row.id = 'thinkingRow';
+    const bubbleDiv = document.createElement('div');
+    bubbleDiv.className = 'thinking-bubble';
+    bubbleDiv.innerHTML = '<span></span><span></span><span></span>';
+    row.appendChild(bubbleDiv);
+    chatWindow.appendChild(row);
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+    return row;
+  }
+
+  function removeThinking() {
+    const thinking = document.getElementById('thinkingRow');
+    if (thinking) thinking.remove();
+  }
+
+  // Human typing animation – ONE mistake per bubble
+  async function animateHumanTyping(bubbleElement, fullText) {
+    let displayed = '';
+    let mistakeDone = false;
+    bubbleElement.textContent = displayed;
+    let i = 0;
+
+    while (i < fullText.length) {
+      displayed += fullText[i];
+      bubbleElement.textContent = displayed;
+      i++;
+
+      // variable typing delay
+      await new Promise(r => setTimeout(r, 30 + Math.random() * 60));
+
+      // occasional pause
+      if (Math.random() < 0.2 && i < fullText.length - 2) {
+        await new Promise(r => setTimeout(r, 500));
+      }
+
+      // only ONE backspace per bubble
+      if (!mistakeDone && i > 4 && Math.random() < 0.3 && i < fullText.length - 1) {
+        const eraseCount = Math.floor(Math.random() * 3) + 1; // 1–3
+        for (let e = 0; e < eraseCount && displayed.length > 0; e++) {
+          displayed = displayed.slice(0, -1);
+          bubbleElement.textContent = displayed;
+          await new Promise(r => setTimeout(r, 100));
+        }
+        await new Promise(r => setTimeout(r, 400)); // short hesitation
+        i = Math.max(0, i - eraseCount);
+        mistakeDone = true;
+      }
+    }
+
+    bubbleElement.textContent = fullText;
+  }
+
+  // Add message row
+  async function addMessage(text, sender) {
+    const row = document.createElement('div');
+    row.className = `msg-row ${sender}-row`;
+
+    const bubble = document.createElement('div');
+    bubble.className = `chat-bubble ${sender === 'human' ? 'human-bubble' : 'ai-bubble'}`;
+
+    if (sender === 'ai') {
+      bubble.textContent = text;
+    } else {
+      bubble.textContent = '';
+    }
+
+    const meta = document.createElement('div');
+    meta.className = 'bubble-meta';
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    if (sender === 'ai') {
+      meta.innerHTML = `<span>Axium AI</span> <span>•</span> <i class="far fa-clock"></i> <span>${timeStr}</span>`;
+    } else {
+      meta.innerHTML = `<i class="far fa-clock"></i> <span>${timeStr}</span> <span>•</span> <span>you</span>`;
+    }
+
+    bubble.appendChild(meta);
+    row.appendChild(bubble);
+    chatWindow.appendChild(row);
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+
+    if (sender === 'human') {
+      await animateHumanTyping(bubble, text);
+    }
+  }
+
+  // Main chat controller
+  async function startLyricChat() {
+    const rawText = lyricsInput.value.trim();
+    if (rawText.length === 0) {
+      clearWelcome();
+      await addMessage("(paste some lyrics first)", 'ai');
+      return;
+    }
+
+    const lines = rawText.split('\n').map(l => l.trim()).filter(l => l !== '');
+    if (lines.length === 0) {
+      clearWelcome();
+      await addMessage("(no lyrics detected)", 'ai');
+      return;
+    }
+
+    chatWindow.innerHTML = ''; // clear all
+    clearWelcome();
+
+    for (let idx = 0; idx < lines.length; idx++) {
+      const sender = idx % 2 === 0 ? 'human' : 'ai';
+      const lineText = lines[idx];
+
+      if (sender === 'human') {
+        showThinkingBubble();
+        await new Promise(r => setTimeout(r, 500 + Math.random() * 1000));
+        removeThinking();
+        await addMessage(lineText, 'human');
+      } else {
+        // small pause to feel natural
+        await new Promise(r => setTimeout(r, 300));
+        await addMessage(lineText, 'ai');
+      }
+    }
+  }
+
+  playBtn.addEventListener('click', () => {
+    startLyricChat();
+  });
+
+  lyricsInput.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      playBtn.click();
+    }
+  });
+
+  // demo prefill
+  lyricsInput.value = `Hello darkness, my old friend
+I've come to talk with you again
+Because a vision softly creeping
+Left its seeds while I was sleeping`;
+})();
+
+
+</script>
+</body>
+</html>

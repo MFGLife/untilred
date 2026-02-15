@@ -3,100 +3,261 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AXIUM.CHURCH</title>
+<title>UNTIL.RED</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
 
-/* =========================
-   VOID FOUNDATION
-========================= */
-
-*, *::before, *::after {
-  box-sizing: border-box;
-}
-
+*, *::before, *::after { box-sizing: border-box; }
 html, body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
+  margin: 0; padding: 0;
+  width: 100%; height: 100%;
   overflow: hidden;
-  background: #000000;
+  background: #000;
   font-family: 'Cinzel', serif;
 }
 
-
-/* =========================
-   INCENSE PARTICLE CANVAS
-========================= */
-
+/* ---- CANVAS ---- */
 canvas {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
   z-index: 0;
 }
 
-
-/* =========================
-   GLYPH FIELD
-========================= */
-
+/* ---- GRID ---- */
 #grid {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  top: 0; left: 0;
   display: grid;
   z-index: 10;
-  /* columns/rows set via JS */
 }
-
-
-/* =========================
-   GLYPHS — each cell is exactly one character wide
-========================= */
 
 .cell {
   display: flex;
   align-items: center;
   justify-content: center;
-
-  /* font-size matches cell size — set via JS */
   line-height: 1;
-  color: #D4AF37;
-  opacity: 0.35;
-
-  /* Prevent any overflow or text wrapping */
   overflow: hidden;
   white-space: nowrap;
-
+  color: #D4AF37;
+  opacity: 0.30;
   transition:
-    opacity  800ms cubic-bezier(0, 0, 0.2, 1),
-    color    800ms cubic-bezier(0, 0, 0.2, 1),
-    transform 800ms cubic-bezier(0, 0, 0.2, 1);
+    opacity  650ms cubic-bezier(0,.1,.2,1),
+    color    650ms cubic-bezier(0,.1,.2,1),
+    transform 650ms cubic-bezier(0,.1,.2,1);
 }
-
-
-/* =========================
-   WORD-LETTER STATE
-========================= */
 
 .letter {
   opacity: 1;
-  color: #F4E4BC;
-  text-shadow:
-    0 0 10px rgba(212, 175, 55, 0.5),
-    0 0 24px rgba(212, 175, 55, 0.25);
-  transform: scale(1.12);
+  color: #EDD98A;
+  text-shadow: 0 0 5px rgba(212,175,55,0.2);
+  transform: scale(1.07);
 }
 
-.letter-space {
-  /* A word-boundary gap — cell stays empty/dim */
+/* ============================
+   BUTTON SYSTEM
+============================ */
+#btn-wrap {
+  position: fixed;
+  bottom: 38px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* --- Concentric pulsing rings --- */
+.btn-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(212,175,55,0.2);
+  animation: ringPulse 3s ease-in-out infinite;
+}
+.r1 { width: 88px;  height: 88px;  animation-duration: 2.6s; animation-delay: 0s; }
+.r2 { width: 116px; height: 116px; animation-duration: 3.2s; animation-delay: .5s; }
+.r3 { width: 148px; height: 148px; animation-duration: 4s;   animation-delay: 1s; }
+.r4 { width: 182px; height: 182px; animation-duration: 5s;   animation-delay: 1.6s; border-style: dashed; border-color: rgba(212,175,55,0.07); }
+
+@keyframes ringPulse {
+  0%,100% { opacity:.15; transform:scale(1); }
+  50%      { opacity:.45; transform:scale(1.03); }
+}
+
+/* --- Spinning arcs --- */
+.arc {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid transparent;
+}
+.arc1 {
+  width: 100px; height: 100px;
+  border-top-color:    rgba(212,175,55,.65);
+  border-bottom-color: rgba(212,175,55,.15);
+  animation: spin 4s linear infinite;
+}
+.arc2 {
+  width: 76px; height: 76px;
+  border-left-color:  rgba(212,175,55,.4);
+  border-right-color: rgba(212,175,55,.1);
+  animation: spin 7s linear infinite reverse;
+}
+.arc3 {
+  width: 128px; height: 128px;
+  border-top-color:   rgba(212,175,55,.18);
+  border-right-color: rgba(212,175,55,.08);
+  animation: spin 12s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* --- Orbiting sigil glyphs --- */
+.orbiter {
+  position: absolute;
+  color: rgba(212,175,55,0.55);
+  font-size: 12px;
+  animation: orbit 9s linear infinite;
+  transform-origin: 0 0;
+}
+.orbiter:nth-child(7)  { animation-delay:    0s; }
+.orbiter:nth-child(8)  { animation-delay: -2.25s; }
+.orbiter:nth-child(9)  { animation-delay: -4.5s; }
+.orbiter:nth-child(10) { animation-delay: -6.75s; }
+
+@keyframes orbit {
+  0%   { transform: rotate(0deg)   translateX(72px) rotate(0deg);    opacity:.7; }
+  50%  { opacity:.25; }
+  100% { transform: rotate(360deg) translateX(72px) rotate(-360deg); opacity:.7; }
+}
+
+/* --- Diamond corner marks --- */
+.diamond {
+  position: absolute;
+  width: 5px; height: 5px;
+  background: rgba(212,175,55,0.45);
+  transform: rotate(45deg);
+  animation: diamondPulse 2s ease-in-out infinite;
+}
+.d1 { top: -88px;   left: 50%; margin-left:-2px; animation-delay:0s; }
+.d2 { bottom: -88px; left: 50%; margin-left:-2px; animation-delay:.5s; }
+.d3 { left: -88px;  top: 50%;  margin-top:-2px;  animation-delay:1s; }
+.d4 { right: -88px; top: 50%;  margin-top:-2px;  animation-delay:1.5s; }
+
+@keyframes diamondPulse {
+  0%,100% { opacity:.4; transform:rotate(45deg) scale(1); }
+  50%      { opacity:1;  transform:rotate(45deg) scale(1.6); }
+}
+
+/* --- Core button --- */
+#enter-btn {
+  position: relative;
+  z-index: 3;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 34%, #1c1500, #000000);
+  border: 1px solid rgba(212,175,55,0.5);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  outline: none;
+  text-decoration: none;
+  box-shadow:
+    0 0 20px rgba(212,175,55,.07),
+    inset 0 0 14px rgba(212,175,55,.05);
+  transition: border-color 300ms, box-shadow 300ms, transform 150ms;
+  overflow: hidden;
+}
+
+/* Inner shimmer sweep on hover */
+#enter-btn::before {
+  content: '';
+  position: absolute;
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0%,
+    rgba(212,175,55,.06) 10%,
+    transparent 20%
+  );
+  animation: shimmerSpin 3s linear infinite;
   opacity: 0;
+  transition: opacity 400ms;
+}
+#enter-btn:hover::before { opacity: 1; }
+
+@keyframes shimmerSpin { to { transform: rotate(360deg); } }
+
+#enter-btn:hover {
+  border-color: rgba(212,175,55,.9);
+  box-shadow:
+    0 0 28px rgba(212,175,55,.22),
+    0 0 55px rgba(212,175,55,.09),
+    inset 0 0 18px rgba(212,175,55,.1);
+}
+#enter-btn:hover .b-icon  { transform: scale(1.25); opacity:1; }
+#enter-btn:hover .b-label { letter-spacing:.22em; opacity:1; }
+#enter-btn:active { transform: scale(0.93); }
+
+.b-icon {
+  font-size: 20px;
+  color: #D4AF37;
+  opacity: .78;
+  line-height: 1;
+  transition: transform 300ms, opacity 300ms;
+  animation: iconBreathe 3.5s ease-in-out infinite;
+}
+@keyframes iconBreathe {
+  0%,100% { text-shadow: 0 0 4px rgba(212,175,55,.25); }
+  50%      { text-shadow: 0 0 12px rgba(212,175,55,.55), 0 0 26px rgba(212,175,55,.2); }
+}
+
+.b-label {
+  font-family: 'Cinzel', serif;
+  font-size: 6px;
+  letter-spacing: .17em;
+  color: rgba(212,175,55,.55);
+  text-transform: uppercase;
+  opacity: .65;
+  transition: letter-spacing 400ms, opacity 300ms;
+  line-height: 1;
+}
+
+/* --- Floating arc text --- */
+#btn-arc {
+  position: absolute;
+  bottom: -24px;
+  font-family: 'Cinzel', serif;
+  font-size: 7px;
+  letter-spacing: .28em;
+  color: rgba(212,175,55,.3);
+  text-transform: uppercase;
+  white-space: nowrap;
+  animation: arcFloat 4s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes arcFloat {
+  0%,100% { opacity:.3; transform:translateY(0); }
+  50%      { opacity:.55; transform:translateY(-2px); }
+}
+
+/* --- Sparks (injected by JS) --- */
+.spark {
+  position: fixed;
+  pointer-events: none;
+  border-radius: 50%;
+  background: #D4AF37;
+  animation: sparkFly 700ms ease-out forwards;
+  z-index: 999;
+}
+@keyframes sparkFly {
+  0%   { opacity:1; transform:translate(0,0) scale(1); }
+  100% { opacity:0; transform:var(--tx) scale(0.2); }
 }
 
 </style>
@@ -106,174 +267,170 @@ canvas {
 <canvas id="particles"></canvas>
 <div id="grid"></div>
 
+<!-- ============ BUTTON ============ -->
+<div id="btn-wrap">
+  <!-- pulsing rings -->
+  <div class="btn-ring r1"></div>
+  <div class="btn-ring r2"></div>
+  <div class="btn-ring r3"></div>
+  <div class="btn-ring r4"></div>
+  <!-- spinning arcs -->
+  <div class="arc arc1"></div>
+  <div class="arc arc2"></div>
+  <div class="arc arc3"></div>
+  <!-- orbiting glyphs -->
+  <span class="orbiter">✦</span>
+  <span class="orbiter">∴</span>
+  <span class="orbiter">⧗</span>
+  <span class="orbiter">♾</span>
+  <!-- diamond cardinal marks -->
+  <div class="diamond d1"></div>
+  <div class="diamond d2"></div>
+  <div class="diamond d3"></div>
+  <div class="diamond d4"></div>
+  <!-- core -->
+  <a id="enter-btn" href="msg.html">
+    <span class="b-icon">⟁</span>
+    <span class="b-label">ENTER</span>
+  </a>
+  <div id="btn-arc">AXIUM · CHURCH</div>
+</div>
+
 <script>
 
 /* =========================
    MESSAGE
 ========================= */
-
 const paragraph = `A research cult for those who know the story is rigged but refuse to play their assigned character We weaponize double entendre anonymous ritual and AI augmented language to expose the machinery behind the mask without sacrificing the people wearing it`;
-
-// Split into words
 const words = paragraph.split(' ');
-
 
 /* =========================
    GLYPHS
 ========================= */
-
-const glyphs = ['✦','∴','☲','⟁','⧗','⟟','☍','⟲','♾','Δ'];
+const glyphs = ['✦','∴','☲','⟁','⧗','⟟','☍','⟲','♾','Δ','⊕','⋈','⌬','⍟','⎊','※','⌖','⏣'];
 
 function randomGlyph() {
   return glyphs[Math.floor(Math.random() * glyphs.length)];
 }
 
-
 /* =========================
-   GRID  — cell size drives everything
+   GRID
 ========================= */
-
-const CELL_SIZE = 28; // px — each cell is a perfect square
-
-let cells = [];
-let cols, rows;
+const CELL_SIZE = 28;
+let cells = [], cols, rows;
 
 function createGrid() {
   const grid = document.getElementById('grid');
+  cols = Math.floor(window.innerWidth  / CELL_SIZE);
+  rows = Math.floor(window.innerHeight / CELL_SIZE);
 
-  const W = window.innerWidth;
-  const H = window.innerHeight;
-
-  cols = Math.floor(W / CELL_SIZE);
-  rows = Math.floor(H / CELL_SIZE);
-
-  // Make the grid fill exactly the screen
   grid.style.gridTemplateColumns = `repeat(${cols}, ${CELL_SIZE}px)`;
   grid.style.gridTemplateRows    = `repeat(${rows}, ${CELL_SIZE}px)`;
-
-  // Align the grid block to the center so any fractional remainder is off-screen edges
   grid.style.width  = `${cols * CELL_SIZE}px`;
   grid.style.height = `${rows * CELL_SIZE}px`;
 
   grid.innerHTML = '';
   cells = [];
+  usedRows.clear();
+  wordIndex = 0;
 
-  const total = cols * rows;
-
-  for (let i = 0; i < total; i++) {
+  for (let i = 0; i < cols * rows; i++) {
     const div = document.createElement('div');
     div.className = 'cell';
-    div.style.fontSize = `${CELL_SIZE * 0.55}px`; // glyph ~55 % of cell height
+    div.style.fontSize = `${Math.round(CELL_SIZE * 0.52)}px`;
     div.textContent = randomGlyph();
     grid.appendChild(div);
     cells.push(div);
   }
 }
 
-
 /* =========================
-   NOISE — reset all cells
+   STATE
 ========================= */
-
-function noise() {
-  cells.forEach(c => {
-    c.textContent = randomGlyph();
-    c.classList.remove('letter', 'letter-space');
-  });
-}
-
-
-/* =========================
-   WORD REVEAL
-   — each letter of each word occupies exactly ONE cell
-   — a single empty cell separates consecutive words
-========================= */
-
+let litCells  = new Set();   // currently highlighted cell indices
+let usedRows  = new Set();   // rows used this word-cycle
 let wordIndex = 0;
 
-// How many words to show per pulse
-const WORDS_PER_PULSE = 4;
+/* Restore a single cell to a glyph without flicker */
+function restoreCell(idx) {
+  const c = cells[idx];
+  if (!c) return;
+  c.classList.remove('letter');
+  c.textContent = randomGlyph();
+}
 
+/* =========================
+   WORD REVEAL — one word, wrapping allowed, no row repeat
+========================= */
 function reveal() {
-  noise();
+  // Restore previously lit cells back to glyphs
+  litCells.forEach(idx => restoreCell(idx));
+  litCells.clear();
 
-  // Build a flat array of cells-to-highlight:
-  // [letter, letter, …, gap, letter, letter, …]
-  const sequence = [];
-
-  for (let w = 0; w < WORDS_PER_PULSE; w++) {
-    if (wordIndex >= words.length) wordIndex = 0;
-
-    const word = words[wordIndex];
-    wordIndex++;
-
-    // Each character of the word gets its own slot
-    for (const ch of word) {
-      sequence.push({ type: 'letter', char: ch });
-    }
-
-    // Separator between words (skip after last word)
-    if (w < WORDS_PER_PULSE - 1) {
-      sequence.push({ type: 'space' });
-    }
+  // Cycle words
+  if (wordIndex >= words.length) {
+    wordIndex = 0;
+    usedRows.clear();
   }
 
-  // Find a random horizontal run in the grid that fits the sequence
-  const needed = sequence.length;
+  const word    = words[wordIndex++];
+  const letters = word.split('');
+  const needed  = letters.length;
 
-  // Max attempts to find a fitting run before giving up
-  let placed = false;
-  for (let attempt = 0; attempt < 200; attempt++) {
-    // Pick a random starting row and column
-    const row = Math.floor(Math.random() * rows);
-    const col = Math.floor(Math.random() * (cols - needed + 1)); // ensure it fits
+  /* --- pick a row we haven't used yet --- */
+  let startRow = pickFreshRow();
 
-    if (col < 0) continue; // grid too narrow for this sequence
+  /* --- pick a random starting column --- */
+  const startCol = Math.floor(Math.random() * cols);
 
-    for (let s = 0; s < needed; s++) {
-      const idx = row * cols + col + s;
-      const cell = cells[idx];
-      const slot = sequence[s];
+  /* --- place letters, wrapping row by row if needed --- */
+  let r = startRow, c = startCol;
 
-      if (slot.type === 'letter') {
-        cell.textContent = slot.char;
-        cell.classList.add('letter');
-        cell.classList.remove('letter-space');
-      } else {
-        cell.textContent = '';
-        cell.classList.add('letter-space');
-        cell.classList.remove('letter');
-      }
+  for (let i = 0; i < needed; i++) {
+    if (c >= cols) { c = 0; r++; if (r >= rows) r = 0; }
+
+    const idx  = r * cols + c;
+    const cell = cells[idx];
+    if (cell) {
+      cell.textContent = letters[i];
+      cell.classList.add('letter');
+      litCells.add(idx);
     }
-
-    placed = true;
-    break;
-  }
-
-  // Fallback: if couldn't fit horizontally, scatter letters randomly
-  if (!placed) {
-    sequence.forEach(slot => {
-      if (slot.type !== 'letter') return;
-      const idx = Math.floor(Math.random() * cells.length);
-      cells[idx].textContent = slot.char;
-      cells[idx].classList.add('letter');
-    });
+    c++;
   }
 }
 
+function pickFreshRow() {
+  // Build shuffled pool of all rows
+  const pool = Array.from({ length: rows }, (_, i) => i);
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  // Find first unused
+  for (const r of pool) {
+    if (!usedRows.has(r)) {
+      usedRows.add(r);
+      return r;
+    }
+  }
+  // All rows used — reset and pick random
+  usedRows.clear();
+  const r = pool[0];
+  usedRows.add(r);
+  return r;
+}
 
 /* =========================
    BOOT
 ========================= */
-
 createGrid();
-setInterval(reveal, 2400);
-
+reveal();
+setInterval(reveal, 2500);
 
 /* =========================
-   PARTICLE SYSTEM
+   PARTICLES — clearly visible, lightly pulsing
 ========================= */
-
 const canvas = document.getElementById('particles');
 const ctx    = canvas.getContext('2d');
 
@@ -283,30 +440,34 @@ function resizeCanvas() {
 }
 resizeCanvas();
 
-const particles = [];
-for (let i = 0; i < 100; i++) {
-  particles.push({
-    x:    Math.random() * canvas.width,
-    y:    Math.random() * canvas.height,
-    vx:   (Math.random() - 0.5) * 0.2,
-    vy:   (Math.random() - 0.5) * 0.2,
-    size: Math.random() * 2
+const PCOUNT = 90;
+const pts = [];
+for (let i = 0; i < PCOUNT; i++) {
+  pts.push({
+    x:     Math.random() * canvas.width,
+    y:     Math.random() * canvas.height,
+    vx:    (Math.random() - .5) * 0.22,
+    vy:    (Math.random() - .5) * 0.22,
+    size:  Math.random() * 1.9 + 0.5,
+    phase: Math.random() * Math.PI * 2
   });
 }
 
 function drawParticles() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = 'rgba(212,175,55,.3)';
 
-  particles.forEach(p => {
+  pts.forEach(p => {
     p.x += p.vx;
     p.y += p.vy;
+    p.phase += 0.012;
 
     if (p.x < 0) p.x = canvas.width;
     if (p.x > canvas.width)  p.x = 0;
     if (p.y < 0) p.y = canvas.height;
     if (p.y > canvas.height) p.y = 0;
 
+    const alpha = 0.28 + 0.28 * Math.sin(p.phase);
+    ctx.fillStyle = `rgba(212,175,55,${alpha.toFixed(3)})`;
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
     ctx.fill();
@@ -316,11 +477,39 @@ function drawParticles() {
 }
 drawParticles();
 
+/* =========================
+   BUTTON SPARKS
+========================= */
+const enterBtn = document.getElementById('enter-btn');
+
+enterBtn.addEventListener('mouseenter', () => burst(10));
+enterBtn.addEventListener('click',      () => burst(22));
+
+function burst(count) {
+  const rect = enterBtn.getBoundingClientRect();
+  const cx = rect.left + rect.width  / 2;
+  const cy = rect.top  + rect.height / 2;
+
+  for (let i = 0; i < count; i++) {
+    const s = document.createElement('div');
+    s.className = 'spark';
+    const angle = Math.random() * Math.PI * 2;
+    const dist  = 28 + Math.random() * 60;
+    s.style.setProperty('--tx', `translate(${Math.cos(angle)*dist}px,${Math.sin(angle)*dist}px)`);
+    const sz = Math.random() * 3 + 1;
+    s.style.width  = sz + 'px';
+    s.style.height = sz + 'px';
+    s.style.left   = cx - sz/2 + 'px';
+    s.style.top    = cy - sz/2 + 'px';
+    s.style.animationDelay = Math.random() * 180 + 'ms';
+    document.body.appendChild(s);
+    setTimeout(() => s.remove(), 900);
+  }
+}
 
 /* =========================
-   RESPONSIVE
+   RESIZE
 ========================= */
-
 window.addEventListener('resize', () => {
   createGrid();
   resizeCanvas();

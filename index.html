@@ -1,373 +1,254 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>until.red</title>
-  <meta name="description" content="You were never supposed to find this.">
-  <meta property="og:title" content="until.red – Countdown" />
-  <meta property="og:description" content="You were never supposed to find this." />
-  <meta property="og:image" content="logo.png" />
-  <meta property="og:url" content="https://until.red" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="until.red – Countdown" />
-  <meta name="twitter:description" content="You were never supposed to find this." />
-  <meta name="twitter:image" content="logo.png" />
-  <link rel="icon" type="image/jpeg" href="logo.png" />
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
-    
-    :root {
-      --axium-amber: #d97706;
-      --axium-gold: #fbbf24;
-      --axium-crimson: #991b1b;
-      --axium-slate: #1e293b;
-      --axium-void: #020617;
-      --axium-glow: rgba(251, 191, 36, 0.3);
-      --line-weight: 1px;
-    }
-    
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
-    body {
-      background: var(--axium-void);
-      color: var(--axium-slate);
-      font-family: 'Space Mono', monospace;
-      overflow: hidden;
-      height: 100vh;
-      position: relative;
-    }
-    
-    /* The One Line - sacred axis */
-    .axis-line {
-      position: absolute;
-      left: 50%;
-      top: 0;
-      bottom: 0;
-      width: var(--line-weight);
-      background: linear-gradient(
-        180deg,
-        transparent 0%,
-        rgba(217, 119, 6, 0.15) 20%,
-        rgba(217, 119, 6, 0.15) 80%,
-        transparent 100%
-      );
-      opacity: 0.3;
-      transform: translateX(-50%);
-      pointer-events: none;
-    }
-    
-    #glyph-grid {
-      display: grid;
-      width: 100vw;
-      height: 100vh;
-      gap: 0;
-      position: relative;
-      z-index: 1;
-    }
-    
-    #glyph-grid span {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 13px;
-      position: relative;
-      transition: color 3s ease, opacity 4s ease, text-shadow 3s ease;
-    }
-    
-    /* Background glyphs - the noise */
-    .glyph {
-      color: #0f172a;
-      opacity: 0.4;
-      font-size: 12px;
-    }
-    
-    /* Hidden words - nearly invisible, slightly different */
-    .word-cell {
-      color: #1e293b;
-      opacity: 0.45;
-      font-size: 12px;
-      font-weight: 400;
-      letter-spacing: 0.02em;
-      transition: all 4s ease;
-    }
-    
-    /* Barely perceptible shift - the secret */
-    .word-cell.revealed {
-      color: #334155;
-      opacity: 0.55;
-      text-shadow: 0 0 8px rgba(51, 65, 85, 0.3);
-    }
-    
-    /* Corner portal buttons */
-    .portal-btn {
-      position: absolute;
-      width: 50px;
-      height: 50px;
-      cursor: pointer;
-      transition: all 0.4s ease;
-      z-index: 10;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-      color: #1e293b;
-      border: 1px solid #1e293b;
-      background: rgba(2, 6, 23, 0.8);
-    }
-    
-    .portal-btn::before {
-      content: '';
-      position: absolute;
-      inset: -1px;
-      border: 1px solid transparent;
-      transition: all 0.4s ease;
-    }
-    
-    .portal-btn:hover {
-      color: var(--axium-gold);
-      border-color: var(--axium-gold);
-      box-shadow: 
-        0 0 25px var(--axium-glow),
-        inset 0 0 15px rgba(251, 191, 36, 0.1);
-      text-shadow: 0 0 10px var(--axium-gold);
-    }
-    
-    .portal-btn.tl {
-      top: 25px;
-      left: 25px;
-      border-top: 2px solid;
-      border-left: 2px solid;
-    }
-    
-    .portal-btn.tr {
-      top: 25px;
-      right: 25px;
-      border-top: 2px solid;
-      border-right: 2px solid;
-    }
-    
-    .portal-btn.bl {
-      bottom: 25px;
-      left: 25px;
-      border-bottom: 2px solid;
-      border-left: 2px solid;
-    }
-    
-    .portal-btn.br {
-      bottom: 25px;
-      right: 25px;
-      border-bottom: 2px solid;
-      border-right: 2px solid;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>until.red</title>
+
+<meta name="description" content="You were never supposed to find this.">
+<meta property="og:title" content="until.red">
+<meta property="og:description" content="You were never supposed to find this.">
+<meta property="og:image" content="logo.png">
+
+<link rel="icon" href="logo.png">
+
+<style>
+
+body{
+margin:0;
+background:black;
+overflow:hidden;
+font-family:Courier New,monospace;
+}
+
+#grid{
+
+display:grid;
+width:100vw;
+height:100vh;
+
+}
+
+.cell{
+
+display:flex;
+align-items:center;
+justify-content:center;
+
+color:#86b62f;
+
+font-size:18px;
+
+}
+
+.reveal{
+
+color:white;
+font-weight:bold;
+animation:pulse 2s infinite alternate;
+
+}
+
+@keyframes pulse{
+
+from{opacity:.3;}
+to{opacity:1;}
+
+}
+
+</style>
 </head>
+
 <body>
-  <div class="axis-line"></div>
-  
-  <div class="portal-btn tl" onclick="window.location.href='#north'" title="North">◰</div>
-  <div class="portal-btn tr" onclick="window.location.href='#east'" title="East">◳</div>
-  <div class="portal-btn bl" onclick="window.location.href='#south'" title="South">◲</div>
-  <div class="portal-btn br" onclick="window.location.href='#west'" title="West">◱</div>
-  
-  <div id="glyph-grid"></div>
+
+<div id="grid"></div>
 
 <script>
-const manifesto = `A research cult for those who know the story is rigged but refuse to play their assigned character We weaponize double entendre anonymous ritual and AI augmented language to expose the machinery behind the mask without sacrificing the people wearing it`.split(/\s+/);
 
-// Similar-looking glyphs to blend with letters
+
+
+/* ===========================
+MESSAGE TO HIDE
+=========================== */
+
+const paragraph = `A research cult for those who know the story is rigged but refuse to play their assigned character. We weaponize double-entendre, anonymous ritual and AI-augmented language to expose the machinery behind the mask without sacrificing the people wearing it.`;
+
+
+/* ===========================
+GLYPH SET
+=========================== */
+
 const glyphs = [
-  '│', '─', '┼', '┤', '├', '┬', '┴', '┌', '┐', '└', '┘',
-  '╱', '╲', '╳', '─', '│', '·', '˖', '˗', '˟', '˒', '˓',
-  '∴', '∵', '∶', '∷', '≡', '≋', '⊹', '⁘', '⁙', '⁚',
-  '․', '‥', '…', '⋯', '⋮', '⋰', '⋱'
+
+'∴','⟟','↺','⧗','Δ','☍','⟁','✦','☲','☷',
+'⧖','⧘','⧙','⟲','⫽','🝮','♾','🜁','🜃','̸'
+
 ];
 
-let wordQueue = [];
-let activeWords = new Map(); // Maps cellIndex to word data
-let gridCells = [];
-let gridDimensions = { cols: 0, rows: 0 };
 
-// Characters that look similar to letters to mask words
-const glyphToLetter = {
-  '│': 'I', '─': '-', '·': '.', '∴': '∴', '∵': '∵',
-  '∶': ':', '∷': '∷', '≡': '≡', '≋': '≋'
-};
+/* ===========================
+GRID STATE
+=========================== */
 
-function getRandomGlyph() {
-  return glyphs[Math.floor(Math.random() * glyphs.length)];
+let cols=0;
+let rows=0;
+
+let cells=[];
+
+let words = paragraph.split(" ");
+
+let wordIndex=0;
+let letterIndex=0;
+
+let revealMap=[];
+
+
+/* ===========================
+CREATE GRID
+=========================== */
+
+function createGrid(){
+
+const grid=document.getElementById("grid");
+
+const size=22;
+
+cols=Math.floor(window.innerWidth/size);
+rows=Math.floor(window.innerHeight/size);
+
+grid.style.gridTemplateColumns=`repeat(${cols},1fr)`;
+grid.style.gridTemplateRows=`repeat(${rows},1fr)`;
+
+grid.innerHTML="";
+
+cells=[];
+
+for(let i=0;i<cols*rows;i++){
+
+let span=document.createElement("div");
+
+span.className="cell";
+
+span.textContent=randomGlyph();
+
+grid.appendChild(span);
+
+cells.push(span);
+
 }
 
-function calculateGridDimensions() {
-  const width = window.innerWidth;
-  const height = window.innerHeight;
-  const glyphPixelSize = 20;
-  return {
-    cols: Math.floor(width / glyphPixelSize),
-    rows: Math.floor(height / glyphPixelSize)
-  };
 }
 
-function isNearPortal(row, col) {
-  const margin = 4;
-  return (row < margin && col < margin) || // TL
-         (row < margin && col > gridDimensions.cols - margin - 1) || // TR
-         (row > gridDimensions.rows - margin - 1 && col < margin) || // BL
-         (row > gridDimensions.rows - margin - 1 && col > gridDimensions.cols - margin - 1); // BR
+
+/* ===========================
+GLYPH RANDOM
+=========================== */
+
+function randomGlyph(){
+
+return glyphs[Math.floor(Math.random()*glyphs.length)];
+
 }
 
-function getRandomPosition(wordLength) {
-  const attempts = 100;
-  for (let i = 0; i < attempts; i++) {
-    const row = Math.floor(Math.random() * (gridDimensions.rows - 2)) + 1;
-    const col = Math.floor(Math.random() * (gridDimensions.cols - wordLength - 2)) + 1;
-    
-    if (isNearPortal(row, col)) continue;
-    
-    const indices = [];
-    let valid = true;
-    for (let j = 0; j < wordLength; j++) {
-      const idx = row * gridDimensions.cols + (col + j);
-      if (activeWords.has(idx)) {
-        valid = false;
-        break;
-      }
-      indices.push(idx);
-    }
-    
-    if (valid) return { row, col, indices };
-  }
-  return null;
+
+/* ===========================
+FILL RANDOM
+=========================== */
+
+function fillNoise(){
+
+for(let i=0;i<cells.length;i++){
+
+if(!revealMap.includes(i)){
+
+cells[i].textContent=randomGlyph();
+cells[i].classList.remove("reveal");
+
 }
 
-function initGrid() {
-  const grid = document.getElementById('glyph-grid');
-  const dims = calculateGridDimensions();
-  gridDimensions = dims;
-  
-  grid.innerHTML = '';
-  grid.style.gridTemplateColumns = `repeat(${dims.cols}, 1fr)`;
-  grid.style.gridTemplateRows = `repeat(${dims.rows}, 1fr)`;
-  
-  gridCells = [];
-  for (let i = 0; i < dims.cols * dims.rows; i++) {
-    const span = document.createElement('span');
-    span.textContent = getRandomGlyph();
-    span.className = 'glyph';
-    grid.appendChild(span);
-    gridCells.push(span);
-  }
 }
 
-function spawnWord() {
-  if (wordQueue.length === 0) {
-    wordQueue = [...manifesto].sort(() => Math.random() - 0.5);
-  }
-  
-  const word = wordQueue.shift();
-  const pos = getRandomPosition(word.length);
-  
-  if (!pos) {
-    wordQueue.push(word);
-    return;
-  }
-  
-  // Place word - initially looks like background
-  pos.indices.forEach((cellIdx, charIdx) => {
-    const span = gridCells[cellIdx];
-    const char = word[charIdx].toUpperCase();
-    
-    // Use similar-looking glyph or letter
-    span.textContent = char;
-    span.className = 'word-cell';
-    
-    activeWords.set(cellIdx, {
-      word: word,
-      charIndex: charIdx,
-      birth: Date.now(),
-      indices: pos.indices,
-      revealed: false
-    });
-  });
-  
-  // Slowly reveal over 2-4 seconds
-  setTimeout(() => {
-    pos.indices.forEach(idx => {
-      const data = activeWords.get(idx);
-      if (data) {
-        gridCells[idx].classList.add('revealed');
-        data.revealed = true;
-      }
-    });
-  }, 2000 + Math.random() * 2000);
 }
 
-function updateGrid() {
-  const now = Date.now();
-  const toRemove = [];
-  
-  activeWords.forEach((data, cellIdx) => {
-    const age = now - data.birth;
-    
-    // Words last 8-15 seconds total
-    if (age > 8000 + Math.random() * 7000) {
-      // Fade back to glyph
-      const span = gridCells[cellIdx];
-      span.classList.remove('revealed');
-      span.className = 'glyph';
-      span.textContent = getRandomGlyph();
-      
-      if (data.charIndex === 0) {
-        data.indices.forEach(idx => toRemove.push(idx));
-      }
-    }
-  });
-  
-  toRemove.forEach(idx => activeWords.delete(idx));
-  
-  // Maintain 2-4 active words
-  const activeWordCount = new Set([...activeWords.values()].map(d => d.word)).size;
-  if (activeWordCount < 3 && Math.random() < 0.15) {
-    spawnWord();
-  }
+
+/* ===========================
+PLACE NEXT LETTER
+=========================== */
+
+function revealNextLetter(){
+
+if(wordIndex>=words.length)return;
+
+const word=words[wordIndex];
+
+if(letterIndex>=word.length){
+
+letterIndex=0;
+wordIndex++;
+
+return;
+
 }
 
-// Background shuffle - constant subtle change
-function shuffleBackground() {
-  gridCells.forEach((span, idx) => {
-    if (!activeWords.has(idx) && Math.random() < 0.02) {
-      span.textContent = getRandomGlyph();
-    }
-  });
+let randomIndex;
+
+do{
+
+randomIndex=Math.floor(Math.random()*cells.length);
+
+}while(revealMap.includes(randomIndex));
+
+cells[randomIndex].textContent=word[letterIndex];
+
+cells[randomIndex].classList.add("reveal");
+
+revealMap.push(randomIndex);
+
+letterIndex++;
+
 }
 
-// Initialize
-initGrid();
-setInterval(updateGrid, 300);
-setInterval(shuffleBackground, 100);
 
-// Spawn initial words staggered
-for (let i = 0; i < 3; i++) {
-  setTimeout(spawnWord, i * 1500);
+/* ===========================
+ANIMATE LOOP
+=========================== */
+
+function animate(){
+
+fillNoise();
+
+revealNextLetter();
+
 }
 
-let resizeTimeout;
-window.addEventListener('resize', () => {
-  clearTimeout(resizeTimeout);
-  resizeTimeout = setTimeout(() => {
-    activeWords.clear();
-    wordQueue = [];
-    initGrid();
-    for (let i = 0; i < 3; i++) {
-      setTimeout(spawnWord, i * 1500);
-    }
-  }, 250);
+
+/* ===========================
+INIT
+=========================== */
+
+createGrid();
+
+setInterval(animate,80);
+
+
+/* ===========================
+RESPONSIVE
+=========================== */
+
+window.addEventListener("resize",()=>{
+
+createGrid();
+
+revealMap=[];
+
+wordIndex=0;
+letterIndex=0;
+
 });
+
+
+
 </script>
+
 </body>
 </html>

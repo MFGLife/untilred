@@ -5,11 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>until.red</title>
 
-<meta name="description" content="You were never supposed to find this.">
-<meta property="og:title" content="until.red">
-<meta property="og:description" content="You were never supposed to find this.">
-<meta property="og:image" content="logo.png">
-
 <link rel="icon" href="logo.png">
 
 <style>
@@ -18,47 +13,30 @@ body{
 margin:0;
 background:black;
 overflow:hidden;
-font-family:Courier New,monospace;
+font-family:Courier New, monospace;
 }
 
 #grid{
-
 display:grid;
 width:100vw;
 height:100vh;
-
 }
 
 .cell{
-
 display:flex;
 align-items:center;
 justify-content:center;
-
 color:#86b62f;
-
 font-size:18px;
-
 }
 
-.reveal{
-
-color:white;
-font-weight:bold;
-animation:pulse 2s infinite alternate;
-
-}
-
-@keyframes pulse{
-
-from{opacity:.3;}
-to{opacity:1;}
-
+.word{
+color:#86b62f;
 }
 
 </style>
-</head>
 
+</head>
 <body>
 
 <div id="grid"></div>
@@ -66,17 +44,19 @@ to{opacity:1;}
 <script>
 
 
-
-/* ===========================
-MESSAGE TO HIDE
-=========================== */
+/* ============================
+MESSAGE
+============================ */
 
 const paragraph = `A research cult for those who know the story is rigged but refuse to play their assigned character. We weaponize double-entendre, anonymous ritual and AI-augmented language to expose the machinery behind the mask without sacrificing the people wearing it.`;
 
 
-/* ===========================
-GLYPH SET
-=========================== */
+const words = paragraph.split(" ");
+
+
+/* ============================
+GLYPHS
+============================ */
 
 const glyphs = [
 
@@ -86,26 +66,12 @@ const glyphs = [
 ];
 
 
-/* ===========================
-GRID STATE
-=========================== */
+/* ============================
+GRID
+============================ */
 
-let cols=0;
-let rows=0;
-
-let cells=[];
-
-let words = paragraph.split(" ");
-
-let wordIndex=0;
-let letterIndex=0;
-
-let revealMap=[];
-
-
-/* ===========================
-CREATE GRID
-=========================== */
+let cols, rows;
+let cells = [];
 
 function createGrid(){
 
@@ -125,24 +91,24 @@ cells=[];
 
 for(let i=0;i<cols*rows;i++){
 
-let span=document.createElement("div");
+const div=document.createElement("div");
 
-span.className="cell";
+div.className="cell";
 
-span.textContent=randomGlyph();
+div.textContent=randomGlyph();
 
-grid.appendChild(span);
+grid.appendChild(div);
 
-cells.push(span);
-
-}
+cells.push(div);
 
 }
 
+}
 
-/* ===========================
-GLYPH RANDOM
-=========================== */
+
+/* ============================
+RANDOM GLYPH
+============================ */
 
 function randomGlyph(){
 
@@ -151,101 +117,66 @@ return glyphs[Math.floor(Math.random()*glyphs.length)];
 }
 
 
-/* ===========================
-FILL RANDOM
-=========================== */
+/* ============================
+NOISE
+============================ */
 
 function fillNoise(){
 
-for(let i=0;i<cells.length;i++){
+for(let cell of cells){
 
-if(!revealMap.includes(i)){
-
-cells[i].textContent=randomGlyph();
-cells[i].classList.remove("reveal");
+cell.textContent=randomGlyph();
+cell.classList.remove("word");
 
 }
 
 }
 
-}
 
+/* ============================
+WORD DISPLAY
+============================ */
 
-/* ===========================
-PLACE NEXT LETTER
-=========================== */
+let index=0;
 
-function revealNextLetter(){
-
-if(wordIndex>=words.length)return;
-
-const word=words[wordIndex];
-
-if(letterIndex>=word.length){
-
-letterIndex=0;
-wordIndex++;
-
-return;
-
-}
-
-let randomIndex;
-
-do{
-
-randomIndex=Math.floor(Math.random()*cells.length);
-
-}while(revealMap.includes(randomIndex));
-
-cells[randomIndex].textContent=word[letterIndex];
-
-cells[randomIndex].classList.add("reveal");
-
-revealMap.push(randomIndex);
-
-letterIndex++;
-
-}
-
-
-/* ===========================
-ANIMATE LOOP
-=========================== */
-
-function animate(){
+function showWords(){
 
 fillNoise();
 
-revealNextLetter();
+for(let i=0;i<4;i++){
+
+if(index>=words.length){
+index=0;
+}
+
+const word=words[index];
+
+const position=Math.floor(Math.random()*cells.length);
+
+cells[position].textContent=word;
+cells[position].classList.add("word");
+
+index++;
+
+}
 
 }
 
 
-/* ===========================
-INIT
-=========================== */
+/* ============================
+TIMING
+============================ */
 
 createGrid();
 
-setInterval(animate,80);
+setInterval(showWords, 1200);
 
 
-/* ===========================
+/* ============================
 RESPONSIVE
-=========================== */
+============================ */
 
-window.addEventListener("resize",()=>{
-
-createGrid();
-
-revealMap=[];
-
-wordIndex=0;
-letterIndex=0;
-
-});
-
+window.addEventListener("resize", createGrid);
 
 
 </script>

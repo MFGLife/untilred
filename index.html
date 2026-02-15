@@ -231,7 +231,7 @@ canvas {
 /* --- Additional Buttons --- */
 #btn-wrap2 {
   position: fixed;
-  bottom: 138px;
+  bottom: 238px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
@@ -242,7 +242,7 @@ canvas {
 
 #btn-wrap3 {
   position: fixed;
-  bottom: 238px;
+  bottom: 438px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
@@ -323,7 +323,7 @@ canvas {
   <div class="diamond d3"></div>
   <div class="diamond d4"></div>
   <!-- core -->
-  <a id="enter-btn" href="">
+  <a id="enter-btn2" href="">
     <span class="b-icon">∴</span>
     <span class="b-label">CODE</span>
   </a>
@@ -351,7 +351,7 @@ canvas {
   <div class="diamond d3"></div>
   <div class="diamond d4"></div>
   <!-- core -->
-  <a id="enter-btn" href="">
+  <a id="enter-btn3" href="">
     <span class="b-icon">⏣</span>
     <span class="b-label">FACE</span>
   </a>
@@ -545,6 +545,16 @@ const enterBtn = document.getElementById('enter-btn');
 
 enterBtn.addEventListener('mouseenter', () => burst(10));
 enterBtn.addEventListener('click',      () => burst(22));
+
+const enterBtn2 = document.getElementById('enter-btn2');
+
+enterBtn2.addEventListener('mouseenter', () => burst(10));
+enterBtn2.addEventListener('click',      () => burst(22));
+
+const enterBtn3 = document.getElementById('enter-btn3');
+
+enterBtn3.addEventListener('mouseenter', () => burst(10));
+enterBtn3.addEventListener('click',      () => burst(22));
 
 function burst(count) {
   const rect = enterBtn.getBoundingClientRect();

@@ -54,42 +54,70 @@ canvas {
 }
 
 /* ============================
-   BUTTON SYSTEM
+   TRIANGLE BUTTON LAYOUT
 ============================ */
-.btn-wrap {
+
+/* Full-screen layout for triangle placement */
+#buttons-layout {
   position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
+  inset: 0;
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  pointer-events: none; /* only inner buttons get events */
   z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
-/* individual vertical positions */
-#btn-wrap-main { bottom: 38px; }
-#btn-wrap-code { bottom: 238px; }
-#btn-wrap-face { bottom: 438px; }
+/* Top row: single centered button */
+#buttons-top {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 5vh;
+}
 
-/* container that orbits as a whole (per button speed) */
+/* Bottom row: two buttons left/right */
+#buttons-bottom {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 0 12vw 6vh;
+}
+
+/* Local container for each button system */
+.btn-wrap {
+  pointer-events: auto;
+}
+
+/* Orbit container: only this rotates as a whole */
 .button-orbit {
   position: relative;
-  width: 200px;
-  height: 200px;
+  width: min(220px, 45vw);
+  height: min(220px, 45vw);
   display: flex;
   align-items: center;
   justify-content: center;
-  animation-name: orbit-container;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
 }
 
-/* whole-system orbit speeds per button */
-#btn-wrap-main .button-orbit { animation-duration: 20s; }
-#btn-wrap-code .button-orbit { animation-duration: 28s; }
-#btn-wrap-face .button-orbit { animation-duration: 36s; }
+/* Whole-orbit speeds per button (container only) */
+#btn-wrap-main .button-orbit {
+  animation: orbit-container-main 26s linear infinite;
+}
+#btn-wrap-code .button-orbit {
+  animation: orbit-container-code 34s linear infinite;
+}
+#btn-wrap-face .button-orbit {
+  animation: orbit-container-face 42s linear infinite;
+}
 
-@keyframes orbit-container {
+@keyframes orbit-container-main {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes orbit-container-code {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(-360deg); }
+}
+@keyframes orbit-container-face {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
@@ -179,7 +207,7 @@ canvas {
   50%      { opacity:1;  transform:rotate(45deg) scale(1.6); }
 }
 
-/* --- Core button --- */
+/* --- Core button (static) --- */
 .enter-btn {
   position: relative;
   z-index: 3;
@@ -258,7 +286,7 @@ canvas {
   line-height: 1;
 }
 
-/* --- Sparks for clicks/hover --- */
+/* --- Sparks (injected by JS) --- */
 .spark {
   position: fixed;
   pointer-events: none;
@@ -271,6 +299,17 @@ canvas {
   0%   { opacity:1; transform:translate(0,0) scale(1); }
   100% { opacity:0; transform:var(--tx) scale(0.2); }
 }
+
+/* Small tweaks for very small screens */
+@media (max-width: 480px) {
+  #buttons-bottom {
+    padding: 0 8vw 4vh;
+  }
+  .button-orbit {
+    width: 170px;
+    height: 170px;
+  }
+}
 </style>
 </head>
 <body>
@@ -278,78 +317,97 @@ canvas {
 <canvas id="particles"></canvas>
 <div id="grid"></div>
 
-<!-- ============ BUTTON: MSG ============ -->
-<div id="btn-wrap-main" class="btn-wrap">
-  <div class="button-orbit">
-    <div class="btn-ring r1"></div>
-    <div class="btn-ring r2"></div>
-    <div class="btn-ring r3"></div>
-    <div class="btn-ring r4"></div>
-    <div class="arc arc1"></div>
-    <div class="arc arc2"></div>
-    <div class="arc arc3"></div>
-    <span class="orbiter o1">✦</span>
-    <span class="orbiter o2">∴</span>
-    <span class="orbiter o3">⧗</span>
-    <span class="orbiter o4">♾</span>
-    <div class="diamond d1"></div>
-    <div class="diamond d2"></div>
-    <div class="diamond d3"></div>
-    <div class="diamond d4"></div>
-    <a class="enter-btn" href="msg.html">
-      <span class="b-icon">⟁</span>
-      <span class="b-label">MSG</span>
-    </a>
-  </div>
-</div>
+<!-- TRIANGLE BUTTON LAYOUT -->
+<div id="buttons-layout">
+  <div id="buttons-top">
+    <!-- Top centered: MSG -->
+    <div id="btn-wrap-main" class="btn-wrap">
+      <div class="button-orbit">
+        <div class="btn-ring r1"></div>
+        <div class="btn-ring r2"></div>
+        <div class="btn-ring r3"></div>
+        <div class="btn-ring r4"></div>
 
-<!-- ============ BUTTON: CODE ============ -->
-<div id="btn-wrap-code" class="btn-wrap">
-  <div class="button-orbit">
-    <div class="btn-ring r1"></div>
-    <div class="btn-ring r2"></div>
-    <div class="btn-ring r3"></div>
-    <div class="btn-ring r4"></div>
-    <div class="arc arc1"></div>
-    <div class="arc arc2"></div>
-    <div class="arc arc3"></div>
-    <span class="orbiter o1">✦</span>
-    <span class="orbiter o2">∴</span>
-    <span class="orbiter o3">⧗</span>
-    <span class="orbiter o4">♾</span>
-    <div class="diamond d1"></div>
-    <div class="diamond d2"></div>
-    <div class="diamond d3"></div>
-    <div class="diamond d4"></div>
-    <a class="enter-btn" href="">
-      <span class="b-icon">∴</span>
-      <span class="b-label">CODE</span>
-    </a>
-  </div>
-</div>
+        <div class="arc arc1"></div>
+        <div class="arc arc2"></div>
+        <div class="arc arc3"></div>
 
-<!-- ============ BUTTON: FACE ============ -->
-<div id="btn-wrap-face" class="btn-wrap">
-  <div class="button-orbit">
-    <div class="btn-ring r1"></div>
-    <div class="btn-ring r2"></div>
-    <div class="btn-ring r3"></div>
-    <div class="btn-ring r4"></div>
-    <div class="arc arc1"></div>
-    <div class="arc arc2"></div>
-    <div class="arc arc3"></div>
-    <span class="orbiter o1">✦</span>
-    <span class="orbiter o2">∴</span>
-    <span class="orbiter o3">⧗</span>
-    <span class="orbiter o4">♾</span>
-    <div class="diamond d1"></div>
-    <div class="diamond d2"></div>
-    <div class="diamond d3"></div>
-    <div class="diamond d4"></div>
-    <a class="enter-btn" href="">
-      <span class="b-icon">⏣</span>
-      <span class="b-label">FACE</span>
-    </a>
+        <span class="orbiter o1">✦</span>
+        <span class="orbiter o2">∴</span>
+        <span class="orbiter o3">⧗</span>
+        <span class="orbiter o4">♾</span>
+
+        <div class="diamond d1"></div>
+        <div class="diamond d2"></div>
+        <div class="diamond d3"></div>
+        <div class="diamond d4"></div>
+
+        <a class="enter-btn" href="msg.html">
+          <span class="b-icon">⟁</span>
+          <span class="b-label">MSG</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div id="buttons-bottom">
+    <!-- Bottom left: CODE -->
+    <div id="btn-wrap-code" class="btn-wrap">
+      <div class="button-orbit">
+        <div class="btn-ring r1"></div>
+        <div class="btn-ring r2"></div>
+        <div class="btn-ring r3"></div>
+        <div class="btn-ring r4"></div>
+
+        <div class="arc arc1"></div>
+        <div class="arc arc2"></div>
+        <div class="arc arc3"></div>
+
+        <span class="orbiter o1">✦</span>
+        <span class="orbiter o2">∴</span>
+        <span class="orbiter o3">⧗</span>
+        <span class="orbiter o4">♾</span>
+
+        <div class="diamond d1"></div>
+        <div class="diamond d2"></div>
+        <div class="diamond d3"></div>
+        <div class="diamond d4"></div>
+
+        <a class="enter-btn" href="">
+          <span class="b-icon">∴</span>
+          <span class="b-label">CODE</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Bottom right: FACE -->
+    <div id="btn-wrap-face" class="btn-wrap">
+      <div class="button-orbit">
+        <div class="btn-ring r1"></div>
+        <div class="btn-ring r2"></div>
+        <div class="btn-ring r3"></div>
+        <div class="btn-ring r4"></div>
+
+        <div class="arc arc1"></div>
+        <div class="arc arc2"></div>
+        <div class="arc arc3"></div>
+
+        <span class="orbiter o1">✦</span>
+        <span class="orbiter o2">∴</span>
+        <span class="orbiter o3">⧗</span>
+        <span class="orbiter o4">♾</span>
+
+        <div class="diamond d1"></div>
+        <div class="diamond d2"></div>
+        <div class="diamond d3"></div>
+        <div class="diamond d4"></div>
+
+        <a class="enter-btn" href="">
+          <span class="b-icon">⏣</span>
+          <span class="b-label">FACE</span>
+        </a>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -561,7 +619,6 @@ function burst(buttonEl, count) {
 function driftGlyphs() {
   const total   = cells.length;
   const batchSz = Math.max(1, Math.floor(total * 0.015));
-
   for (let i = 0; i < batchSz; i++) {
     const idx = Math.floor(Math.random() * total);
     if (!litCells.has(idx)) {

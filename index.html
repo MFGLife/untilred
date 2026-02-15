@@ -3,84 +3,155 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>until.red</title>
 
-<link rel="icon" href="logo.png">
+<title>AXIUM.CHURCH</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;800&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
 
 <style>
 
+/* =========================
+VOID FOUNDATION
+========================= */
+
 body{
+
 margin:0;
-background:black;
+background:#000000;
 overflow:hidden;
-font-family:Courier New, monospace;
+
+font-family:'Cinzel', serif;
+
 }
+
+
+/* =========================
+INCENSE PARTICLE CANVAS
+========================= */
+
+canvas{
+
+position:absolute;
+top:0;
+left:0;
+z-index:0;
+
+}
+
+
+/* =========================
+GLYPH FIELD
+========================= */
 
 #grid{
-display:grid;
+
+position:absolute;
+top:0;
+left:0;
+
 width:100vw;
 height:100vh;
+
+display:grid;
+
+z-index:10;
+
 }
 
+
+/* =========================
+GLYPHS
+========================= */
+
 .cell{
+
 display:flex;
 align-items:center;
 justify-content:center;
-color:#86b62f;
+
+color:#D4AF37;
+
 font-size:18px;
+
+opacity:.35;
+
+transition:
+
+opacity 800ms cubic-bezier(0,0,0.2,1),
+transform 800ms cubic-bezier(0,0,0.2,1);
+
 }
+
+
+/* =========================
+WORD STATE
+========================= */
 
 .word{
-color:#86b62f;
+
+opacity:1;
+
+color:#F4E4BC;
+
+text-shadow:
+
+0 0 10px rgba(212,175,55,.4),
+0 0 20px rgba(212,175,55,.2);
+
+transform:scale(1.15);
+
 }
 
-</style>
 
+</style>
 </head>
 <body>
 
+
+<canvas id="particles"></canvas>
+
 <div id="grid"></div>
+
+
 
 <script>
 
-
-/* ============================
+/* =========================
 MESSAGE
-============================ */
+========================= */
 
-const paragraph = `A research cult for those who know the story is rigged but refuse to play their assigned character. We weaponize double-entendre, anonymous ritual and AI-augmented language to expose the machinery behind the mask without sacrificing the people wearing it.`;
-
+const paragraph = `A research cult for those who know the story is rigged but refuse to play their assigned character We weaponize double entendre anonymous ritual and AI augmented language to expose the machinery behind the mask without sacrificing the people wearing it`;
 
 const words = paragraph.split(" ");
 
 
-/* ============================
+/* =========================
 GLYPHS
-============================ */
+========================= */
 
-const glyphs = [
+const glyphs=[
 
-'∴','⟟','↺','⧗','Δ','☍','⟁','✦','☲','☷',
-'⧖','⧘','⧙','⟲','⫽','🝮','♾','🜁','🜃','̸'
+'✦','∴','☲','⟁','⧗','⟟','☍','⟲','♾','Δ'
 
 ];
 
 
-/* ============================
+/* =========================
 GRID
-============================ */
+========================= */
 
-let cols, rows;
-let cells = [];
+let cells=[];
+
+let cols,rows;
 
 function createGrid(){
 
 const grid=document.getElementById("grid");
 
-const size=22;
+const size=32;
 
-cols=Math.floor(window.innerWidth/size);
-rows=Math.floor(window.innerHeight/size);
+cols=Math.floor(innerWidth/size);
+rows=Math.floor(innerHeight/size);
 
 grid.style.gridTemplateColumns=`repeat(${cols},1fr)`;
 grid.style.gridTemplateRows=`repeat(${rows},1fr)`;
@@ -91,7 +162,7 @@ cells=[];
 
 for(let i=0;i<cols*rows;i++){
 
-const div=document.createElement("div");
+let div=document.createElement("div");
 
 div.className="cell";
 
@@ -105,11 +176,6 @@ cells.push(div);
 
 }
 
-
-/* ============================
-RANDOM GLYPH
-============================ */
-
 function randomGlyph(){
 
 return glyphs[Math.floor(Math.random()*glyphs.length)];
@@ -117,44 +183,41 @@ return glyphs[Math.floor(Math.random()*glyphs.length)];
 }
 
 
-/* ============================
+/* =========================
 NOISE
-============================ */
+========================= */
 
-function fillNoise(){
+function noise(){
 
-for(let cell of cells){
+cells.forEach(c=>{
 
-cell.textContent=randomGlyph();
-cell.classList.remove("word");
+c.textContent=randomGlyph();
+c.classList.remove("word");
+
+});
 
 }
 
-}
 
-
-/* ============================
-WORD DISPLAY
-============================ */
+/* =========================
+WORD REVEAL
+========================= */
 
 let index=0;
 
-function showWords(){
+function reveal(){
 
-fillNoise();
+noise();
 
 for(let i=0;i<4;i++){
 
-if(index>=words.length){
-index=0;
-}
+if(index>=words.length) index=0;
 
-const word=words[index];
+let pos=Math.floor(Math.random()*cells.length);
 
-const position=Math.floor(Math.random()*cells.length);
+cells[pos].textContent=words[index];
 
-cells[position].textContent=word;
-cells[position].classList.add("word");
+cells[pos].classList.add("word");
 
 index++;
 
@@ -163,20 +226,83 @@ index++;
 }
 
 
-/* ============================
-TIMING
-============================ */
+/* =========================
+TIMING — RITUAL SPEED
+========================= */
 
 createGrid();
 
-setInterval(showWords, 1200);
+setInterval(reveal,2400);
 
 
-/* ============================
+/* =========================
+PARTICLE SYSTEM
+========================= */
+
+const canvas=document.getElementById("particles");
+
+const ctx=canvas.getContext("2d");
+
+canvas.width=innerWidth;
+canvas.height=innerHeight;
+
+let particles=[];
+
+for(let i=0;i<100;i++){
+
+particles.push({
+
+x:Math.random()*canvas.width,
+y:Math.random()*canvas.height,
+vx:(Math.random()-.5)*.2,
+vy:(Math.random()-.5)*.2,
+size:Math.random()*2
+
+});
+
+}
+
+function drawParticles(){
+
+ctx.clearRect(0,0,canvas.width,canvas.height);
+
+ctx.fillStyle="rgba(212,175,55,.3)";
+
+particles.forEach(p=>{
+
+p.x+=p.vx;
+p.y+=p.vy;
+
+if(p.x<0)p.x=canvas.width;
+if(p.x>canvas.width)p.x=0;
+if(p.y<0)p.y=canvas.height;
+if(p.y>canvas.height)p.y=0;
+
+ctx.beginPath();
+ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
+ctx.fill();
+
+});
+
+requestAnimationFrame(drawParticles);
+
+}
+
+drawParticles();
+
+
+/* =========================
 RESPONSIVE
-============================ */
+========================= */
 
-window.addEventListener("resize", createGrid);
+onresize=()=>{
+
+createGrid();
+
+canvas.width=innerWidth;
+canvas.height=innerHeight;
+
+};
 
 
 </script>

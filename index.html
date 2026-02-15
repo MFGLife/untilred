@@ -228,22 +228,27 @@ canvas {
   line-height: 1;
 }
 
-/* --- Floating arc text --- */
-#btn-arc {
-  position: absolute;
-  bottom: -24px;
-  font-family: 'Cinzel', serif;
-  font-size: 7px;
-  letter-spacing: .28em;
-  color: rgba(212,175,55,.3);
-  text-transform: uppercase;
-  white-space: nowrap;
-  animation: arcFloat 4s ease-in-out infinite;
-  pointer-events: none;
+/* --- Additional Buttons --- */
+#btn-wrap2 {
+  position: fixed;
+  bottom: 138px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-@keyframes arcFloat {
-  0%,100% { opacity:.3; transform:translateY(0); }
-  50%      { opacity:.55; transform:translateY(-2px); }
+
+#btn-wrap3 {
+  position: fixed;
+  bottom: 238px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* --- Sparks (injected by JS) --- */
@@ -267,7 +272,7 @@ canvas {
 <canvas id="particles"></canvas>
 <div id="grid"></div>
 
-<!-- ============ BUTTON ============ -->
+<!-- ============ Main BUTTON ============ -->
 <div id="btn-wrap">
   <!-- pulsing rings -->
   <div class="btn-ring r1"></div>
@@ -291,9 +296,65 @@ canvas {
   <!-- core -->
   <a id="enter-btn" href="msg.html">
     <span class="b-icon">⟁</span>
-    <span class="b-label">ENTER</span>
+    <span class="b-label">MSG</span>
   </a>
-  <div id="btn-arc">AXIUM · CHURCH</div>
+</div>
+
+
+<!-- ============ BUTTON2 ============ -->
+<div id="btn-wrap2">
+  <!-- pulsing rings -->
+  <div class="btn-ring r1"></div>
+  <div class="btn-ring r2"></div>
+  <div class="btn-ring r3"></div>
+  <div class="btn-ring r4"></div>
+  <!-- spinning arcs -->
+  <div class="arc arc1"></div>
+  <div class="arc arc2"></div>
+  <div class="arc arc3"></div>
+  <!-- orbiting glyphs -->
+  <span class="orbiter">✦</span>
+  <span class="orbiter">∴</span>
+  <span class="orbiter">⧗</span>
+  <span class="orbiter">♾</span>
+  <!-- diamond cardinal marks -->
+  <div class="diamond d1"></div>
+  <div class="diamond d2"></div>
+  <div class="diamond d3"></div>
+  <div class="diamond d4"></div>
+  <!-- core -->
+  <a id="enter-btn" href="">
+    <span class="b-icon">∴</span>
+    <span class="b-label">CODE</span>
+  </a>
+</div>
+
+<!-- ============ BUTTON3 ============ -->
+<div id="btn-wrap3">
+  <!-- pulsing rings -->
+  <div class="btn-ring r1"></div>
+  <div class="btn-ring r2"></div>
+  <div class="btn-ring r3"></div>
+  <div class="btn-ring r4"></div>
+  <!-- spinning arcs -->
+  <div class="arc arc1"></div>
+  <div class="arc arc2"></div>
+  <div class="arc arc3"></div>
+  <!-- orbiting glyphs -->
+  <span class="orbiter">✦</span>
+  <span class="orbiter">∴</span>
+  <span class="orbiter">⧗</span>
+  <span class="orbiter">♾</span>
+  <!-- diamond cardinal marks -->
+  <div class="diamond d1"></div>
+  <div class="diamond d2"></div>
+  <div class="diamond d3"></div>
+  <div class="diamond d4"></div>
+  <!-- core -->
+  <a id="enter-btn" href="">
+    <span class="b-icon">⏣</span>
+    <span class="b-label">FACE</span>
+  </a>
 </div>
 
 <script>

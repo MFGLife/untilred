@@ -3,129 +3,172 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Pin Site Calc</title>
+    <title>Precision Site Estimator</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     <style>
-        body { font-family: sans-serif; margin: 0; padding: 20px; display: flex; flex-direction: column; height: 100vh; background: #f4f4f9; }
-        #controls { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
-        #map { flex-grow: 1; border-radius: 8px; border: 1px solid #ccc; z-index: 1; }
-        input, button { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
-        button { background: #6c757d; color: white; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; }
-        button.active { background: #dc3545; color: white; } /* Red when active */
-        button.action { background: #007bff; }
-        button.success { background: #28a745; }
-        .stats-box { grid-column: 1 / -1; display: flex; justify-content: space-between; background: #e9ecef; padding: 10px; border-radius: 4px; font-weight: bold; }
-        #pinCount { color: #007bff; }
+        :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --dark: #343a40; }
+        body { font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background: #f8f9fa; }
+        
+        #controls { 
+            background: white; padding: 15px; border-bottom: 2px solid #ddd;
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px;
+            z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        #map { flex-grow: 1; z-index: 1; }
+
+        input, button { padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; outline: none; }
+        
+        button { cursor: pointer; font-weight: 600; color: white; border: none; transition: 0.2s; }
+        button:active { transform: scale(0.98); }
+        
+        .btn-gps { background: var(--success); }
+        .btn-drop { background: var(--primary); }
+        .btn-drop.active { background: var(--danger); }
+        .btn-copy { background: var(--dark); grid-column: span 1; }
+        .btn-clear { background: #6c757d; }
+
+        .stats-panel { 
+            grid-column: 1 / -1; background: #e9ecef; padding: 12px; 
+            border-radius: 6px; display: flex; flex-wrap: wrap; justify-content: space-between; 
+            font-size: 15px; font-weight: bold; color: #333;
+        }
+        .stat-item { margin-right: 15px; }
+        .accuracy-pill { font-size: 11px; padding: 2px 6px; border-radius: 10px; background: #fff; border: 1px solid #ccc; }
     </style>
 </head>
 <body>
 
 <div id="controls">
-    <button onclick="centerToLocation()">Center Map</button>
-    <button id="dropBtn" class="action" onclick="togglePinDrop()">1. Start Dropping Pins</button>
-    <input type="text" id="materialName" placeholder="Material Name">
-    <input type="number" id="depthInches" placeholder="Depth (Inches)" oninput="updateCalculations()">
-    <button class="success" onclick="generateGeofence()">2. Lock Geofence</button>
-    <button class="action" onclick="copyToClipboard()">3. Copy All Data</button>
+    <button class="btn-gps" onclick="dropPinAtGPS()">📍 Drop Pin at My GPS</button>
+    <button id="dropToggle" class="btn-drop" onclick="toggleManualDrop()">🖱️ Start Manual Drop</button>
+    <button class="btn-clear" onclick="clearAll()">🗑️ Clear All</button>
     
-    <div class="stats-box">
-        <span>Pins: <span id="pinCount">0</span></span>
-        <span>Area: <span id="sqYards">0</span> sq yd</span>
-        <span>Vol: <span id="cuYards">0</span> cu yd</span>
+    <input type="text" id="matName" placeholder="Material (e.g. Concrete)">
+    <input type="number" id="matDepth" placeholder="Depth (Inches)" oninput="calc()">
+    <input type="number" id="matCost" placeholder="Price per Cu Yd ($)" oninput="calc()">
+
+    <button class="btn-copy" onclick="copyData()">📋 Copy Site Report</button>
+    
+    <div class="stats-panel">
+        <div class="stat-item">Pins: <span id="pinCount">0</span></div>
+        <div class="stat-item">Area: <span id="outArea">0</span> <small>sq yd</small></div>
+        <div class="stat-item">Vol: <span id="outVol">0</span> <small>cu yd</small></div>
+        <div class="stat-item">Total: $<span id="outTotal">0.00</span></div>
+        <div id="gpsAccuracy" class="accuracy-pill">GPS: Idle</div>
     </div>
 </div>
 
 <div id="map"></div>
 
 <script>
-    const map = L.map('map').setView([37.7749, -122.4194], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    // 1. Setup Map
+    const map = L.map('map').setView([39.8283, -98.5795], 4);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 20 }).addTo(map);
 
     let markers = [];
-    let polygon = null;
-    let isDropping = false;
-    let areaSqYards = 0;
+    let geoFence = null;
+    let isManualMode = false;
 
-    function centerToLocation() {
-        navigator.geolocation.getCurrentPosition((position) => {
-            map.flyTo([position.coords.latitude, position.coords.longitude], 18);
-        }, () => alert("Location access denied."), { enableHighAccuracy: true });
+    // 2. High-Accuracy GPS Drop
+    function dropPinAtGPS() {
+        const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
+        
+        document.getElementById('gpsAccuracy').innerText = "Locating...";
+
+        navigator.geolocation.getCurrentPosition((pos) => {
+            const { latitude, longitude, accuracy } = pos.coords;
+            const accInches = (accuracy * 39.37).toFixed(0);
+            document.getElementById('gpsAccuracy').innerText = `Acc: ±${accInches} in`;
+            
+            addMarker(latitude, longitude);
+            map.flyTo([latitude, longitude], 19);
+        }, (err) => alert("GPS Error: " + err.message), options);
     }
 
-    function togglePinDrop() {
-        isDropping = !isDropping;
-        const btn = document.getElementById('dropBtn');
-        if (isDropping) {
-            btn.innerText = "Stop Dropping";
-            btn.classList.add('active');
-            document.getElementById('map').style.cursor = 'crosshair';
-        } else {
-            btn.innerText = "1. Start Dropping Pins";
-            btn.classList.remove('active');
-            document.getElementById('map').style.cursor = '';
-        }
+    // 3. Manual Pin Dropping
+    function toggleManualDrop() {
+        isManualMode = !isManualMode;
+        const btn = document.getElementById('dropToggle');
+        btn.innerText = isManualMode ? "⏹️ Stop Manual Drop" : "🖱️ Start Manual Drop";
+        btn.classList.toggle('active');
+        document.getElementById('map').style.cursor = isManualMode ? 'crosshair' : '';
     }
 
     map.on('click', (e) => {
-        if (!isDropping) return;
-        
-        // Create a draggable marker
-        const marker = L.marker(e.latlng, {draggable: true}).addTo(map);
-        markers.push(marker);
-        
-        // Update UI
-        document.getElementById('pinCount').innerText = markers.length;
-        
-        // Auto-update geofence if it already exists
-        if (markers.length >= 3 && polygon) generateGeofence();
-        
-        // Allow marker removal on right-click
-        marker.on('contextmenu', () => {
-            map.removeLayer(marker);
-            markers = markers.filter(m => m !== marker);
-            document.getElementById('pinCount').innerText = markers.length;
-            if (polygon) generateGeofence();
-        });
-
-        marker.on('dragend', generateGeofence);
+        if (!isManualMode) return;
+        addMarker(e.latlng.lat, e.latlng.lng);
     });
 
-    function generateGeofence() {
-        if (markers.length < 3) {
-            alert("Place at least 3 pins to calculate area.");
-            return;
-        }
-        if (polygon) map.removeLayer(polygon);
+    // 4. Marker Management
+    function addMarker(lat, lng) {
+        const m = L.marker([lat, lng], { draggable: true }).addTo(map);
+        markers.push(m);
+        document.getElementById('pinCount').innerText = markers.length;
+        
+        m.on('dragend', calc);
+        m.on('contextmenu', () => { // Right click to remove
+            map.removeLayer(m);
+            markers = markers.filter(item => item !== m);
+            document.getElementById('pinCount').innerText = markers.length;
+            calc();
+        });
+
+        if (markers.length >= 3) calc();
+    }
+
+    // 5. Core Calculations
+    function calc() {
+        if (markers.length < 3) return;
+        if (geoFence) map.removeLayer(geoFence);
 
         const coords = markers.map(m => [m.getLatLng().lng, m.getLatLng().lat]);
-        coords.push(coords[0]); // Close the shape
+        coords.push(coords[0]); // Close polygon
 
-        const polyFeature = turf.polygon([coords]);
-        polygon = L.geoJSON(polyFeature, {style: {color: '#007bff', weight: 3, fillOpacity: 0.3}}).addTo(map);
+        const poly = turf.polygon([coords]);
+        geoFence = L.geoJSON(poly, { style: { color: '#007bff', weight: 2, fillOpacity: 0.4 }}).addTo(map);
 
-        const areaSqMeters = turf.area(polyFeature);
-        areaSqYards = (areaSqMeters * 1.19599).toFixed(2);
-        document.getElementById('sqYards').innerText = areaSqYards;
-        updateCalculations();
-    }
-
-    function updateCalculations() {
-        const depth = parseFloat(document.getElementById('depthInches').value) || 0;
-        const cuYards = (areaSqYards * (depth / 36)).toFixed(2);
-        document.getElementById('cuYards').innerText = cuYards;
-    }
-
-    function copyToClipboard() {
-        const material = document.getElementById('materialName').value || "None";
-        const depth = document.getElementById('depthInches').value || 0;
-        const cuYards = document.getElementById('cuYards').innerText;
-        const locations = markers.map((m, i) => `P${i+1}: ${m.getLatLng().lat.toFixed(6)},${m.getLatLng().lng.toFixed(6)}`).join('\n');
-
-        const summary = `--- SITE DATA ---\nMaterial: ${material}\nDepth: ${depth} in\nArea: ${areaSqYards} sq yd\nTotal Volume: ${cuYards} cu yd\n\nGPS Coordinates:\n${locations}`;
+        // Area math
+        const areaSqM = turf.area(poly);
+        const areaSqYd = areaSqM * 1.19599;
         
-        navigator.clipboard.writeText(summary).then(() => alert("Data copied!"));
+        // Volume math
+        const depth = parseFloat(document.getElementById('matDepth').value) || 0;
+        const volCuYd = areaSqYd * (depth / 36);
+        
+        // Cost math
+        const price = parseFloat(document.getElementById('matCost').value) || 0;
+        const totalPrice = volCuYd * price;
+
+        // Update UI
+        document.getElementById('outArea').innerText = areaSqYd.toFixed(2);
+        document.getElementById('outVol').innerText = volCuYd.toFixed(2);
+        document.getElementById('outTotal').innerText = totalPrice.toLocaleString(undefined, {minimumFractionDigits: 2});
+    }
+
+    function clearAll() {
+        markers.forEach(m => map.removeLayer(m));
+        markers = [];
+        if (geoFence) map.removeLayer(geoFence);
+        document.getElementById('pinCount').innerText = "0";
+        document.getElementById('outArea').innerText = "0";
+        document.getElementById('outVol').innerText = "0";
+        document.getElementById('outTotal').innerText = "0.00";
+    }
+
+    // 6. Report Generation
+    function copyData() {
+        const mat = document.getElementById('matName').value || "Unnamed Material";
+        const area = document.getElementById('outArea').innerText;
+        const vol = document.getElementById('outVol').innerText;
+        const total = document.getElementById('outTotal').innerText;
+        const pts = markers.map((m, i) => `Point ${i+1}: ${m.getLatLng().lat.toFixed(6)}, ${m.getLatLng().lng.toFixed(6)}`).join('\n');
+
+        const report = `SITE ESTIMATE\n------------------\nMaterial: ${mat}\nArea: ${area} sq yd\nVolume: ${vol} cu yd\nTotal Cost: $${total}\n\nGPS LOG:\n${pts}`;
+
+        navigator.clipboard.writeText(report).then(() => alert("Report copied to clipboard."));
     }
 </script>
 </body>

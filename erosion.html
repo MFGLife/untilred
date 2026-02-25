@@ -3,43 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Site Volume Calculator</title>
+    <title>Multi-Pin Site Calc</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 20px; display: flex; flex-direction: column; height: 100vh; background: #f4f4f9; }
-        #controls { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+        #controls { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
         #map { flex-grow: 1; border-radius: 8px; border: 1px solid #ccc; z-index: 1; }
         input, button { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
-        button { background: #28a745; color: white; border: none; cursor: pointer; font-weight: bold; }
+        button { background: #6c757d; color: white; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        button.active { background: #dc3545; color: white; } /* Red when active */
         button.action { background: #007bff; }
-        button.location-btn { background: #6c757d; }
-        button:hover { opacity: 0.9; }
-        .stats-box { grid-column: 1 / -1; display: flex; justify-content: space-between; background: #e9ecef; padding: 10px; border-radius: 4px; }
+        button.success { background: #28a745; }
+        .stats-box { grid-column: 1 / -1; display: flex; justify-content: space-between; background: #e9ecef; padding: 10px; border-radius: 4px; font-weight: bold; }
+        #pinCount { color: #007bff; }
     </style>
 </head>
 <body>
 
 <div id="controls">
-    <button class="location-btn" onclick="centerToLocation()">Center Map</button>
-    <button class="action" onclick="togglePinDrop()">1. Drop Pin</button>
-    <input type="text" id="materialName" placeholder="Material (e.g. Mulch)">
+    <button onclick="centerToLocation()">Center Map</button>
+    <button id="dropBtn" class="action" onclick="togglePinDrop()">1. Start Dropping Pins</button>
+    <input type="text" id="materialName" placeholder="Material Name">
     <input type="number" id="depthInches" placeholder="Depth (Inches)" oninput="updateCalculations()">
-    <button onclick="generateGeofence()">2. Lock Geofence</button>
+    <button class="success" onclick="generateGeofence()">2. Lock Geofence</button>
     <button class="action" onclick="copyToClipboard()">3. Copy All Data</button>
     
     <div class="stats-box">
-        <span>Area: <b id="sqYards">0</b> sq yd</span>
-        <span>Volume: <b id="cuYards">0</b> cu yd</span>
+        <span>Pins: <span id="pinCount">0</span></span>
+        <span>Area: <span id="sqYards">0</span> sq yd</span>
+        <span>Vol: <span id="cuYards">0</span> cu yd</span>
     </div>
 </div>
 
 <div id="map"></div>
 
 <script>
-    // Initialize map with a default view
-    const map = L.map('map').setView([37.638, -98.704], 13);
+    const map = L.map('map').setView([37.7749, -122.4194], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
     let markers = [];
@@ -48,46 +49,61 @@
     let areaSqYards = 0;
 
     function centerToLocation() {
-        if (!navigator.geolocation) {
-            alert("Geolocation is not supported by your browser.");
-            return;
-        }
-
         navigator.geolocation.getCurrentPosition((position) => {
-            const lat = position.coords.latitude;
-            const lng = position.coords.longitude;
-            map.flyTo([lat, lng], 18); // Zoom in close to the user's location
-            
-            // Optional: Add a blue dot for current location
-            L.circle([lat, lng], { radius: 5, color: 'blue' }).addTo(map);
-        }, (error) => {
-            alert("Unable to retrieve location. Please check GPS settings.");
-        }, {
-            enableHighAccuracy: true
-        });
+            map.flyTo([position.coords.latitude, position.coords.longitude], 18);
+        }, () => alert("Location access denied."), { enableHighAccuracy: true });
     }
 
     function togglePinDrop() {
         isDropping = !isDropping;
-        document.getElementById('map').style.cursor = isDropping ? 'crosshair' : 'grab';
+        const btn = document.getElementById('dropBtn');
+        if (isDropping) {
+            btn.innerText = "Stop Dropping";
+            btn.classList.add('active');
+            document.getElementById('map').style.cursor = 'crosshair';
+        } else {
+            btn.innerText = "1. Start Dropping Pins";
+            btn.classList.remove('active');
+            document.getElementById('map').style.cursor = '';
+        }
     }
 
     map.on('click', (e) => {
         if (!isDropping) return;
+        
+        // Create a draggable marker
         const marker = L.marker(e.latlng, {draggable: true}).addTo(map);
         markers.push(marker);
+        
+        // Update UI
+        document.getElementById('pinCount').innerText = markers.length;
+        
+        // Auto-update geofence if it already exists
+        if (markers.length >= 3 && polygon) generateGeofence();
+        
+        // Allow marker removal on right-click
+        marker.on('contextmenu', () => {
+            map.removeLayer(marker);
+            markers = markers.filter(m => m !== marker);
+            document.getElementById('pinCount').innerText = markers.length;
+            if (polygon) generateGeofence();
+        });
+
         marker.on('dragend', generateGeofence);
     });
 
     function generateGeofence() {
-        if (markers.length < 3) return;
+        if (markers.length < 3) {
+            alert("Place at least 3 pins to calculate area.");
+            return;
+        }
         if (polygon) map.removeLayer(polygon);
 
         const coords = markers.map(m => [m.getLatLng().lng, m.getLatLng().lat]);
-        coords.push(coords[0]);
+        coords.push(coords[0]); // Close the shape
 
         const polyFeature = turf.polygon([coords]);
-        polygon = L.geoJSON(polyFeature, {style: {color: '#007bff', fillOpacity: 0.2}}).addTo(map);
+        polygon = L.geoJSON(polyFeature, {style: {color: '#007bff', weight: 3, fillOpacity: 0.3}}).addTo(map);
 
         const areaSqMeters = turf.area(polyFeature);
         areaSqYards = (areaSqMeters * 1.19599).toFixed(2);
@@ -102,14 +118,14 @@
     }
 
     function copyToClipboard() {
-        const material = document.getElementById('materialName').value || "Material";
+        const material = document.getElementById('materialName').value || "None";
         const depth = document.getElementById('depthInches').value || 0;
         const cuYards = document.getElementById('cuYards').innerText;
-        const locations = markers.map((m, i) => `P${i+1}: ${m.getLatLng().lat.toFixed(6)},${m.getLatLng().lng.toFixed(6)}`).join(' | ');
+        const locations = markers.map((m, i) => `P${i+1}: ${m.getLatLng().lat.toFixed(6)},${m.getLatLng().lng.toFixed(6)}`).join('\n');
 
-        const summary = `SITE REPORT\nMaterial: ${material}\nDepth: ${depth}"\nArea: ${areaSqYards} sq yd\nTotal: ${cuYards} cu yd\nPins: ${locations}`;
+        const summary = `--- SITE DATA ---\nMaterial: ${material}\nDepth: ${depth} in\nArea: ${areaSqYards} sq yd\nTotal Volume: ${cuYards} cu yd\n\nGPS Coordinates:\n${locations}`;
         
-        navigator.clipboard.writeText(summary).then(() => alert("Copied to clipboard!"));
+        navigator.clipboard.writeText(summary).then(() => alert("Data copied!"));
     }
 </script>
 </body>

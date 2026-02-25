@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Site Volume Calculator</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+    <style>
+        body { font-family: sans-serif; margin: 0; padding: 20px; display: flex; flex-direction: column; height: 100vh; background: #f4f4f9; }
+        #controls { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+        #map { flex-grow: 1; border-radius: 8px; border: 1px solid #ccc; z-index: 1; }
+        input, button { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        button { background: #28a745; color: white; border: none; cursor: pointer; font-weight: bold; }
+        button.action { background: #007bff; }
+        button:hover { opacity: 0.9; }
+        .stats-box { grid-column: 1 / -1; display: flex; justify-content: space-between; background: #e9ecef; padding: 10px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+<div id="controls">
+    <button class="action" onclick="togglePinDrop()">1. Drop Pin</button>
+    <input type="text" id="materialName" placeholder="Material (e.g. Mulch)">
+    <input type="number" id="depthInches" placeholder="Depth (Inches)" oninput="updateCalculations()">
+    <button class="action" onclick="startARMeasure()">Measure Depth (AR)</button>
+    <button onclick="generateGeofence()">2. Lock Geofence</button>
+    <button class="action" onclick="copyToClipboard()">3. Copy All Data</button>
+    
+    <div class="stats-box">
+        <span>Area: <b id="sqYards">0</b> sq yd</span>
+        <span>Volume: <b id="cuYards">0</b> cu yd</span>
+    </div>
+</div>
+
+<div id="map"></div>
+
+<script>
+    const map = L.map('map').setView([37.7749, -122.4194], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    let markers = [];
+    let polygon = null;
+    let isDropping = false;
+    let areaSqYards = 0;
+
+    function togglePinDrop() {
+        isDropping = !isDropping;
+        document.getElementById('map').style.cursor = isDropping ? 'crosshair' : 'grab';
+    }
+
+    map.on('click', (e) => {
+        if (!isDropping) return;
+        const marker = L.marker(e.latlng, {draggable: true}).addTo(map);
+        markers.push(marker);
+        marker.on('dragend', generateGeofence);
+    });
+
+    function generateGeofence() {
+        if (markers.length < 3) return;
+        if (polygon) map.removeLayer(polygon);
+
+        const coords = markers.map(m => [m.getLatLng().lng, m.getLatLng().lat]);
+        coords.push(coords[0]);
+
+        const polyFeature = turf.polygon([coords]);
+        polygon = L.geoJSON(polyFeature, {style: {color: '#007bff', fillOpacity: 0.2}}).addTo(map);
+
+        const areaSqMeters = turf.area(polyFeature);
+        areaSqYards = (areaSqMeters * 1.19599).toFixed(2);
+        document.getElementById('sqYards').innerText = areaSqYards;
+        updateCalculations();
+    }
+
+    function updateCalculations() {
+        const depth = parseFloat(document.getElementById('depthInches').value) || 0;
+        const cuYards = (areaSqYards * (depth / 36)).toFixed(2);
+        document.getElementById('cuYards').innerText = cuYards;
+    }
+
+    async function startARMeasure() {
+        if ('xr' in navigator) {
+            alert("AR Mode: Walk to the hole, point camera at the rim, then the bottom. (Simulated for Web)");
+            // In a production environment, this would launch a Three.js WebXR session
+            // to calculate the Y-axis delta between two tapped points.
+        } else {
+            alert("WebXR not supported on this device. Please enter depth manually.");
+        }
+    }
+
+    function copyToClipboard() {
+        const material = document.getElementById('materialName').value || "Material";
+        const depth = document.getElementById('depthInches').value || 0;
+        const cuYards = document.getElementById('cuYards').innerText;
+        const locations = markers.map((m, i) => `P${i+1}: ${m.getLatLng().lat.toFixed(6)},${m.getLatLng().lng.toFixed(6)}`).join(' | ');
+
+        const summary = `SITE REPORT\nMaterial: ${material}\nDepth: ${depth}"\nArea: ${areaSqYards} sq yd\nTotal: ${cuYards} cu yd\nPins: ${locations}`;
+        
+        navigator.clipboard.writeText(summary).then(() => alert("Copied to clipboard!"));
+    }
+</script>
+</body>
+</html>

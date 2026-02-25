@@ -14,6 +14,7 @@
         input, button { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
         button { background: #28a745; color: white; border: none; cursor: pointer; font-weight: bold; }
         button.action { background: #007bff; }
+        button.location-btn { background: #6c757d; }
         button:hover { opacity: 0.9; }
         .stats-box { grid-column: 1 / -1; display: flex; justify-content: space-between; background: #e9ecef; padding: 10px; border-radius: 4px; }
     </style>
@@ -21,10 +22,10 @@
 <body>
 
 <div id="controls">
+    <button class="location-btn" onclick="centerToLocation()">Center Map</button>
     <button class="action" onclick="togglePinDrop()">1. Drop Pin</button>
     <input type="text" id="materialName" placeholder="Material (e.g. Mulch)">
     <input type="number" id="depthInches" placeholder="Depth (Inches)" oninput="updateCalculations()">
-    <button class="action" onclick="startARMeasure()">Measure Depth (AR)</button>
     <button onclick="generateGeofence()">2. Lock Geofence</button>
     <button class="action" onclick="copyToClipboard()">3. Copy All Data</button>
     
@@ -37,13 +38,34 @@
 <div id="map"></div>
 
 <script>
-    const map = L.map('map').setView([37.7749, -122.4194], 13);
+    // Initialize map with a default view
+    const map = L.map('map').setView([37.638, -98.704], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
     let markers = [];
     let polygon = null;
     let isDropping = false;
     let areaSqYards = 0;
+
+    function centerToLocation() {
+        if (!navigator.geolocation) {
+            alert("Geolocation is not supported by your browser.");
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition((position) => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            map.flyTo([lat, lng], 18); // Zoom in close to the user's location
+            
+            // Optional: Add a blue dot for current location
+            L.circle([lat, lng], { radius: 5, color: 'blue' }).addTo(map);
+        }, (error) => {
+            alert("Unable to retrieve location. Please check GPS settings.");
+        }, {
+            enableHighAccuracy: true
+        });
+    }
 
     function togglePinDrop() {
         isDropping = !isDropping;
@@ -77,16 +99,6 @@
         const depth = parseFloat(document.getElementById('depthInches').value) || 0;
         const cuYards = (areaSqYards * (depth / 36)).toFixed(2);
         document.getElementById('cuYards').innerText = cuYards;
-    }
-
-    async function startARMeasure() {
-        if ('xr' in navigator) {
-            alert("AR Mode: Walk to the hole, point camera at the rim, then the bottom. (Simulated for Web)");
-            // In a production environment, this would launch a Three.js WebXR session
-            // to calculate the Y-axis delta between two tapped points.
-        } else {
-            alert("WebXR not supported on this device. Please enter depth manually.");
-        }
     }
 
     function copyToClipboard() {

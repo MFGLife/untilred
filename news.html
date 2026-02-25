@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Under‑Reported News Link Radar</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, sans-serif; margin:0; background:#060810; color:#e9ecf5; }
+    header { padding:1rem 1.5rem; border-bottom:1px solid #222738; position:sticky; top:0; background:#060810ee; backdrop-filter:blur(8px); z-index:10; }
+    h1 { margin:0; font-size:1.4rem; }
+    .subtitle { font-size:0.85rem; color:#9099b8; }
+    main { padding:1rem 1.5rem 2rem; max-width:960px; margin:0 auto; }
+    .controls { display:flex; flex-wrap:wrap; gap:0.75rem; margin-top:0.75rem; }
+    .controls input, .controls select {
+      background:#0b0f1d; border:1px solid #222738; border-radius:999px;
+      padding:0.5rem 0.9rem; color:#e9ecf5; font-size:0.9rem; outline:none;
+    }
+    .controls input:focus, .controls select:focus { border-color:#4a7dff; }
+    .chips { display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:0.5rem; }
+    .chip {
+      padding:0.25rem 0.7rem; border-radius:999px; border:1px solid #222738;
+      font-size:0.75rem; cursor:pointer; color:#b8c1e0;
+    }
+    .chip.active { background:#4a7dff22; border-color:#4a7dff; color:#dfe6ff; }
+    .list { margin-top:1rem; display:grid; gap:0.75rem; }
+    .card {
+      background:#0b0f1d; border-radius:0.75rem; padding:0.8rem 1rem;
+      border:1px solid #151a2a; display:flex; flex-direction:column; gap:0.4rem;
+    }
+    .title-row { display:flex; justify-content:space-between; gap:0.5rem; align-items:flex-start; }
+    .title-row h2 { margin:0; font-size:1rem; font-weight:500; line-height:1.25; }
+    .badge { padding:0.1rem 0.5rem; border-radius:999px; background:#151a2a; font-size:0.7rem; color:#b8c1e0; }
+    .meta { font-size:0.75rem; color:#9099b8; display:flex; flex-wrap:wrap; gap:0.4rem; }
+    .links { display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:0.25rem; }
+    .links a {
+      font-size:0.78rem; color:#7fa3ff; text-decoration:none;
+      background:#11162a; border-radius:999px; padding:0.25rem 0.65rem;
+    }
+    .links a:hover { text-decoration:underline; }
+    .tags { font-size:0.75rem; color:#b8c1e0; }
+    .tags span { margin-right:0.35rem; }
+    .empty { margin-top:1.5rem; font-size:0.9rem; color:#9099b8; }
+    @media (max-width:600px) {
+      header, main { padding-left:1rem; padding-right:1rem; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Under‑Reported News Link Radar</h1>
+  <div class="subtitle">
+    Generate deep‑dive links into investigative, independent, and foreign sources. No scraping, just outbound traffic.
+  </div>
+  <div class="controls">
+    <input id="topicInput" type="search" placeholder="Topic (e.g. civil asset forfeiture, overflight rights…)" />
+    <select id="regionFilter">
+      <option value="">All regions</option>
+      <option value="US">US‑based</option>
+      <option value="EU">Europe/UK</option>
+      <option value="Global">Global/Other</option>
+    </select>
+  </div>
+  <div class="chips" id="tagChips"></div>
+</header>
+
+<main>
+  <section class="list" id="sourceList"></section>
+  <div class="empty" id="emptyState" style="display:none;">
+    No sources match this filter yet. Try clearing some filters.
+  </div>
+</main>
+
+<script>
+  const sources = [
+    {
+      id: 'propublica',
+      name: 'ProPublica',
+      url: 'https://www.propublica.org',
+      searchUrl: 'https://www.propublica.org/search?q={q}',
+      region: 'US',
+      tags: ['investigative','corruption','policy']
+    },
+    {
+      id: 'projectcensored',
+      name: 'Project Censored (links hub)',
+      url: 'https://www.projectcensored.org/independent-news-links/',
+      searchUrl: '',
+      region: 'US',
+      tags: ['meta','underreported','media']
+    },
+    {
+      id: 'guardian',
+      name: 'The Guardian (Investigations)',
+      url: 'https://www.theguardian.com/news/series/the-long-read',
+      searchUrl: 'https://www.theguardian.com/search?q={q}',
+      region: 'EU',
+      tags: ['investigative','international']
+    },
+    {
+      id: 'aljazeera',
+      name: 'Al Jazeera Investigations',
+      url: 'https://www.aljazeera.com/investigations/',
+      searchUrl: 'https://www.aljazeera.com/Search/?q={q}',
+      region: 'Global',
+      tags: ['global','investigative']
+    },
+    {
+      id: 'icij',
+      name: 'ICIJ',
+      url: 'https://www.icij.org/investigations/',
+      searchUrl: 'https://www.icij.org/?s={q}',
+      region: 'Global',
+      tags: ['leaks','offshore','finance']
+    },
+    {
+      id: 'localnews',
+      name: 'Search local news (US)',
+      url: 'https://news.google.com',
+      searchUrl: 'https://news.google.com/search?q={q}&hl=en-US&gl=US&ceid=US:en',
+      region: 'US',
+      tags: ['local','regional']
+    }
+    // You can keep adding sources here.
+  ];
+
+  const quickTags = ['investigative','corruption','leaks','policing','courts','war','surveillance','finance','environment'];
+
+  let activeTag = '';
+
+  function urlEncode(q) {
+    return encodeURIComponent(q.trim());
+  }
+
+  function buildEngineSearch(engine, query, domain) {
+    const encodedQ = domain ? `${query} site:${domain}` : query;
+    if (engine === 'ddg') {
+      return `https://duckduckgo.com/?q=${urlEncode(encodedQ)}`;
+    }
+    if (engine === 'google') {
+      return `https://www.google.com/search?q=${urlEncode(encodedQ)}`;
+    }
+    return '#';
+  }
+
+  function renderTagChips() {
+    const container = document.getElementById('tagChips');
+    container.innerHTML = '';
+    quickTags.forEach(tag => {
+      const div = document.createElement('div');
+      div.className = 'chip' + (tag === activeTag ? ' active' : '');
+      div.textContent = `#${tag}`;
+      div.onclick = () => {
+        activeTag = (activeTag === tag) ? '' : tag;
+        renderTagChips();
+        renderSources();
+      };
+      container.appendChild(div);
+    });
+  }
+
+  function renderSources() {
+    const list = document.getElementById('sourceList');
+    const empty = document.getElementById('emptyState');
+    list.innerHTML = '';
+
+    const topic = document.getElementById('topicInput').value.trim();
+    const region = document.getElementById('regionFilter').value;
+
+    let filtered = sources.slice();
+
+    if (region) {
+      filtered = filtered.filter(s => s.region === region);
+    }
+    if (activeTag) {
+      filtered = filtered.filter(s => s.tags && s.tags.includes(activeTag));
+    }
+
+    if (!filtered.length) {
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    filtered.forEach(src => {
+      const card = document.createElement('article');
+      card.className = 'card';
+
+      const titleRow = document.createElement('div');
+      titleRow.className = 'title-row';
+
+      const h2 = document.createElement('h2');
+      h2.textContent = src.name;
+
+      const badge = document.createElement('span');
+      badge.className = 'badge';
+      badge.textContent = src.region || 'Source';
+
+      titleRow.appendChild(h2);
+      titleRow.appendChild(badge);
+      card.appendChild(titleRow);
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.textContent = src.tags && src.tags.length ? src.tags.map(t => '#' + t).join(' · ') : '';
+      card.appendChild(meta);
+
+      const linksDiv = document.createElement('div');
+      linksDiv.className = 'links';
+
+      const homeLink = document.createElement('a');
+      homeLink.href = src.url;
+      homeLink.target = '_blank';
+      homeLink.rel = 'noopener noreferrer';
+      homeLink.textContent = 'Open site';
+      linksDiv.appendChild(homeLink);
+
+      if (topic && src.searchUrl) {
+        const internal = document.createElement('a');
+        internal.href = src.searchUrl.replace('{q}', urlEncode(topic));
+        internal.target = '_blank';
+        internal.rel = 'noopener noreferrer';
+        internal.textContent = 'Search on site';
+        linksDiv.appendChild(internal);
+
+        try {
+          const domain = (new URL(src.url)).hostname;
+          const ddg = document.createElement('a');
+          ddg.href = buildEngineSearch('ddg', topic, domain);
+          ddg.target = '_blank';
+          ddg.rel = 'noopener noreferrer';
+          ddg.textContent = 'DuckDuckGo site: search';
+          linksDiv.appendChild(ddg);
+
+          const google = document.createElement('a');
+          google.href = buildEngineSearch('google', topic, domain);
+          google.target = '_blank';
+          google.rel = 'noopener noreferrer';
+          google.textContent = 'Google site: search';
+          linksDiv.appendChild(google);
+        } catch (e) {
+          // ignore URL parse errors
+        }
+      }
+
+      card.appendChild(linksDiv);
+      list.appendChild(card);
+    });
+  }
+
+  document.getElementById('topicInput').addEventListener('input', renderSources);
+  document.getElementById('regionFilter').addEventListener('change', renderSources);
+
+  renderTagChips();
+  renderSources();
+</script>
+</body>
+</html>

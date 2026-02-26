@@ -3,14 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Precision Site Estimator</title>
+    <title>Precision Site Estimator Pro</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     <style>
-        :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --dark: #343a40; }
+        :root { 
+            --primary: #007bff; 
+            --success: #28a745; 
+            --danger: #dc3545; 
+            --dark: #343a40;
+            --warning: #ffc107;
+            --track: #ff4757;
+            --audit: #6c757d;
+        }
         body { font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background: #f8f9fa; }
-        
+
         #controls { 
             background: white; padding: 15px; border-bottom: 2px solid #ddd;
             display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px;
@@ -20,15 +28,26 @@
         #map { flex-grow: 1; z-index: 1; }
 
         input, button { padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; outline: none; }
-        
+
         button { cursor: pointer; font-weight: 600; color: white; border: none; transition: 0.2s; }
         button:active { transform: scale(0.98); }
-        
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
         .btn-gps { background: var(--success); }
         .btn-drop { background: var(--primary); }
         .btn-drop.active { background: var(--danger); }
-        .btn-copy { background: var(--dark); grid-column: span 1; }
+        .btn-copy { background: var(--dark); }
         .btn-clear { background: #6c757d; }
+        
+        .btn-track { background: var(--track); font-size: 13px; }
+        .btn-track.active { background: var(--danger); animation: pulse 2s infinite; }
+        .btn-finalize { background: var(--warning); color: #000; display: none; }
+        .btn-finalize.visible { display: block; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
 
         .stats-panel { 
             grid-column: 1 / -1; background: #e9ecef; padding: 12px; 
@@ -37,6 +56,53 @@
         }
         .stat-item { margin-right: 15px; }
         .accuracy-pill { font-size: 11px; padding: 2px 6px; border-radius: 10px; background: #fff; border: 1px solid #ccc; }
+        
+        .track-status { 
+            grid-column: 1 / -1; 
+            background: #fff3cd; 
+            padding: 10px; 
+            border-radius: 6px; 
+            border-left: 4px solid var(--warning);
+            display: none;
+            font-size: 13px;
+        }
+        .track-status.active { display: block; }
+
+        .audit-panel {
+            grid-column: 1 / -1;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            border: 2px dashed var(--audit);
+            display: none;
+        }
+        .audit-panel.active { display: block; }
+        .audit-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 5px 0;
+            padding: 8px;
+            background: white;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .audit-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--audit); }
+        .audit-dot.resolved { background: var(--success); }
+
+        .mode-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            z-index: 1000;
+            display: none;
+        }
+        .mode-indicator.active { display: block; }
     </style>
 </head>
 <body>
@@ -44,24 +110,43 @@
 <div id="controls">
     <button class="btn-gps" onclick="dropPinAtGPS()">📍 Drop Pin at My GPS</button>
     <button id="dropToggle" class="btn-drop" onclick="toggleManualDrop()">🖱️ Start Manual Drop</button>
+    <button id="trackBtn" class="btn-track" onclick="toggleTracking()">🚶 Start Walk Tracking</button>
+    <button id="finalizeBtn" class="btn-finalize" onclick="finalizeTrack()">✅ Finalize & Measure</button>
     <button class="btn-clear" onclick="clearAll()">🗑️ Clear All</button>
-    
+
     <input type="text" id="matName" placeholder="Material (e.g. Concrete)">
     <input type="number" id="matDepth" placeholder="Depth (Inches)" oninput="calc()">
     <input type="number" id="matCost" placeholder="Price per Cu Yd ($)" oninput="calc()">
 
     <button class="btn-copy" onclick="copyData()">📋 Copy Site Report</button>
-    
+
+    <div id="trackStatus" class="track-status">
+        <strong>🔴 Tracking Active:</strong> <span id="trackStats">0 ft walked | 0 pins dropped | GPS: Good</span>
+    </div>
+
+    <div id="auditPanel" class="audit-panel">
+        <h4 style="margin: 0 0 10px 0;">⚠️ Audit Required: <span id="auditCount">0</span> suspicious points detected</h4>
+        <p style="margin: 0 0 10px 0; font-size: 12px; color: #666;">
+            Grey pins indicate potential GPS errors. Drag them to correct positions, or click to mark as accurate.
+        </p>
+        <div id="auditList"></div>
+        <button onclick="completeAudit()" style="background: var(--success); margin-top: 10px; width: 100%;">
+            Complete Audit & Calculate Distance
+        </button>
+    </div>
+
     <div class="stats-panel">
         <div class="stat-item">Pins: <span id="pinCount">0</span></div>
         <div class="stat-item">Area: <span id="outArea">0</span> <small>sq yd</small></div>
         <div class="stat-item">Vol: <span id="outVol">0</span> <small>cu yd</small></div>
         <div class="stat-item">Total: $<span id="outTotal">0.00</span></div>
+        <div class="stat-item" id="walkDistance" style="color: var(--track); display: none;">Walk: <span id="walkDistVal">0</span> ft</div>
         <div id="gpsAccuracy" class="accuracy-pill">GPS: Idle</div>
     </div>
 </div>
 
 <div id="map"></div>
+<div id="modeIndicator" class="mode-indicator">TRACKING MODE</div>
 
 <script>
     // 1. Setup Map
@@ -71,18 +156,28 @@
     let markers = [];
     let geoFence = null;
     let isManualMode = false;
+    
+    // Tracking state
+    let isTracking = false;
+    let watchId = null;
+    let trackPoints = []; // {lat, lng, accuracy, timestamp, isCorrupted}
+    let lastPosition = null;
+    let totalDistance = 0;
+    let auditMode = false;
+    const FOOT_IN_METERS = 0.3048;
+    const CORRUPTION_THRESHOLD = 15; // meters of jump indicates corruption
+    const MIN_ACCURACY_THRESHOLD = 50; // meters accuracy indicates poor signal
 
     // 2. High-Accuracy GPS Drop
     function dropPinAtGPS() {
         const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
-        
         document.getElementById('gpsAccuracy').innerText = "Locating...";
 
         navigator.geolocation.getCurrentPosition((pos) => {
             const { latitude, longitude, accuracy } = pos.coords;
             const accInches = (accuracy * 39.37).toFixed(0);
             document.getElementById('gpsAccuracy').innerText = `Acc: ±${accInches} in`;
-            
+
             addMarker(latitude, longitude);
             map.flyTo([latitude, longitude], 19);
         }, (err) => alert("GPS Error: " + err.message), options);
@@ -90,6 +185,7 @@
 
     // 3. Manual Pin Dropping
     function toggleManualDrop() {
+        if (isTracking) return;
         isManualMode = !isManualMode;
         const btn = document.getElementById('dropToggle');
         btn.innerText = isManualMode ? "⏹️ Stop Manual Drop" : "🖱️ Start Manual Drop";
@@ -98,18 +194,343 @@
     }
 
     map.on('click', (e) => {
-        if (!isManualMode) return;
+        if (!isManualMode || isTracking) return;
         addMarker(e.latlng.lat, e.latlng.lng);
     });
 
-    // 4. Marker Management
+    // 4. WALK TRACKING SYSTEM
+    function toggleTracking() {
+        if (isTracking) {
+            stopTracking();
+        } else {
+            startTracking();
+        }
+    }
+
+    function startTracking() {
+        if (!navigator.geolocation) {
+            alert("Geolocation not supported");
+            return;
+        }
+
+        // Clear previous track points if starting fresh
+        if (trackPoints.length === 0) {
+            clearAll();
+        }
+
+        isTracking = true;
+        auditMode = false;
+        
+        // UI Updates
+        const btn = document.getElementById('trackBtn');
+        btn.innerText = "⏹️ Stop Tracking";
+        btn.classList.add('active');
+        document.getElementById('dropToggle').disabled = true;
+        document.getElementById('trackStatus').classList.add('active');
+        document.getElementById('modeIndicator').classList.add('active');
+        document.getElementById('finalizeBtn').classList.remove('visible');
+        document.getElementById('auditPanel').classList.remove('active');
+        document.getElementById('walkDistance').style.display = 'none';
+
+        // Start high-frequency watching
+        const options = {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0
+        };
+
+        watchId = navigator.geolocation.watchPosition(
+            handlePositionUpdate,
+            handlePositionError,
+            options
+        );
+    }
+
+    function stopTracking() {
+        isTracking = false;
+        if (watchId !== null) {
+            navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+        }
+
+        // UI Updates
+        const btn = document.getElementById('trackBtn');
+        btn.innerText = "🚶 Start Walk Tracking";
+        btn.classList.remove('active');
+        document.getElementById('dropToggle').disabled = false;
+        document.getElementById('trackStatus').classList.remove('active');
+        document.getElementById('modeIndicator').classList.remove('active');
+        
+        // Check if audit needed
+        const corruptedPoints = trackPoints.filter(p => p.isCorrupted);
+        if (corruptedPoints.length > 0) {
+            showAuditPanel();
+        } else {
+            document.getElementById('finalizeBtn').classList.add('visible');
+        }
+    }
+
+    function handlePositionUpdate(pos) {
+        const { latitude, longitude, accuracy } = pos.coords;
+        const current = { lat: latitude, lng: longitude };
+        
+        // Check for corruption
+        let isCorrupted = false;
+        
+        if (lastPosition) {
+            const dist = calculateDistance(lastPosition, current);
+            
+            // Detect impossible jumps (teleportation) or poor accuracy
+            if (dist > CORRUPTION_THRESHOLD || accuracy > MIN_ACCURACY_THRESHOLD) {
+                isCorrupted = true;
+            }
+            
+            // Only add point if we've moved at least 1 foot
+            if (dist >= FOOT_IN_METERS) {
+                addTrackPoint(current, accuracy, isCorrupted);
+                lastPosition = current;
+                totalDistance += dist;
+            }
+        } else {
+            // First point
+            addTrackPoint(current, accuracy, false);
+            lastPosition = current;
+        }
+
+        updateTrackStats(accuracy);
+    }
+
+    function handlePositionError(err) {
+        console.error("GPS Error:", err);
+        document.getElementById('gpsAccuracy').innerText = "GPS Error";
+        
+        // Add corrupted point placeholder if we have last known position
+        if (lastPosition && isTracking) {
+            addTrackPoint(lastPosition, 999, true);
+        }
+    }
+
+    function addTrackPoint(coords, accuracy, isCorrupted) {
+        const point = {
+            lat: coords.lat,
+            lng: coords.lng,
+            accuracy: accuracy,
+            timestamp: Date.now(),
+            isCorrupted: isCorrupted,
+            id: trackPoints.length
+        };
+        
+        trackPoints.push(point);
+        
+        // Add visual marker
+        const color = isCorrupted ? 'grey' : '#ff4757';
+        const radius = isCorrupted ? 6 : 4;
+        
+        const circle = L.circleMarker([coords.lat, coords.lng], {
+            color: color,
+            fillColor: color,
+            fillOpacity: 0.8,
+            radius: radius,
+            weight: 1
+        }).addTo(map);
+        
+        // Store reference for audit mode
+        point.marker = circle;
+        
+        if (isCorrupted) {
+            // Make draggable in audit mode
+            circle.on('click', () => {
+                if (auditMode) resolveAuditPoint(point);
+            });
+        }
+        
+        // Connect with line if previous point exists
+        if (trackPoints.length > 1) {
+            const prev = trackPoints[trackPoints.length - 2];
+            const line = L.polyline(
+                [[prev.lat, prev.lng], [coords.lat, coords.lng]], 
+                { color: isCorrupted ? '#999' : '#ff4757', weight: 2, dashArray: isCorrupted ? '5,5' : null }
+            ).addTo(map);
+            point.line = line;
+        }
+        
+        map.panTo([coords.lat, coords.lng]);
+    }
+
+    function calculateDistance(p1, p2) {
+        const R = 6371e3; // Earth radius in meters
+        const φ1 = p1.lat * Math.PI / 180;
+        const φ2 = p2.lat * Math.PI / 180;
+        const Δφ = (p2.lat - p1.lat) * Math.PI / 180;
+        const Δλ = (p2.lng - p1.lng) * Math.PI / 180;
+
+        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                  Math.cos(φ1) * Math.cos(φ2) *
+                  Math.sin(Δλ/2) * Math.sin(Δλ/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+        return R * c;
+    }
+
+    function updateTrackStats(accuracy) {
+        const feet = (totalDistance / FOOT_IN_METERS).toFixed(0);
+        const corrupted = trackPoints.filter(p => p.isCorrupted).length;
+        const status = corrupted > 0 ? `${corrupted} gaps detected` : 'Good';
+        
+        document.getElementById('trackStats').innerHTML = 
+            `${feet} ft walked | ${trackPoints.length} pins | GPS: ${accuracy.toFixed(0)}m accuracy | ${status}`;
+    }
+
+    // 5. AUDIT SYSTEM
+    function showAuditPanel() {
+        auditMode = true;
+        const corrupted = trackPoints.filter(p => p.isCorrupted);
+        
+        document.getElementById('auditPanel').classList.add('active');
+        document.getElementById('auditCount').innerText = corrupted.length;
+        
+        const list = document.getElementById('auditList');
+        list.innerHTML = '';
+        
+        corrupted.forEach((point, idx) => {
+            const div = document.createElement('div');
+            div.className = 'audit-item';
+            div.id = `audit-${point.id}`;
+            div.innerHTML = `
+                <div class="audit-dot" id="dot-${point.id}"></div>
+                <span>Point #${point.id + 1} - Drag to correct or click to confirm</span>
+                <button onclick="resolveAuditById(${point.id})" style="margin-left: auto; background: var(--success); padding: 4px 8px; font-size: 11px;">
+                    ✓ Confirm
+                </button>
+            `;
+            list.appendChild(div);
+            
+            // Enable dragging
+            point.marker.setStyle({ radius: 8, fillOpacity: 0.5 });
+            point.marker.dragging.enable();
+            
+            point.marker.on('dragend', (e) => {
+                const newPos = e.target.getLatLng();
+                point.lat = newPos.lat;
+                point.lng = newPos.lng;
+                point.isCorrupted = false;
+                updateAuditLine(point);
+                resolveAuditById(point.id);
+            });
+        });
+    }
+
+    function resolveAuditPoint(point) {
+        resolveAuditById(point.id);
+    }
+
+    function resolveAuditById(id) {
+        const point = trackPoints.find(p => p.id === id);
+        if (!point) return;
+        
+        point.isCorrupted = false;
+        point.marker.setStyle({ 
+            color: '#ff4757', 
+            fillColor: '#ff4757',
+            radius: 4,
+            fillOpacity: 0.8 
+        });
+        point.marker.dragging.disable();
+        
+        const dot = document.getElementById(`dot-${id}`);
+        if (dot) dot.classList.add('resolved');
+        
+        // Check if all resolved
+        const remaining = trackPoints.filter(p => p.isCorrupted).length;
+        document.getElementById('auditCount').innerText = remaining;
+    }
+
+    function updateAuditLine(point) {
+        // Update lines connected to this point
+        const idx = trackPoints.indexOf(point);
+        
+        // Update line from previous point
+        if (idx > 0) {
+            const prev = trackPoints[idx - 1];
+            if (prev.line) map.removeLayer(prev.line);
+            prev.line = L.polyline(
+                [[prev.lat, prev.lng], [point.lat, point.lng]], 
+                { color: '#ff4757', weight: 2 }
+            ).addTo(map);
+        }
+        
+        // Update line to next point
+        if (idx < trackPoints.length - 1) {
+            const next = trackPoints[idx + 1];
+            if (point.line) map.removeLayer(point.line);
+            point.line = L.polyline(
+                [[point.lat, point.lng], [next.lat, next.lng]], 
+                { color: next.isCorrupted ? '#999' : '#ff4757', weight: 2, dashArray: next.isCorrupted ? '5,5' : null }
+            ).addTo(map);
+        }
+    }
+
+    function completeAudit() {
+        const remaining = trackPoints.filter(p => p.isCorrupted).length;
+        if (remaining > 0) {
+            if (!confirm(`${remaining} points still flagged. Continue anyway?`)) return;
+        }
+        
+        auditMode = false;
+        document.getElementById('auditPanel').classList.remove('active');
+        document.getElementById('finalizeBtn').classList.add('visible');
+        
+        // Disable all dragging
+        trackPoints.forEach(p => {
+            if (p.marker.dragging) p.marker.dragging.disable();
+        });
+    }
+
+    // 6. FINALIZE & MEASURE
+    function finalizeTrack() {
+        // Calculate precise total distance through all points
+        let preciseDistance = 0;
+        for (let i = 1; i < trackPoints.length; i++) {
+            preciseDistance += calculateDistance(trackPoints[i-1], trackPoints[i]);
+        }
+        
+        const feet = (preciseDistance / FOOT_IN_METERS).toFixed(1);
+        document.getElementById('walkDistVal').innerText = feet;
+        document.getElementById('walkDistance').style.display = 'block';
+        
+        // Convert track to regular markers for area calculation
+        trackPoints.forEach(p => {
+            const m = L.marker([p.lat, p.lng], { draggable: true }).addTo(map);
+            markers.push(m);
+            m.on('dragend', calc);
+            m.on('contextmenu', () => {
+                map.removeLayer(m);
+                markers = markers.filter(item => item !== m);
+                document.getElementById('pinCount').innerText = markers.length;
+                calc();
+            });
+        });
+        
+        document.getElementById('pinCount').innerText = markers.length;
+        document.getElementById('finalizeBtn').classList.remove('visible');
+        
+        // Fit bounds to show entire track
+        if (trackPoints.length > 0) {
+            const group = new L.featureGroup(trackPoints.map(p => p.marker));
+            map.fitBounds(group.getBounds().pad(0.1));
+        }
+        
+        alert(`Walk complete! Total distance: ${feet} feet\nPoints can now be used for area calculation.`);
+    }
+
+    // 7. Standard Marker Management
     function addMarker(lat, lng) {
         const m = L.marker([lat, lng], { draggable: true }).addTo(map);
         markers.push(m);
         document.getElementById('pinCount').innerText = markers.length;
-        
+
         m.on('dragend', calc);
-        m.on('contextmenu', () => { // Right click to remove
+        m.on('contextmenu', () => {
             map.removeLayer(m);
             markers = markers.filter(item => item !== m);
             document.getElementById('pinCount').innerText = markers.length;
@@ -119,30 +540,24 @@
         if (markers.length >= 3) calc();
     }
 
-    // 5. Core Calculations
+    // 8. Core Calculations
     function calc() {
         if (markers.length < 3) return;
         if (geoFence) map.removeLayer(geoFence);
 
         const coords = markers.map(m => [m.getLatLng().lng, m.getLatLng().lat]);
-        coords.push(coords[0]); // Close polygon
+        coords.push(coords[0]);
 
         const poly = turf.polygon([coords]);
         geoFence = L.geoJSON(poly, { style: { color: '#007bff', weight: 2, fillOpacity: 0.4 }}).addTo(map);
 
-        // Area math
         const areaSqM = turf.area(poly);
         const areaSqYd = areaSqM * 1.19599;
-        
-        // Volume math
         const depth = parseFloat(document.getElementById('matDepth').value) || 0;
         const volCuYd = areaSqYd * (depth / 36);
-        
-        // Cost math
         const price = parseFloat(document.getElementById('matCost').value) || 0;
         const totalPrice = volCuYd * price;
 
-        // Update UI
         document.getElementById('outArea').innerText = areaSqYd.toFixed(2);
         document.getElementById('outVol').innerText = volCuYd.toFixed(2);
         document.getElementById('outTotal').innerText = totalPrice.toLocaleString(undefined, {minimumFractionDigits: 2});
@@ -151,22 +566,57 @@
     function clearAll() {
         markers.forEach(m => map.removeLayer(m));
         markers = [];
+        
+        // Clear track visualization
+        trackPoints.forEach(p => {
+            if (p.marker) map.removeLayer(p.marker);
+            if (p.line) map.removeLayer(p.line);
+        });
+        trackPoints = [];
+        lastPosition = null;
+        totalDistance = 0;
+        auditMode = false;
+        
         if (geoFence) map.removeLayer(geoFence);
+        if (watchId !== null) {
+            navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+        }
+        isTracking = false;
+        
+        // Reset UI
+        document.getElementById('trackBtn').innerText = "🚶 Start Walk Tracking";
+        document.getElementById('trackBtn').classList.remove('active');
+        document.getElementById('dropToggle').disabled = false;
+        document.getElementById('trackStatus').classList.remove('active');
+        document.getElementById('modeIndicator').classList.remove('active');
+        document.getElementById('finalizeBtn').classList.remove('visible');
+        document.getElementById('auditPanel').classList.remove('active');
+        document.getElementById('walkDistance').style.display = 'none';
+        
         document.getElementById('pinCount').innerText = "0";
         document.getElementById('outArea').innerText = "0";
         document.getElementById('outVol').innerText = "0";
         document.getElementById('outTotal').innerText = "0.00";
+        document.getElementById('gpsAccuracy').innerText = "GPS: Idle";
     }
 
-    // 6. Report Generation
+    // 9. Report Generation
     function copyData() {
         const mat = document.getElementById('matName').value || "Unnamed Material";
         const area = document.getElementById('outArea').innerText;
         const vol = document.getElementById('outVol').innerText;
         const total = document.getElementById('outTotal').innerText;
+        const walkDist = document.getElementById('walkDistVal').innerText;
         const pts = markers.map((m, i) => `Point ${i+1}: ${m.getLatLng().lat.toFixed(6)}, ${m.getLatLng().lng.toFixed(6)}`).join('\n');
 
-        const report = `SITE ESTIMATE\n------------------\nMaterial: ${mat}\nArea: ${area} sq yd\nVolume: ${vol} cu yd\nTotal Cost: $${total}\n\nGPS LOG:\n${pts}`;
+        let report = `SITE ESTIMATE\n------------------\nMaterial: ${mat}\nArea: ${area} sq yd\nVolume: ${vol} cu yd\nTotal Cost: $${total}\n`;
+        
+        if (walkDist > 0) {
+            report += `\nWALK TRACKING\n------------------\nTotal Distance: ${walkDist} ft\n`;
+        }
+        
+        report += `\nGPS LOG:\n${pts}`;
 
         navigator.clipboard.writeText(report).then(() => alert("Report copied to clipboard."));
     }

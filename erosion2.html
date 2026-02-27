@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Site Plotter & Mapper</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --dark: #343a40; }
+        body { font-family: -apple-system, sans-serif; margin: 0; display: flex; height: 100vh; }
+        
+        #sidebar {
+            width: 400px;
+            background: #f8f9fa;
+            border-right: 2px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+        }
+        
+        #inputArea {
+            flex: 1;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        h2 { margin: 0 0 15px 0; color: var(--dark); font-size: 18px; }
+        
+        textarea {
+            flex: 1;
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            resize: none;
+        }
+        
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        button {
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        
+        button:active { transform: scale(0.98); }
+        
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        
+        #siteList {
+            max-height: 300px;
+            overflow-y: auto;
+            background: white;
+            border-top: 2px solid #ddd;
+            padding: 10px;
+        }
+        
+        .site-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        
+        .site-card:hover { border-color: var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .site-card.active { border-color: var(--primary); background: #e7f1ff; }
+        
+        .site-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        
+        .site-name {
+            font-weight: bold;
+            color: var(--dark);
+        }
+        
+        .site-dist {
+            font-size: 12px;
+            color: var(--success);
+            font-weight: 600;
+        }
+        
+        .site-points {
+            font-size: 11px;
+            color: #666;
+        }
+        
+        .label-input {
+            width: 100%;
+            padding: 6px;
+            margin-top: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        #map { flex: 1; }
+        
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            font-size: 12px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 3px;
+            margin-right: 8px;
+        }
+        
+        .site-popup h4 { margin: 0 0 8px 0; color: var(--primary); }
+        .site-popup p { margin: 4px 0; font-size: 13px; }
+        
+        .color-picker {
+            display: flex;
+            gap: 5px;
+            margin-top: 5px;
+        }
+        
+        .color-dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        
+        .color-dot.selected { border-color: var(--dark); }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <div id="inputArea">
+        <h2>📍 Paste Site Data</h2>
+        <textarea id="dataInput" placeholder="Paste your SITE ESTIMATE data here...">Erosion
+
+Site 1 : 52,6 se
+SITE ESTIMATE
+------------------
+Material: Unnamed Material
+Area: 0 sq yd
+Volume: 0 cu yd
+Total Cost: $0.00
+
+WALK TRACKING
+------------------
+Total Distance: 52.8 ft
+
+GPS LOG:
+Point 1: 38.131239, -94.832961
+Point 2: 38.131278, -94.832962
+Point 3: 38.131278, -94.832954
+Point 4: 38.131276, -94.832951
+Point 5: 38.131273, -94.832952
+Point 6: 38.131265, -94.832951
+Point 7: 38.131259, -94.832951
+Point 8: 38.131252, -94.832950
+Point 9: 38.131246, -94.832951
+Point 10: 38.131240, -94.832953
+Point 11: 38.131233, -94.832951
+Point 12: 38.131226, -94.832948
+Point 13: 38.131220, -94.832944
+Point 14: 38.131215, -94.832939
+Point 15: 38.131209, -94.832935
+Point 16: 38.131202, -94.832929
+Point 17: 38.131195, -94.832923
+Point 18: 38.131189, -94.832918
+Point 19: 38.131186, -94.832917
+Point 20: 38.131184, -94.832921
+Point 21: 38.131179, -94.832922
+Point 22: 38.131176, -94.832916
+Point 23: 38.131175, -94.832912
+
+
+
+Site 2 : 67.4 sw
+SITE ESTIMATE
+------------------
+Material: Unnamed Material
+Area: 0 sq yd
+Volume: 0 cu yd
+Total Cost: $0.00
+
+WALK TRACKING
+------------------
+Total Distance: 68.1 ft
+
+GPS LOG:
+Point 1: 38.131184, -94.832858
+Point 2: 38.131204, -94.832860
+Point 3: 38.131224, -94.832858
+Point 4: 38.131238, -94.832863
+Point 5: 38.131250, -94.832870
+Point 6: 38.131261, -94.832880
+Point 7: 38.131272, -94.832887
+Point 8: 38.131283, -94.832891
+Point 9: 38.131293, -94.832889
+Point 10: 38.131297, -94.832886
+Point 11: 38.131298, -94.832882
+Point 12: 38.131302, -94.832877
+Point 13: 38.131307, -94.832874
+Point 14: 38.131312, -94.832869
+Point 15: 38.131318, -94.832865
+Point 16: 38.131323, -94.832862
+Point 17: 38.131328, -94.832856
+Point 18: 38.131337, -94.832849
+Point 19: 38.131339, -94.832847
+Point 20: 38.131348, -94.832847
+Point 21: 38.131354, -94.832850
+Point 22: 38.131359, -94.832855
+Point 23: 38.131364, -94.832861
+Point 24: 38.131369, -94.832866
+Point 25: 38.131373, -94.832871
+Point 26: 38.131378, -94.832877
+
+
+
+Site 3 : 43 
+
+SITE ESTIMATE
+------------------
+Material: Unnamed Material
+Area: 0 sq yd
+Volume: 0 cu yd
+Total Cost: $0.00
+
+WALK TRACKING
+------------------
+Total Distance: 42.9 ft
+
+GPS LOG:
+Point 1: 38.131613, -94.833152
+Point 2: 38.131616, -94.833159
+Point 3: 38.131616, -94.833149
+Point 4: 38.131609, -94.833134
+Point 5: 38.131597, -94.833124
+Point 6: 38.131586, -94.833116
+Point 7: 38.131575, -94.833109
+Point 8: 38.131566, -94.833101
+Point 9: 38.131556, -94.833095
+Point 10: 38.131558, -94.833098
+Point 11: 38.131553, -94.833096
+Point 12: 38.131542, -94.833093
+Point 13: 38.131539, -94.833092
+Point 14: 38.131533, -94.833091
+Point 15: 38.131525, -94.833091
+Point 16: 38.131523, -94.833092
+
+
+
+Site 4.  50  Ne
+
+SITE ESTIMATE
+------------------
+Material: Unnamed Material
+Area: 0 sq yd
+Volume: 0 cu yd
+Total Cost: $0.00
+
+WALK TRACKING
+------------------
+Total Distance: 50.1 ft
+
+GPS LOG:
+Point 1: 38.131609, -94.833243
+Point 2: 38.131599, -94.833239
+Point 3: 38.131587, -94.833227
+Point 4: 38.131581, -94.833216
+Point 5: 38.131574, -94.833208
+Point 6: 38.131566, -94.833201
+Point 7: 38.131558, -94.833191
+Point 8: 38.131549, -94.833182
+Point 9: 38.131539, -94.833174
+Point 10: 38.131529, -94.833166
+Point 11: 38.131525, -94.833164
+Point 12: 38.131521, -94.833162
+Point 13: 38.131518, -94.833162
+Point 14: 38.131514, -94.833159
+Point 15: 38.131509, -94.833157
+Point 16: 38.131506, -94.833155
+Point 17: 38.131498, -94.833152
+Point 18: 38.131494, -94.833149</textarea>
+        
+        <div class="btn-group">
+            <button class="btn-primary" onclick="parseAndPlot()">🗺️ Plot Sites</button>
+            <button class="btn-danger" onclick="clearAll()">🗑️ Clear</button>
+        </div>
+    </div>
+    
+    <div id="siteList"></div>
+</div>
+
+<div id="map"></div>
+
+<div class="legend">
+    <strong>Sites</strong>
+    <div id="legendContent"></div>
+</div>
+
+<script>
+    // Initialize map
+    const map = L.map('map').setView([38.1313, -94.8329], 18);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 20 }).addTo(map);
+
+    let sites = [];
+    let layers = [];
+    const colors = ['#007bff', '#28a745', '#dc3545', '#ffc107', '#17a2b8', '#6f42c1', '#e83e8c', '#fd7e14'];
+
+    function parseAndPlot() {
+        clearAll();
+        const input = document.getElementById('dataInput').value;
+        const parsed = parseSites(input);
+        
+        parsed.forEach((site, index) => {
+            site.color = colors[index % colors.length];
+            site.label = site.name;
+            sites.push(site);
+            plotSite(site, index);
+            addSiteCard(site, index);
+        });
+        
+        if (sites.length > 0) {
+            const group = new L.featureGroup(layers);
+            map.fitBounds(group.getBounds().pad(0.1));
+        }
+        
+        updateLegend();
+    }
+
+    function parseSites(text) {
+        const sites = [];
+        const lines = text.split('\n');
+        let currentSite = null;
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            
+            // Match site headers like "Site 1 : 52,6 se" or "Site 4.  50  Ne"
+            const siteMatch = line.match(/Site\s+(\d+)[\s:\.]+([\d\s\.,]+)?\s*(\w+)?/i);
+            if (siteMatch) {
+                if (currentSite && currentSite.points.length > 0) {
+                    sites.push(currentSite);
+                }
+                currentSite = {
+                    id: parseInt(siteMatch[1]),
+                    name: `Site ${siteMatch[1]}`,
+                    rawHeader: line,
+                    distance: 0,
+                    points: [],
+                    notes: siteMatch[2] ? siteMatch[2].trim() : '',
+                    direction: siteMatch[3] || ''
+                };
+            }
+            
+            // Match distance
+            if (line.includes('Total Distance:') && currentSite) {
+                const distMatch = line.match(/([\d.]+)\s*ft/);
+                if (distMatch) currentSite.distance = parseFloat(distMatch[1]);
+            }
+            
+            // Match GPS points
+            const pointMatch = line.match(/Point\s+\d+:\s*(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
+            if (pointMatch && currentSite) {
+                currentSite.points.push({
+                    lat: parseFloat(pointMatch[1]),
+                    lng: parseFloat(pointMatch[2])
+                });
+            }
+        }
+        
+        if (currentSite && currentSite.points.length > 0) {
+            sites.push(currentSite);
+        }
+        
+        return sites;
+    }
+
+    function plotSite(site, index) {
+        const latlngs = site.points.map(p => [p.lat, p.lng]);
+        
+        // Draw polyline
+        const polyline = L.polyline(latlngs, {
+            color: site.color,
+            weight: 3,
+            opacity: 0.8
+        }).addTo(map);
+        
+        // Add start marker
+        const startMarker = L.circleMarker(latlngs[0], {
+            radius: 6,
+            fillColor: site.color,
+            color: '#fff',
+            weight: 2,
+            fillOpacity: 1
+        }).addTo(map).bindPopup(`<b>${site.name} - Start</b>`);
+        
+        // Add end marker
+        const endMarker = L.circleMarker(latlngs[latlngs.length - 1], {
+            radius: 6,
+            fillColor: site.color,
+            color: '#fff',
+            weight: 2,
+            fillOpacity: 1
+        }).addTo(map).bindPopup(`<b>${site.name} - End</b><br>${site.distance.toFixed(1)} ft`);
+        
+        // Add clickable label at midpoint
+        const midIndex = Math.floor(latlngs.length / 2);
+        const labelMarker = L.marker(latlngs[midIndex], {
+            icon: L.divIcon({
+                className: 'site-label',
+                html: `<div style="background:${site.color};color:white;padding:4px 8px;border-radius:4px;font-size:12px;font-weight:bold;white-space:nowrap;">${site.label}</div>`,
+                iconSize: null
+            })
+        }).addTo(map);
+        
+        // Store layers for cleanup
+        layers.push(polyline, startMarker, endMarker, labelMarker);
+        site.layers = [polyline, startMarker, endMarker, labelMarker];
+        
+        // Click to focus
+        polyline.on('click', () => focusSite(index));
+        labelMarker.on('click', () => focusSite(index));
+    }
+
+    function addSiteCard(site, index) {
+        const container = document.getElementById('siteList');
+        const card = document.createElement('div');
+        card.className = 'site-card';
+        card.id = `card-${index}`;
+        card.onclick = () => focusSite(index);
+        
+        card.innerHTML = `
+            <div class="site-header">
+                <span class="site-name" style="color:${site.color}">● ${site.name}</span>
+                <span class="site-dist">${site.distance.toFixed(1)} ft</span>
+            </div>
+            <div class="site-points">${site.points.length} GPS points • ${site.notes} ${site.direction}</div>
+            <input type="text" class="label-input" placeholder="Add label..." value="${site.label}" 
+                   onchange="updateLabel(${index}, this.value)" onclick="event.stopPropagation()">
+            <div class="color-picker" onclick="event.stopPropagation()">
+                ${colors.map((c, i) => `<div class="color-dot ${c === site.color ? 'selected' : ''}" 
+                    style="background:${c}" onclick="changeColor(${index}, '${c}')"></div>`).join('')}
+            </div>
+        `;
+        
+        container.appendChild(card);
+    }
+
+    function focusSite(index) {
+        const site = sites[index];
+        
+        // Update active card
+        document.querySelectorAll('.site-card').forEach(c => c.classList.remove('active'));
+        document.getElementById(`card-${index}`).classList.add('active');
+        
+        // Fly to site
+        const latlngs = site.points.map(p => [p.lat, p.lng]);
+        map.fitBounds(L.latLngBounds(latlngs).pad(0.2));
+        
+        // Open popup on end marker
+        site.layers[3].openPopup();
+    }
+
+    function updateLabel(index, newLabel) {
+        sites[index].label = newLabel;
+        // Refresh map
+        clearMapOnly();
+        sites.forEach((site, i) => plotSite(site, i));
+        updateLegend();
+    }
+
+    function changeColor(index, newColor) {
+        sites[index].color = newColor;
+        clearMapOnly();
+        sites.forEach((site, i) => plotSite(site, i));
+        
+        // Update card color indicator
+        const card = document.getElementById(`card-${index}`);
+        card.querySelector('.site-name').style.color = newColor;
+        card.querySelectorAll('.color-dot').forEach((dot, i) => {
+            dot.classList.toggle('selected', colors[i] === newColor);
+        });
+        
+        updateLegend();
+    }
+
+    function updateLegend() {
+        const legend = document.getElementById('legendContent');
+        legend.innerHTML = sites.map(s => `
+            <div class="legend-item">
+                <div class="legend-color" style="background:${s.color}"></div>
+                <span>${s.label} (${s.distance.toFixed(1)} ft)</span>
+            </div>
+        `).join('');
+    }
+
+    function clearMapOnly() {
+        layers.forEach(l => map.removeLayer(l));
+        layers = [];
+    }
+
+    function clearAll() {
+        clearMapOnly();
+        sites = [];
+        document.getElementById('siteList').innerHTML = '';
+        document.getElementById('legendContent').innerHTML = '';
+    }
+
+    // Auto-parse on load
+    window.onload = parseAndPlot;
+</script>
+
+</body>
+</html>
